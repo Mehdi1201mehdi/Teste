@@ -37,7 +37,7 @@ export function save() {
     state.lastSaved = nowHM();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     const statusEl = $("saveStatus");
-    if (statusEl) statusEl.textContent = "💾 " + state.lastSaved;
+    if (statusEl) statusEl.textContent = "💾 Enregistré";
   } catch (e) {
     /* quota dépassé ou navigation privée : la session continue en mémoire */
   }

@@ -1,0 +1,587 @@
+/* ==========================================================================
+   Composants UI
+   ========================================================================== */
+
+/* Marque / logo */
+.logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--green), #20b46b);
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: 22px;
+  box-shadow: 0 12px 26px rgba(var(--green-rgb), 0.24);
+  flex: 0 0 auto;
+}
+
+.logo img {
+  width: 26px;
+  height: 26px;
+}
+
+.brand h1 {
+  font-size: var(--fs-md);
+  letter-spacing: -0.03em;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 750;
+}
+
+.save {
+  font-size: var(--fs-xs);
+  color: var(--green);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Vacation / dashboard */
+.vac button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.78);
+  border-radius: 16px;
+  min-height: var(--tap);
+  font-weight: 950;
+  color: var(--muted);
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.vac button.on {
+  background: var(--green);
+  color: white;
+  border-color: transparent;
+}
+
+.stat {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat b {
+  display: block;
+  font-size: var(--fs-lg);
+  letter-spacing: -0.04em;
+}
+
+.stat span {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+/* Étapes / progression */
+.step {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 18px;
+  min-height: var(--tap);
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 950;
+  border: none;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.step.active {
+  background: var(--green);
+  color: #fff;
+  border-color: transparent;
+}
+
+.step.done {
+  border: 1px solid rgba(var(--green-rgb), 0.35);
+  color: var(--green);
+}
+
+/* Cartes */
+.card {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.cardTitle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.cardTitle h2 {
+  font-size: var(--fs-md);
+  letter-spacing: -0.03em;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+  margin: 6px 0 0;
+}
+
+label {
+  display: block;
+  font-size: var(--fs-xs);
+  font-weight: 950;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 12px 0 7px;
+}
+
+/* Champs */
+input[type="text"],
+input[type="date"],
+input[type="search"],
+input:not([type]) {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--ink);
+  border-radius: 18px;
+  min-height: 52px;
+  padding: 14px 15px;
+  outline: none;
+  font-size: 16px;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+input:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px rgba(var(--green-rgb), 0.14);
+}
+
+/* Suggestions (recherche rue / déchets) */
+.suggest {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  max-height: 310px;
+  overflow: auto;
+}
+
+.suggest.show {
+  display: block;
+}
+
+.sug {
+  width: 100%;
+  border: 0;
+  background: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  min-height: var(--tap);
+}
+
+.sug:last-child {
+  border-bottom: 0;
+}
+
+.sug:hover,
+.sug:focus-visible {
+  background: #f3faf6;
+}
+
+.sugName {
+  font-weight: 850;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.none {
+  padding: 16px;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed var(--line);
+  border-radius: 18px;
+  background: var(--soft);
+}
+
+/* Rue choisie + secteurs */
+.chosen {
+  display: none;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #f7fcf9;
+  padding: 12px;
+}
+
+.chosen.show {
+  display: block;
+}
+
+.chosenTop {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pin {
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
+  background: rgba(var(--green-rgb), 0.12);
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.sectorLine {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.sector {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: white;
+  color: var(--muted);
+  min-height: var(--tap);
+  padding: 0 14px;
+  font-size: var(--fs-xs);
+  font-weight: 950;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.sector.on {
+  color: white;
+  border-color: transparent;
+}
+
+/* Actions rapides (précisions) */
+.quick {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.qbtn {
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 18px;
+  min-height: 58px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink);
+  font-weight: 950;
+  text-align: left;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+
+.qbtn:active {
+  transform: scale(0.97);
+}
+
+.qbtn .ic {
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #eef5f0;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.qbtn small {
+  display: block;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+}
+
+.qbtn.on {
+  background: var(--green);
+  color: #fff;
+  border-color: transparent;
+}
+
+.qbtn.on small {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.qbtn.on .ic {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Pastilles déchets */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chip {
+  border: 1px solid rgba(var(--green-rgb), 0.24);
+  background: rgba(var(--green-rgb), 0.09);
+  color: var(--green2);
+  border-radius: 999px;
+  padding: 9px 12px;
+  font-weight: 950;
+  min-height: var(--tap);
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur) var(--ease);
+}
+
+.chip:active {
+  transform: scale(0.96);
+}
+
+.chip .x {
+  margin-left: 6px;
+  color: var(--red);
+}
+
+/* Boutons */
+.btn {
+  border: 0;
+  border-radius: 18px;
+  min-height: var(--tap);
+  padding: 0 16px;
+  font-weight: 950;
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    filter var(--dur) var(--ease);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btnPrimary {
+  background: linear-gradient(135deg, var(--green), var(--green2));
+  color: white;
+}
+
+.btnGhost {
+  background: #fff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.btnOrange {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+}
+
+.btnRed {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.full {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+/* Récapitulatif */
+.summary {
+  display: grid;
+  gap: 10px;
+}
+
+.sumItem {
+  background: #f7fcf9;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 12px;
+}
+
+.sumItem b {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* Cartes BP */
+.bp {
+  background: #f7fcf9;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.bpTop {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.num {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--green);
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+  flex: 0 0 auto;
+}
+
+.bpText {
+  min-width: 0;
+  flex: 1;
+}
+
+.bpText b {
+  display: block;
+  font-size: var(--fs-md);
+}
+
+.bpText small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.bpBtns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.mini {
+  border: 1px solid var(--line);
+  background: white;
+  border-radius: 14px;
+  min-height: var(--tap);
+  font-size: var(--fs-xs);
+  font-weight: 950;
+}
+
+/* Mail */
+.mail {
+  background: #0f172a;
+  color: #e5edf4;
+  border-radius: 20px;
+  padding: 14px;
+  white-space: pre-wrap;
+  line-height: 1.5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  max-height: 380px;
+  overflow: auto;
+  font-size: var(--fs-sm);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 90px;
+  transform: translate(-50%, 130%);
+  background: #0f172a;
+  color: white;
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-weight: 950;
+  z-index: 99;
+  transition: transform var(--dur-slow) var(--ease);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+  max-width: calc(100vw - 32px);
+  text-align: center;
+}
+
+.toast.show {
+  transform: translate(-50%, 0);
+}
+
+/* Bouton nav bas */
+.nav button {
+  border: 0;
+  border-radius: 16px;
+  background: #eef6f0;
+  color: var(--muted);
+  min-height: 52px;
+  font-size: var(--fs-xs);
+  font-weight: 950;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.nav button.on {
+  background: var(--green);
+  color: #fff;
+}
+
+/* Bannière hors-ligne */
+.offlineBanner {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #92610a;
+  border-radius: 16px;
+  padding: 10px 12px;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  margin-top: 10px;
+}
+
+.offlineBanner.show {
+  display: flex;
+}

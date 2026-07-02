@@ -1,0 +1,94 @@
+/* ==========================================================================
+   Media queries — petits écrans (téléphones)
+   Testé sur 320 / 360 / 375 / 390 / 412 / 430 px
+   ========================================================================== */
+
+@media (max-width: 480px) {
+  .app {
+    padding: 8px;
+  }
+  .brand {
+    border-radius: 20px;
+  }
+  .brand h1 {
+    font-size: 16px;
+  }
+  .logo {
+    width: 40px;
+    height: 40px;
+  }
+  .dash {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .stat {
+    padding: 9px;
+  }
+  .stat b {
+    font-size: 18px;
+  }
+  .steps {
+    gap: 5px;
+  }
+  .step {
+    font-size: 10px;
+    min-height: 42px;
+    padding: 6px;
+  }
+  .card {
+    border-radius: 20px;
+    padding: 13px;
+  }
+  .row {
+    grid-template-columns: 96px 1fr;
+  }
+  .quick {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .qbtn {
+    min-height: 52px;
+    padding: 7px;
+    font-size: 12px;
+    gap: 7px;
+  }
+  .qbtn .ic {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  .actions {
+    grid-template-columns: 1fr;
+  }
+  .bpBtns {
+    grid-template-columns: 1fr;
+  }
+  .vac button {
+    font-size: 12px;
+  }
+}
+
+/* Très petits écrans (320px) : marges minimales, une seule colonne de secours */
+@media (max-width: 340px) {
+  .steps {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+  .step {
+    font-size: 9px;
+    padding: 4px;
+  }
+  .dash {
+    gap: 6px;
+  }
+}
+
+/* Écran large en mode paysage sur mobile : éviter que le nav bas masque le contenu */
+@media (max-width: 900px) and (orientation: landscape) and (max-height: 480px) {
+  .nav {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .navIn button {
+    min-height: 40px;
+  }
+}

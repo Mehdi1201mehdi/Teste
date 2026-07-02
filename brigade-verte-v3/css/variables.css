@@ -1,0 +1,64 @@
+/* ==========================================================================
+   Brigade Verte Amiens V3 PRO — Design tokens
+   Palette : Vert Brigade Verte / Blanc / Gris clair — style Material 3 / Linear / Notion
+   ========================================================================== */
+:root {
+  /* Surfaces */
+  --bg: #edf7f1;
+  --bg2: #dfeee6;
+  --card: #ffffff;
+  --soft: #f5faf7;
+  --line: #d8e6dc;
+
+  /* Text */
+  --ink: #102117;
+  --muted: #637469;
+
+  /* Brand */
+  --green: #0f7a43;
+  --green2: #0a5d34;
+  --green-rgb: 15, 122, 67;
+
+  /* Status */
+  --orange: #f59e0b;
+  --red: #dc2626;
+  --blue: #2563eb;
+
+  /* Secteurs (identiques à l'API secteur existante) */
+  --centre: #8b5cf6;
+  --ouest: #2563eb;
+  --nord: #16a34a;
+  --est: #ef4444;
+  --sud: #f59e0b;
+
+  /* Elevation & shape */
+  --shadow-sm: 0 6px 18px rgba(15, 93, 52, 0.07);
+  --shadow: 0 18px 48px rgba(15, 93, 52, 0.12);
+  --shadow-lg: 0 24px 64px rgba(15, 93, 52, 0.18);
+  --radius-sm: 14px;
+  --radius: 24px;
+  --radius-lg: 28px;
+
+  /* Sizing */
+  --tap: 48px;
+  --header-h: 0px;
+  --nav-h: 78px;
+  --content-max: 1100px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 320ms;
+
+  /* Typography scale (fluid, mobile-first) */
+  --fs-xs: clamp(0.6875rem, 0.66rem + 0.15vw, 0.75rem);
+  --fs-sm: clamp(0.75rem, 0.72rem + 0.2vw, 0.8125rem);
+  --fs-base: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);
+  --fs-md: clamp(1rem, 0.96rem + 0.25vw, 1.125rem);
+  --fs-lg: clamp(1.125rem, 1.05rem + 0.4vw, 1.375rem);
+  --fs-xl: clamp(1.375rem, 1.25rem + 0.6vw, 1.75rem);
+
+  /* Volontairement clair uniquement : lisibilité maximale en plein soleil. */
+  color-scheme: light;
+}

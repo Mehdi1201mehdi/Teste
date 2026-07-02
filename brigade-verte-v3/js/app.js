@@ -3,7 +3,7 @@
 
 import { $ } from "./utils.js";
 import { state, load, save } from "./storage.js";
-import { toast, updateClock, renderVacations, initOfflineBanner } from "./ui.js";
+import { toast, initOfflineBanner } from "./ui.js";
 import { go, initRouter, renderStatus } from "./router.js";
 import { loadStreets, showRueSuggest, updateSectorByAddress } from "./streets.js";
 import { loadWaste, showWaste, addWaste, renderWastes } from "./waste.js";
@@ -22,7 +22,6 @@ import { generateMail } from "./mail.js";
 import { loadSectorContours } from "./sectors.js";
 
 function renderAll() {
-  renderVacations();
   renderBps();
   renderWastes();
   refreshPrecisions();
@@ -71,13 +70,15 @@ function bind() {
   $("addWaste").onclick = addWaste;
 
   $("addBp").onclick = addBp;
-  $("resetCurrent").onclick = () => resetCurrent();
+  $("resetCurrent").onclick = () => {
+    if (confirm("Effacer la saisie en cours ?")) resetCurrent();
+  };
   $("duplicateLast").onclick = duplicateLastAddress;
 
   $("copyMail").onclick = async () => {
     try {
       await navigator.clipboard.writeText($("mail").textContent);
-      toast("Texte copié");
+      toast("Texte copié ✅");
     } catch (e) {
       toast("Copie impossible");
     }
@@ -122,12 +123,9 @@ async function main() {
   setSector(state.current.secteur || state.current.rue?.secteur || null);
 
   renderAll();
-  go(state.step || 1);
+  go(Math.min(state.step || 1, 5));
 
-  setInterval(updateClock, 1000);
-  updateClock();
   save();
-
   loadSectorContours();
 }
 

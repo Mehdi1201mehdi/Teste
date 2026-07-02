@@ -20,7 +20,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
 
-<title>Brigade Verte Amiens V3 PRO</title>
+<title>Brigade Verte Amiens</title>
 
 <!-- CSS modulaire : ordre = tokens -> reset -> structure -> composants -> responsive -> animations -->
 <link rel="stylesheet" href="css/variables.css">
@@ -39,44 +39,35 @@
     <div class="brand">
       <div style="display:flex;gap:10px;align-items:center">
         <div class="logo"><img src="assets/logo/logo.svg" alt="" width="26" height="26"></div>
-        <div><h1>Brigade Verte Amiens</h1><p>V3 PRO · outil terrain</p></div>
+        <div><h1>Brigade Verte</h1><p>Amiens</p></div>
       </div>
       <div class="save" id="saveStatus" role="status" aria-live="polite">Sauvegarde</div>
     </div>
 
-    <div class="offlineBanner" id="offlineBanner" role="status">📴 Mode hors connexion — les saisies restent enregistrées.</div>
+    <div class="offlineBanner" id="offlineBanner" role="status">📴 Hors connexion — les saisies restent enregistrées.</div>
 
-    <div class="vac" id="vacations" role="group" aria-label="Vacation"></div>
-
-    <div class="dash">
-      <div class="stat"><b id="bpCount">0</b><span>BP</span></div>
-      <div class="stat"><b id="currentStep">1</b><span>étape</span></div>
-      <div class="stat"><b id="clock">--:--</b><span>heure</span></div>
-    </div>
-
-    <div class="steps" role="tablist" aria-label="Étapes de saisie">
-      <button class="step" type="button" role="tab" data-step="1">📍 Adresse</button>
-      <button class="step" type="button" role="tab" data-step="2">🗑 Déchets</button>
-      <button class="step" type="button" role="tab" data-step="3">📋 Vérif</button>
-      <button class="step" type="button" role="tab" data-step="4">📧 Mail</button>
+    <div class="progress" aria-hidden="false">
+      <div class="progressTop"><span id="stepLabel">Étape 1/5 · Adresse</span><span id="bpBadge" class="bpBadge">0 BP</span></div>
+      <div class="progressBar"><div id="progressFill"></div></div>
     </div>
   </header>
 
   <main class="grid" id="main">
     <section>
 
+      <!-- ÉTAPE 1 : ADRESSE -->
       <section id="view1" class="view active" aria-labelledby="view1title">
         <div class="card">
-          <div class="cardTitle"><div><h2 id="view1title">📍 Localisation</h2><p class="hint">Recherche la rue, mets le numéro et choisis les précisions utiles.</p></div></div>
-
-          <label for="date">Date de l'îlotage</label>
-          <input type="date" id="date">
+          <h2 id="view1title" class="stepTitle">📍 Où est le dépôt ?</h2>
 
           <label for="streetInput">Rue</label>
           <div class="search">
-            <input id="streetInput" autocomplete="off" spellcheck="false" placeholder="ex : Général Foy, Cagny, Strasbourg…" aria-expanded="false" aria-autocomplete="list" role="combobox">
+            <input id="streetInput" autocomplete="off" spellcheck="false" placeholder="Tape le nom de la rue…" aria-expanded="false" aria-autocomplete="list" role="combobox">
             <div id="streetSuggest" class="suggest" role="listbox"></div>
           </div>
+
+          <label for="numeroRue">Numéro (facultatif)</label>
+          <input id="numeroRue" inputmode="numeric" placeholder="ex : 152">
 
           <div id="chosenBox" class="chosen">
             <div class="chosenTop">
@@ -86,70 +77,87 @@
             <div id="sectors" class="sectorLine" role="group" aria-label="Choix manuel du secteur"></div>
           </div>
 
-          <div class="row">
-            <div><label for="numeroRue">N°</label><input id="numeroRue" inputmode="numeric" placeholder="152"></div>
-            <div><label id="precLabel">Précisions</label><div id="precPreview" class="sumItem" aria-live="polite">Aucune précision sélectionnée.</div></div>
-          </div>
-
-          <label id="quickLabel">Actions rapides</label>
-          <div class="quick" role="group" aria-labelledby="quickLabel">
-            <button class="qbtn" type="button" data-key="angle" aria-pressed="false"><span class="ic" aria-hidden="true">📍</span><span>Angle<small>À l'angle de</small></span></button>
-            <button class="qbtn" type="button" data-key="face" aria-pressed="false"><span class="ic" aria-hidden="true">🏠</span><span>En face<small>du numéro</small></span></button>
-            <button class="qbtn" type="button" data-key="devant" aria-pressed="false"><span class="ic" aria-hidden="true">🚪</span><span>Devant<small>le numéro</small></span></button>
-            <button class="qbtn" type="button" data-key="entre" aria-pressed="false"><span class="ic" aria-hidden="true">↔️</span><span>Entre<small>deux maisons</small></span></button>
-            <button class="qbtn" type="button" data-key="trottoir" aria-pressed="false"><span class="ic" aria-hidden="true">🚧</span><span>Trottoir<small>voirie</small></span></button>
-            <button class="qbtn" type="button" data-key="chaussee" aria-pressed="false"><span class="ic" aria-hidden="true">🛣️</span><span>Chaussée<small>voirie</small></span></button>
-            <button class="qbtn" type="button" data-key="pav" aria-pressed="false"><span class="ic" aria-hidden="true">🚏</span><span>PAV<small>au pied</small></span></button>
-          </div>
+          <details class="moreOpts">
+            <summary>Autres options</summary>
+            <label for="date">Date de l'îlotage</label>
+            <input type="date" id="date">
+            <button class="btn btnGhost full" id="resetCurrent" type="button" style="margin-top:10px">🗑 Tout effacer</button>
+          </details>
 
           <div class="actions">
-            <button class="btn btnGhost" id="resetCurrent" type="button">Réinitialiser</button>
-            <button class="btn btnPrimary" data-next="2" type="button">Suivant</button>
+            <button class="btn btnGhost full" id="duplicateLast" type="button" hidden>⧉ Même adresse que la dernière BP</button>
+            <button class="btn btnPrimary btnBig full" id="next1" data-next="2" type="button" disabled>Suivant ➜</button>
           </div>
         </div>
       </section>
 
+      <!-- ÉTAPE 2 : PRÉCISIONS -->
       <section id="view2" class="view" aria-labelledby="view2title">
         <div class="card">
-          <div class="cardTitle"><div><h2 id="view2title">🗑 Déchets</h2><p class="hint">Tape quelques lettres. Un clic ajoute l'objet.</p></div></div>
+          <h2 id="view2title" class="stepTitle">🎯 Où exactement ?</h2>
+          <p class="hint">Facultatif. Touche pour choisir, retouche pour enlever.</p>
 
-          <label for="wasteInput">Type de déchet</label>
-          <div class="search dechetSearch">
-            <input id="wasteInput" autocomplete="off" spellcheck="false" placeholder="ex : sac, mat, grav, carton…" aria-expanded="false" aria-autocomplete="list" role="combobox">
-            <div id="wasteSuggest" class="suggest" role="listbox"></div>
+          <div class="quick" role="group" aria-label="Précisions">
+            <button class="qbtn" type="button" data-key="angle" aria-pressed="false"><span class="ic" aria-hidden="true">📍</span><span>Angle</span></button>
+            <button class="qbtn" type="button" data-key="face" aria-pressed="false"><span class="ic" aria-hidden="true">🏠</span><span>En face du n°</span></button>
+            <button class="qbtn" type="button" data-key="devant" aria-pressed="false"><span class="ic" aria-hidden="true">🚪</span><span>Devant le n°</span></button>
+            <button class="qbtn" type="button" data-key="entre" aria-pressed="false"><span class="ic" aria-hidden="true">↔️</span><span>Entre deux maisons</span></button>
+            <button class="qbtn" type="button" data-key="trottoir" aria-pressed="false"><span class="ic" aria-hidden="true">🚧</span><span>Trottoir</span></button>
+            <button class="qbtn" type="button" data-key="chaussee" aria-pressed="false"><span class="ic" aria-hidden="true">🛣️</span><span>Chaussée</span></button>
+            <button class="qbtn" type="button" data-key="pav" aria-pressed="false"><span class="ic" aria-hidden="true">🚏</span><span>PAV</span></button>
           </div>
 
-          <div class="actions"><button class="btn btnPrimary full" id="addWaste" type="button">➕ Ajouter ce déchet</button></div>
+          <div id="precPreview" class="sumItem" aria-live="polite" style="margin-top:12px">Aucune précision sélectionnée.</div>
+
+          <div class="actions">
+            <button class="btn btnGhost" data-next="1" type="button">⬅ Retour</button>
+            <button class="btn btnPrimary btnBig" data-next="3" type="button">Suivant ➜</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ÉTAPE 3 : DÉCHETS -->
+      <section id="view3" class="view" aria-labelledby="view3title">
+        <div class="card">
+          <h2 id="view3title" class="stepTitle">🗑 Quels déchets ?</h2>
+          <p class="hint">Tape quelques lettres puis touche le déchet.</p>
+
+          <div class="search dechetSearch">
+            <input id="wasteInput" autocomplete="off" spellcheck="false" placeholder="ex : sac, mat, grav…" aria-expanded="false" aria-autocomplete="list" role="combobox">
+            <div id="wasteSuggest" class="suggest" role="listbox"></div>
+          </div>
+          <button class="btn btnGhost full" id="addWaste" type="button" style="margin-top:10px">➕ Ajouter ce que j'ai tapé</button>
 
           <label id="wasteChipsLabel">Déchets ajoutés</label>
           <div id="wasteChips" class="chips" role="group" aria-labelledby="wasteChipsLabel"></div>
 
           <div class="actions">
-            <button class="btn btnGhost" data-next="1" type="button">Retour</button>
-            <button class="btn btnPrimary" data-next="3" type="button">Suivant</button>
+            <button class="btn btnGhost" data-next="2" type="button">⬅ Retour</button>
+            <button class="btn btnPrimary btnBig" id="next3" data-next="4" type="button" disabled>Suivant ➜</button>
           </div>
         </div>
       </section>
 
-      <section id="view3" class="view" aria-labelledby="view3title">
-        <div class="card">
-          <div class="cardTitle"><div><h2 id="view3title">📋 Vérification</h2><p class="hint">Contrôle la BP avant de l'ajouter.</p></div></div>
-          <div id="summary" class="summary"></div>
-          <div class="actions">
-            <button class="btn btnGhost" data-next="2" type="button">Retour</button>
-            <button class="btn btnPrimary" id="addBp" type="button">✅ Ajouter la BP</button>
-            <button class="btn btnOrange full" id="duplicateLast" type="button">⧉ Reprendre dernière adresse</button>
-          </div>
-        </div>
-      </section>
-
+      <!-- ÉTAPE 4 : VÉRIFICATION -->
       <section id="view4" class="view" aria-labelledby="view4title">
         <div class="card">
-          <div class="cardTitle"><div><h2 id="view4title">📧 Texte à copier</h2><p class="hint">Même format que ton ancien outil, avec des virgules.</p></div></div>
+          <h2 id="view4title" class="stepTitle">📋 C'est bien ça ?</h2>
+          <div id="summary" class="summary"></div>
+          <div class="actions">
+            <button class="btn btnGhost" data-next="1" type="button">✏ Modifier</button>
+            <button class="btn btnPrimary btnBig" id="addBp" type="button">✅ Ajouter la BP</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ÉTAPE 5 : TEXTE FINAL -->
+      <section id="view5" class="view" aria-labelledby="view5title">
+        <div class="card">
+          <h2 id="view5title" class="stepTitle">📧 Texte à envoyer</h2>
           <div id="mail" class="mail" aria-live="polite"></div>
           <div class="actions">
-            <button class="btn btnPrimary" id="copyMail" type="button">📋 Copier</button>
-            <button class="btn btnGhost" data-next="1" type="button">Nouvelle BP</button>
+            <button class="btn btnPrimary btnBig full" id="copyMail" type="button">📋 Copier le texte</button>
+            <button class="btn btnGhost full" data-next="1" type="button">➕ Nouvelle BP</button>
           </div>
         </div>
         <div class="card mobileOnly">
@@ -172,15 +180,6 @@
     </aside>
   </main>
 </div>
-
-<nav class="nav" aria-label="Navigation par étapes">
-  <div class="navIn">
-    <button type="button" data-next="1">📍<br>Adresse</button>
-    <button type="button" data-next="2">🗑<br>Déchets</button>
-    <button type="button" data-next="3">📋<br>Vérif</button>
-    <button type="button" data-next="4">📧<br>Mail</button>
-  </div>
-</nav>
 
 <div id="toast" class="toast" role="status" aria-live="assertive"></div>
 

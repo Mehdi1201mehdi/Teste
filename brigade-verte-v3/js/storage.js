@@ -5,12 +5,10 @@ import { $, nowHM } from "./utils.js";
 import { renderStatus } from "./router.js";
 
 export const STORAGE_KEY = "brigade_verte_amiens_v3_pro";
-export const VACATIONS = ["06h-14h", "09h-17h", "13h-21h"];
 
 function defaultState() {
   return {
     date: "",
-    vacation: "",
     step: 1,
     current: { rue: null, numero: "", secteur: null, precisions: [], wastes: [] },
     bps: [],
@@ -20,14 +18,6 @@ function defaultState() {
 }
 
 export const state = defaultState();
-
-export function autoVacation() {
-  if (state.vacation) return state.vacation;
-  const h = new Date().getHours();
-  if (h < 8) return "06h-14h";
-  if (h < 12) return "09h-17h";
-  return "13h-21h";
-}
 
 export function load() {
   try {

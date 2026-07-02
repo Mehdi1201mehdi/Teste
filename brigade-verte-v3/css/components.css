@@ -40,76 +40,49 @@
   white-space: nowrap;
 }
 
-/* Vacation / dashboard */
-.vac button {
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.78);
-  border-radius: 16px;
-  min-height: var(--tap);
-  font-weight: 950;
-  color: var(--muted);
-  transition:
-    background var(--dur) var(--ease),
-    color var(--dur) var(--ease),
-    border-color var(--dur) var(--ease);
+/* Barre de progression de l'assistant */
+.progress {
+  margin-top: 10px;
 }
 
-.vac button.on {
-  background: var(--green);
-  color: white;
-  border-color: transparent;
-}
-
-.stat {
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  padding: 10px 12px;
-  box-shadow: var(--shadow-sm);
-}
-
-.stat b {
-  display: block;
-  font-size: var(--fs-lg);
-  letter-spacing: -0.04em;
-}
-
-.stat span {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
-/* Étapes / progression */
-.step {
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.82);
-  border-radius: 18px;
-  min-height: var(--tap);
-  padding: 8px;
+.progressTop {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--fs-xs);
-  font-weight: 950;
-  border: none;
-  transition:
-    background var(--dur) var(--ease),
-    color var(--dur) var(--ease);
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-.step.active {
+#stepLabel {
+  font-size: var(--fs-sm);
+  font-weight: 950;
+  color: var(--ink);
+}
+
+.bpBadge {
+  border-radius: 999px;
+  padding: 4px 10px;
   background: var(--green);
   color: #fff;
-  border-color: transparent;
+  font-size: var(--fs-xs);
+  font-weight: 950;
+  white-space: nowrap;
 }
 
-.step.done {
-  border: 1px solid rgba(var(--green-rgb), 0.35);
-  color: var(--green);
+.progressBar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+#progressFill {
+  height: 100%;
+  width: 20%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green), #20b46b);
+  transition: width var(--dur-slow) var(--ease);
 }
 
 /* Cartes */
@@ -135,6 +108,12 @@
   letter-spacing: -0.03em;
 }
 
+.stepTitle {
+  font-size: var(--fs-lg);
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+
 .hint {
   color: var(--muted);
   font-size: var(--fs-sm);
@@ -149,7 +128,41 @@ label {
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 12px 0 7px;
+  margin: 14px 0 7px;
+}
+
+/* Options repliées (date, effacer) pour garder l'écran simple */
+.moreOpts {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--soft);
+  padding: 0 12px;
+}
+
+.moreOpts summary {
+  cursor: pointer;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  font-weight: 900;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  list-style: none;
+}
+
+.moreOpts summary::before {
+  content: "▸ ";
+  margin-right: 6px;
+  transition: transform var(--dur) var(--ease);
+}
+
+.moreOpts[open] summary::before {
+  content: "▾ ";
+}
+
+.moreOpts[open] {
+  padding-bottom: 12px;
 }
 
 /* Champs */
@@ -162,10 +175,10 @@ input:not([type]) {
   background: var(--soft);
   color: var(--ink);
   border-radius: 18px;
-  min-height: 52px;
+  min-height: 56px;
   padding: 14px 15px;
   outline: none;
-  font-size: 16px;
+  font-size: 17px;
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
@@ -202,10 +215,11 @@ input:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 14px;
+  padding: 14px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   min-height: var(--tap);
+  font-size: 16px;
 }
 
 .sug:last-child {
@@ -293,28 +307,31 @@ input:focus {
   border-color: transparent;
 }
 
-/* Actions rapides (précisions) */
+/* Boutons de précision (étape 2) */
 .quick {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 10px;
+  margin-top: 12px;
 }
 
 .qbtn {
-  border: 1px solid var(--line);
+  border: 2px solid var(--line);
   background: #fff;
   border-radius: 18px;
-  min-height: 58px;
-  padding: 8px;
+  min-height: 64px;
+  padding: 10px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   color: var(--ink);
   font-weight: 950;
+  font-size: 15px;
   text-align: left;
   transition:
     background var(--dur) var(--ease),
     color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
     transform var(--dur-fast) var(--ease);
 }
 
@@ -323,31 +340,20 @@ input:focus {
 }
 
 .qbtn .ic {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 12px;
   display: grid;
   place-items: center;
   background: #eef5f0;
-  font-size: 18px;
+  font-size: 20px;
   flex: 0 0 auto;
-}
-
-.qbtn small {
-  display: block;
-  color: var(--muted);
-  font-size: var(--fs-xs);
-  font-weight: 800;
 }
 
 .qbtn.on {
   background: var(--green);
   color: #fff;
-  border-color: transparent;
-}
-
-.qbtn.on small {
-  color: rgba(255, 255, 255, 0.82);
+  border-color: var(--green2);
 }
 
 .qbtn.on .ic {
@@ -367,8 +373,9 @@ input:focus {
   background: rgba(var(--green-rgb), 0.09);
   color: var(--green2);
   border-radius: 999px;
-  padding: 9px 12px;
+  padding: 9px 14px;
   font-weight: 950;
+  font-size: 15px;
   min-height: var(--tap);
   transition: transform var(--dur-fast) var(--ease), opacity var(--dur) var(--ease);
 }
@@ -380,24 +387,32 @@ input:focus {
 .chip .x {
   margin-left: 6px;
   color: var(--red);
+  font-size: 18px;
 }
 
 /* Boutons */
 .btn {
   border: 0;
   border-radius: 18px;
-  min-height: var(--tap);
+  min-height: 56px;
   padding: 0 16px;
   font-weight: 950;
+  font-size: 16px;
   box-shadow: var(--shadow-sm);
   transition:
     transform var(--dur-fast) var(--ease),
     box-shadow var(--dur) var(--ease),
-    filter var(--dur) var(--ease);
+    filter var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
 }
 
-.btn:active {
+.btn:active:not(:disabled) {
   transform: scale(0.98);
+}
+
+.btnBig {
+  min-height: 64px;
+  font-size: 18px;
 }
 
 .btnPrimary {
@@ -423,9 +438,14 @@ input:focus {
 
 .actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1.4fr;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: 16px;
+}
+
+.actions > .full:only-child,
+.actions > .btnBig.full {
+  grid-column: 1 / -1;
 }
 
 .full {
@@ -437,18 +457,20 @@ input:focus {
 .summary {
   display: grid;
   gap: 10px;
+  margin-top: 12px;
 }
 
 .sumItem {
   background: #f7fcf9;
   border: 1px solid var(--line);
   border-radius: 18px;
-  padding: 12px;
+  padding: 12px 14px;
+  font-size: 16px;
 }
 
 .sumItem b {
   display: block;
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-transform: uppercase;
   margin-bottom: 4px;
@@ -526,19 +548,21 @@ input:focus {
   max-height: 380px;
   overflow: auto;
   font-size: var(--fs-sm);
+  margin-top: 12px;
 }
 
 /* Toast */
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 90px;
-  transform: translate(-50%, 130%);
+  bottom: 26px;
+  transform: translate(-50%, 160%);
   background: #0f172a;
   color: white;
   border-radius: 999px;
-  padding: 12px 16px;
+  padding: 14px 18px;
   font-weight: 950;
+  font-size: 15px;
   z-index: 99;
   transition: transform var(--dur-slow) var(--ease);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
@@ -548,23 +572,6 @@ input:focus {
 
 .toast.show {
   transform: translate(-50%, 0);
-}
-
-/* Bouton nav bas */
-.nav button {
-  border: 0;
-  border-radius: 16px;
-  background: #eef6f0;
-  color: var(--muted);
-  min-height: 52px;
-  font-size: var(--fs-xs);
-  font-weight: 950;
-  transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
-}
-
-.nav button.on {
-  background: var(--green);
-  color: #fff;
 }
 
 /* Bannière hors-ligne */

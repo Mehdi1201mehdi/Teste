@@ -36,7 +36,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(var(--green-rgb), 0.17), transparent 34%),
     linear-gradient(150deg, var(--bg), var(--bg2));
-  padding: env(safe-area-inset-top) 0 calc(var(--nav-h) + env(safe-area-inset-bottom));
+  padding: env(safe-area-inset-top) 0 calc(24px + env(safe-area-inset-bottom));
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;

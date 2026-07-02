@@ -138,7 +138,7 @@ export function addBp() {
   resetCurrent(false);
   renderBps();
   generateMail();
-  go(4);
+  go(5);
 }
 
 export function editBp(i) {
@@ -193,11 +193,10 @@ export function duplicateLastAddress() {
   $("numeroRue").value = last.numero || "";
   setSector(last.secteur);
   refreshPrecisions();
-  go(1);
+  toast("Adresse reprise — vérifie le numéro");
 }
 
 export function renderBps() {
-  $("bpCount").textContent = state.bps.length;
   ["listBadge", "listBadgeMobile"].forEach((id) => {
     const e = $(id);
     if (e) e.textContent = state.bps.length + " BP";

@@ -3,7 +3,7 @@
    Testé sur 768 / 1024 / 1366 / 1920 / 4K
    ========================================================================== */
 
-/* Tablette et plus : deux colonnes (contenu + panneau BP/mail) */
+/* Tablette et plus : deux colonnes (assistant + panneau BP/mail) */
 @media (min-width: 901px) {
   main.grid {
     grid-template-columns: 1fr 390px;
@@ -13,12 +13,6 @@
   }
   .mobileOnly {
     display: none;
-  }
-  .nav {
-    display: none;
-  }
-  body {
-    padding-bottom: 18px;
   }
 }
 
@@ -30,17 +24,11 @@
   .card {
     padding: 20px;
   }
-  .quick {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 @media (min-width: 1366px) {
   :root {
     --content-max: 1240px;
-  }
-  .steps {
-    max-width: 640px;
   }
 }
 
@@ -57,14 +45,11 @@
 
 /* Souris / pointeur précis : micro-interactions au survol */
 @media (hover: hover) and (pointer: fine) {
-  .btn:hover {
+  .btn:hover:not(:disabled) {
     filter: brightness(1.04);
   }
   .qbtn:hover {
     border-color: var(--green);
-  }
-  .step:hover:not(.active) {
-    background: #fff;
   }
   .bp:hover {
     box-shadow: var(--shadow-sm);

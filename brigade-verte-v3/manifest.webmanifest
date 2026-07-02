@@ -1,5 +1,5 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "Brigade Verte Amiens",
   "short_name": "Brigade Verte",
   "description": "Outil terrain de la Brigade Verte d'Amiens : saisie des Bons de Passage et génération du mail de signalement.",

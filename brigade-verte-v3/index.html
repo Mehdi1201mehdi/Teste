@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#0f6b3a">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex, nofollow">
@@ -75,6 +75,7 @@
               <div style="flex:1"><b id="chosenRue">Rue choisie</b><div class="sectorLine"><span id="chosenSector" class="sector">Secteur ?</span></div></div>
             </div>
             <div id="sectors" class="sectorLine" role="group" aria-label="Choix manuel du secteur"></div>
+            <button class="btn btnGhost full" id="changeStreet" type="button" style="margin-top:10px">✏ Modifier la sélection</button>
           </div>
 
           <details class="moreOpts">
@@ -154,7 +155,11 @@
       <section id="view5" class="view" aria-labelledby="view5title">
         <div class="card">
           <h2 id="view5title" class="stepTitle">📧 Texte à envoyer</h2>
-          <div id="mail" class="mail" aria-live="polite"></div>
+          <div id="mail" class="mail" aria-live="polite" spellcheck="false"></div>
+          <div class="mailTools">
+            <button class="mini" id="editMail" type="button">✏ Modifier le texte</button>
+            <button class="mini" id="resetMail" type="button">🗑 Supprimer / rétablir</button>
+          </div>
           <div class="actions">
             <button class="btn btnPrimary btnBig full" id="copyMail" type="button">📋 Copier le texte</button>
             <button class="btn btnGhost full" data-next="1" type="button">➕ Nouvelle BP</button>

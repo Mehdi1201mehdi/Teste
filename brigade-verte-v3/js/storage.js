@@ -13,6 +13,7 @@ function defaultState() {
     current: { rue: null, numero: "", secteur: null, precisions: [], wastes: [] },
     bps: [],
     editing: null,
+    mailCustom: "",
     lastSaved: "",
   };
 }

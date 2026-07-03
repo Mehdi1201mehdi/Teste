@@ -199,7 +199,8 @@ input:focus {
   border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  max-height: 310px;
+  /* dvh : la liste reste visible même quand le clavier réduit la hauteur d'écran */
+  max-height: min(310px, 38dvh);
   overflow: auto;
 }
 
@@ -549,6 +550,26 @@ input:focus {
   overflow: auto;
   font-size: var(--fs-sm);
   margin-top: 12px;
+  outline: none;
+}
+
+/* Mode édition du texte : cadre vert bien visible */
+.mail[contenteditable="true"] {
+  box-shadow: 0 0 0 3px var(--green);
+  background: #16233f;
+}
+
+.mailTools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mailTools .mini.on {
+  background: var(--green);
+  color: #fff;
+  border-color: transparent;
 }
 
 /* Toast */

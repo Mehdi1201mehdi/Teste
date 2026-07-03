@@ -136,6 +136,7 @@ export function addBp() {
     toast("BP ajoutée");
   }
   resetCurrent(false);
+  state.mailCustom = "";
   renderBps();
   generateMail();
   go(5);
@@ -165,6 +166,7 @@ export function editBp(i) {
 export function duplicateBp(i) {
   const bp = JSON.parse(JSON.stringify(state.bps[i]));
   state.bps.splice(i + 1, 0, bp);
+  state.mailCustom = "";
   renderBps();
   generateMail();
   save();
@@ -174,6 +176,7 @@ export function duplicateBp(i) {
 export function delBp(i) {
   if (confirm("Supprimer cette BP ?")) {
     state.bps.splice(i, 1);
+    state.mailCustom = "";
     renderBps();
     generateMail();
     save();

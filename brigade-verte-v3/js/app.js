@@ -84,6 +84,58 @@ function bind() {
     }
   };
 
+  // ✏ Modification manuelle du texte de la BP : un clic ouvre l'édition,
+  // un second la termine et enregistre. Le texte modifié survit au rechargement.
+  $("editMail").onclick = () => {
+    const mailEl = $("mail");
+    const btn = $("editMail");
+    const editing = mailEl.getAttribute("contenteditable") === "true";
+    if (editing) {
+      mailEl.setAttribute("contenteditable", "false");
+      btn.textContent = "✏ Modifier le texte";
+      btn.classList.remove("on");
+      const txt = mailEl.innerText.trim();
+      state.mailCustom = txt;
+      generateMail();
+      save();
+      toast("Texte enregistré ✅");
+    } else {
+      mailEl.setAttribute("contenteditable", "true");
+      btn.textContent = "✔ Terminer";
+      btn.classList.add("on");
+      mailEl.focus();
+      toast("Tape directement dans le texte");
+    }
+  };
+
+  // 🗑 Supprime les modifications manuelles et rétablit le texte automatique.
+  $("resetMail").onclick = () => {
+    if (state.mailCustom && !confirm("Supprimer tes modifications et rétablir le texte automatique ?")) {
+      return;
+    }
+    state.mailCustom = "";
+    const mailEl = $("mail");
+    mailEl.setAttribute("contenteditable", "false");
+    $("editMail").textContent = "✏ Modifier le texte";
+    $("editMail").classList.remove("on");
+    generateMail();
+    save();
+    toast("Texte automatique rétabli");
+  };
+
+  // ✏ Modifier la sélection de rue déjà validée : on garde le numéro,
+  // les précisions et les déchets — seule la rue est à rechoisir.
+  $("changeStreet").onclick = () => {
+    state.current.rue = null;
+    setSector(null);
+    $("chosenBox").classList.remove("show");
+    const input = $("streetInput");
+    input.focus();
+    input.select();
+    save();
+    toast("Choisis la nouvelle rue");
+  };
+
   document.querySelectorAll("[data-next]").forEach((b) => {
     b.onclick = () => go(+b.dataset.next);
   });
@@ -92,6 +144,16 @@ function bind() {
     if (!e.target.closest(".search")) {
       document.querySelectorAll(".suggest").forEach((x) => x.classList.remove("show"));
     }
+  });
+
+  // Clavier mobile : une fois le clavier ouvert (≈300 ms), recentre le champ
+  // actif pour qu'il reste visible au-dessus du clavier, sur Android et iOS.
+  document.querySelectorAll("input, .mail").forEach((el) => {
+    el.addEventListener("focus", () => {
+      setTimeout(() => {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 300);
+    });
   });
 }
 

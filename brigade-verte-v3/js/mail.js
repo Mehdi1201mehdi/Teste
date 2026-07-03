@@ -13,15 +13,9 @@ function dateFr() {
   return `${j}/${m}/${a}`;
 }
 
-export function generateMail() {
-  const mailEl = $("mail");
-  const mailSideEl = $("mailSide");
-  if (!state.bps.length) {
-    const empty = "(Ajoutez des BP pour générer le texte.)";
-    mailEl.textContent = empty;
-    mailSideEl.textContent = empty;
-    return;
-  }
+/** Texte généré automatiquement à partir des BP (format historique inchangé). */
+export function autoMailText() {
+  if (!state.bps.length) return "(Ajoutez des BP pour générer le texte.)";
   let t = "Bonjour,\n\n";
   t += `Lors de notre îlotage du ${dateFr()} nous avons constaté des dépôts sauvages dans les rues suivantes :\n`;
   SECTEURS.forEach((sec) => {
@@ -33,6 +27,15 @@ export function generateMail() {
     });
   });
   t += "\nCordialement.";
-  mailEl.textContent = t;
-  mailSideEl.textContent = t;
+  return t;
+}
+
+/**
+ * Affiche le texte : la version modifiée à la main (state.mailCustom) est
+ * prioritaire ; sinon le texte automatique. L'aperçu latéral suit.
+ */
+export function generateMail() {
+  const t = state.mailCustom || autoMailText();
+  $("mail").textContent = t;
+  $("mailSide").textContent = t;
 }

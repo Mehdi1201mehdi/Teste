@@ -57,6 +57,14 @@ textarea {
   color: inherit;
 }
 
+/* Quand un champ reçoit le focus (clavier ouvert), le défilement laisse la place
+   à l'en-tête collant au-dessus et aux suggestions en dessous. */
+input,
+[contenteditable] {
+  scroll-margin-top: 120px;
+  scroll-margin-bottom: 160px;
+}
+
 button {
   cursor: pointer;
   touch-action: manipulation;

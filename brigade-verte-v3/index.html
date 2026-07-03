@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#0f6b3a">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex, nofollow">
@@ -47,7 +47,7 @@
     <div class="offlineBanner" id="offlineBanner" role="status">📴 Hors connexion — les saisies restent enregistrées.</div>
 
     <div class="progress" aria-hidden="false">
-      <div class="progressTop"><span id="stepLabel">Étape 1/5 · Adresse</span><span id="bpBadge" class="bpBadge">0 BP</span></div>
+      <div class="progressTop"><span id="stepLabel" role="status" aria-live="polite">Étape 1/5 · Adresse</span><span id="bpBadge" class="bpBadge">0 BP</span></div>
       <div class="progressBar"><div id="progressFill"></div></div>
     </div>
   </header>
@@ -82,6 +82,9 @@
             <summary>Autres options</summary>
             <label for="date">Date de l'îlotage</label>
             <input type="date" id="date">
+            <button class="btn btnGhost full" id="exportBps" type="button" style="margin-top:10px">💾 Sauvegarder mes BP dans un fichier</button>
+            <button class="btn btnGhost full" id="importBps" type="button" style="margin-top:10px">📂 Recharger des BP depuis un fichier</button>
+            <input type="file" id="importFile" accept=".json,application/json" hidden>
             <button class="btn btnGhost full" id="resetCurrent" type="button" style="margin-top:10px">🗑 Tout effacer</button>
           </details>
 
@@ -165,6 +168,7 @@
           </div>
           <div class="actions">
             <button class="btn btnPrimary btnBig full" id="copyMail" type="button">📋 Copier le texte</button>
+            <button class="btn btnGhost full" id="openMail" type="button">📧 Ouvrir dans l'appli mail</button>
             <button class="btn btnGhost full" data-next="1" type="button">➕ Nouvelle BP</button>
           </div>
         </div>

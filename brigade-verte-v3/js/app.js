@@ -76,10 +76,60 @@ function bind() {
   $("addWaste").onclick = addWaste;
 
   $("addBp").onclick = addBp;
+  // Double confirmation : sur le terrain, un pouce qui glisse ne doit pas
+  // effacer la saisie en cours.
   $("resetCurrent").onclick = () => {
-    if (confirm("Effacer la saisie en cours ?")) resetCurrent();
+    if (
+      confirm("Effacer la saisie en cours ?") &&
+      confirm("Confirme : tout effacer ? Cette action est définitive.")
+    ) {
+      resetCurrent();
+    }
   };
   $("duplicateLast").onclick = duplicateLastAddress;
+
+  // 💾 Export de secours : toutes les BP dans un fichier JSON téléchargé.
+  $("exportBps").onclick = () => {
+    if (!state.bps.length) return toast("Aucune BP à sauvegarder");
+    const data = JSON.stringify(
+      { app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps },
+      null,
+      2,
+    );
+    const blob = new Blob([data], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `brigade-verte-bp-${state.date || new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast(state.bps.length + " BP sauvegardées 💾");
+  };
+
+  // 📂 Import : recharge les BP depuis un fichier exporté.
+  $("importBps").onclick = () => $("importFile").click();
+  $("importFile").onchange = async () => {
+    const file = $("importFile").files[0];
+    $("importFile").value = "";
+    if (!file) return;
+    try {
+      const json = JSON.parse(await file.text());
+      const bps = Array.isArray(json) ? json : json.bps;
+      if (!Array.isArray(bps) || !bps.every((b) => b && b.rue && b.secteur)) {
+        return toast("Fichier non reconnu");
+      }
+      if (state.bps.length && !confirm(`Remplacer les ${state.bps.length} BP actuelles par les ${bps.length} BP du fichier ?`)) {
+        return;
+      }
+      state.bps = bps;
+      state.mailCustom = "";
+      renderBps();
+      generateMail();
+      save();
+      toast(bps.length + " BP rechargées 📂");
+    } catch (e) {
+      toast("Fichier illisible");
+    }
+  };
 
   $("copyMail").onclick = async () => {
     try {
@@ -88,6 +138,26 @@ function bind() {
     } catch (e) {
       toast("Copie impossible");
     }
+  };
+
+  // 📧 Ouvre l'application mail avec l'objet et le texte pré-remplis.
+  // Les URL mailto trop longues sont refusées par certains clients :
+  // au-delà de la limite, on copie le texte à la place.
+  $("openMail").onclick = async () => {
+    const body = $("mail").textContent;
+    const [a, m, j] = ($("date").value || "").split("-");
+    const subject = a ? `Dépôts sauvages — îlotage du ${j}/${m}/${a}` : "Dépôts sauvages";
+    const url = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    if (url.length > 1900) {
+      try {
+        await navigator.clipboard.writeText(body);
+        toast("Texte trop long pour le mail direct — copié à la place 📋");
+      } catch (e) {
+        toast("Texte trop long — utilise 📋 Copier");
+      }
+      return;
+    }
+    window.location.href = url;
   };
 
   // ✏ Modification manuelle du texte de la BP : un clic ouvre l'édition,
@@ -176,6 +246,9 @@ function registerServiceWorker() {
 
 async function main() {
   registerServiceWorker();
+  // Demande au navigateur de protéger le stockage local contre le nettoyage
+  // automatique (Android/iOS sous pression mémoire).
+  navigator.storage?.persist?.().catch(() => {});
   load();
   await Promise.all([loadStreets(), loadWaste()]);
   bind();

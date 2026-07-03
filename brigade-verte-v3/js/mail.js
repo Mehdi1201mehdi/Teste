@@ -4,7 +4,7 @@
 import { $ } from "./utils.js";
 import { state } from "./storage.js";
 import { SECTEURS, TITRE } from "./sectors.js";
-import { adresseText, bpLine } from "./bp.js";
+import { mailLine } from "./bp.js";
 
 function dateFr() {
   const v = $("date").value;
@@ -23,7 +23,7 @@ export function autoMailText() {
     if (!list.length) return;
     t += `\n${TITRE[sec]} :\n`;
     list.forEach((b) => {
-      t += `   • ${adresseText(b)} : ${bpLine(b)}\n`;
+      t += `   • ${mailLine(b)}\n`;
     });
   });
   t += "\nCordialement.";

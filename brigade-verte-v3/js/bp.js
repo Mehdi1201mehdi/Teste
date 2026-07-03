@@ -89,6 +89,20 @@ export function bpLine(bp) {
   return c;
 }
 
+/**
+ * Ligne du mail : précisions AVANT l'adresse, puis les déchets.
+ * Ex : "Au pied du PAV 76 Rue du Professeur Christian Cabrol : Tapis, Table."
+ * Si une précision contient déjà le numéro ("Devant le n°4"), le numéro
+ * n'est pas répété dans l'adresse : "Devant le n°4 Rue de Castille : Palette."
+ */
+export function mailLine(bp) {
+  const precs = bp.precisions || [];
+  const numeroInPrecision = bp.numero && precs.some((p) => p.includes("n°" + bp.numero));
+  const adresse = (bp.numero && !numeroInPrecision ? bp.numero + " " : "") + bp.rue;
+  const prefix = precs.length ? precs.join(", ") + " " : "";
+  return `${prefix}${adresse} : ${(bp.wastes || []).join(", ")}.`;
+}
+
 export function renderSummary() {
   const c = state.current;
   const p = precisionLabels();

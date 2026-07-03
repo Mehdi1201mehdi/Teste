@@ -140,15 +140,16 @@ function bind() {
     }
   };
 
-  // 📧 Ouvre l'application mail avec l'objet et le texte pré-remplis.
-  // Les URL mailto trop longues sont refusées par certains clients :
-  // au-delà de la limite, on copie le texte à la place.
+  // 📧 Ouvre Outlook avec l'objet et le texte pré-remplis.
+  // 1. Tente l'application Outlook (schéma ms-outlook://, mobile et PC).
+  // 2. Si Outlook ne s'ouvre pas en ~1,4 s, bascule sur mailto: (appli par défaut).
+  // 3. Si le texte est trop long pour une URL, il est copié à la place.
   $("openMail").onclick = async () => {
     const body = $("mail").textContent;
     const [a, m, j] = ($("date").value || "").split("-");
     const subject = a ? `Dépôts sauvages — îlotage du ${j}/${m}/${a}` : "Dépôts sauvages";
-    const url = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    if (url.length > 1900) {
+    const params = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    if (params.length > 1800) {
       try {
         await navigator.clipboard.writeText(body);
         toast("Texte trop long pour le mail direct — copié à la place 📋");
@@ -157,7 +158,18 @@ function bind() {
       }
       return;
     }
-    window.location.href = url;
+    // Si Outlook s'ouvre, la page passe en arrière-plan et le repli est annulé.
+    const fallback = setTimeout(() => {
+      window.location.href = `mailto:?${params}`;
+    }, 1400);
+    const cancelFallback = () => {
+      if (document.visibilityState === "hidden") {
+        clearTimeout(fallback);
+        document.removeEventListener("visibilitychange", cancelFallback);
+      }
+    };
+    document.addEventListener("visibilitychange", cancelFallback);
+    window.location.href = `ms-outlook://compose?${params}`;
   };
 
   // ✏ Modification manuelle du texte de la BP : un clic ouvre l'édition,

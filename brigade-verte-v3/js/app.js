@@ -59,6 +59,12 @@ function bind() {
     b.onclick = () => togglePrecision(b.dataset.key);
   });
 
+  // Précision libre : l'aperçu et le récapitulatif se mettent à jour en direct.
+  $("precCustom").oninput = () => {
+    state.current.precisionCustom = $("precCustom").value;
+    refreshPrecisions();
+  };
+
   $("wasteInput").oninput = (e) => showWaste(e.target.value);
   $("wasteInput").onfocus = (e) => showWaste(e.target.value);
   $("wasteInput").onkeydown = (e) => {
@@ -182,6 +188,7 @@ async function main() {
     $("chosenRue").textContent = state.current.rue.rue;
   }
   $("numeroRue").value = state.current.numero || "";
+  $("precCustom").value = state.current.precisionCustom || "";
   setSector(state.current.secteur || state.current.rue?.secteur || null);
 
   renderAll();

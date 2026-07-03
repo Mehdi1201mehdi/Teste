@@ -10,7 +10,7 @@ function defaultState() {
   return {
     date: "",
     step: 1,
-    current: { rue: null, numero: "", secteur: null, precisions: [], wastes: [] },
+    current: { rue: null, numero: "", secteur: null, precisions: [], precisionCustom: "", wastes: [] },
     bps: [],
     editing: null,
     mailCustom: "",

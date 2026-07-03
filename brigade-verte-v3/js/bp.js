@@ -51,11 +51,15 @@ export function setSector(s) {
 
 export function precisionLabels() {
   const num = $("numeroRue").value.trim();
-  return state.current.precisions.map((k) => {
+  const labels = state.current.precisions.map((k) => {
     if (k === "face") return num ? "En face du n°" + num : "En face du n°";
     if (k === "devant") return num ? "Devant le n°" + num : "Devant le n°";
     return PREC[k] || k;
   });
+  // Précision libre tapée par l'agent, ajoutée à la fin de la liste.
+  const custom = (state.current.precisionCustom || "").trim();
+  if (custom) labels.push(custom);
+  return labels;
 }
 
 export function refreshPrecisions() {
@@ -115,10 +119,11 @@ export function renderSummary() {
 }
 
 export function resetCurrent(full = true) {
-  state.current = { rue: null, numero: "", secteur: null, precisions: [], wastes: [] };
+  state.current = { rue: null, numero: "", secteur: null, precisions: [], precisionCustom: "", wastes: [] };
   state.editing = null;
   $("streetInput").value = "";
   $("numeroRue").value = "";
+  $("precCustom").value = "";
   $("chosenBox").classList.remove("show");
   $("streetSuggest").classList.remove("show");
   $("wasteInput").value = "";
@@ -164,8 +169,10 @@ export function editBp(i) {
     numero: bp.numero || "",
     secteur: bp.secteur,
     precisions: [],
+    precisionCustom: "",
     wastes: [...(bp.wastes || [])],
   };
+  $("precCustom").value = "";
   $("streetInput").value = bp.rue;
   $("chosenBox").classList.add("show");
   $("chosenRue").textContent = bp.rue;
@@ -204,6 +211,8 @@ export function duplicateLastAddress() {
   state.current.numero = last.numero || "";
   state.current.secteur = last.secteur;
   state.current.precisions = [];
+  state.current.precisionCustom = "";
+  $("precCustom").value = "";
   $("streetInput").value = last.rue;
   $("chosenBox").classList.add("show");
   $("chosenRue").textContent = last.rue;

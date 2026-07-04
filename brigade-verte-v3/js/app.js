@@ -261,6 +261,19 @@ function bind() {
       }, 300);
     });
   });
+
+  // Dissuasion contre l'inspection du code : bloque le clic droit et les
+  // raccourcis d'outils de développement. Décourage les curieux ; un
+  // développeur déterminé peut toujours contourner (limite du web).
+  document.addEventListener("contextmenu", (e) => e.preventDefault());
+  document.addEventListener("keydown", (e) => {
+    const k = (e.key || "").toUpperCase();
+    const devtools =
+      e.key === "F12" ||
+      ((e.ctrlKey || e.metaKey) && e.shiftKey && ["I", "J", "C"].includes(k)) ||
+      ((e.ctrlKey || e.metaKey) && k === "U");
+    if (devtools) e.preventDefault();
+  });
 }
 
 function registerServiceWorker() {

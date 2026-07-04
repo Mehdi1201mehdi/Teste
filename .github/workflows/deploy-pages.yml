@@ -24,6 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Le code publié est minifié (illisible) ; le code source lisible
+      # ne quitte jamais le dépôt.
+      - name: Minifier le code publié
+        run: |
+          npx --yes esbuild@0.25.0 brigade-verte-v3/js/*.js --minify --format=esm --outdir=brigade-verte-v3/js --allow-overwrite
+          npx --yes esbuild@0.25.0 brigade-verte-v3/service-worker.js --minify --outfile=brigade-verte-v3/service-worker.js --allow-overwrite
+          npx --yes esbuild@0.25.0 brigade-verte-v3/css/*.css --minify --outdir=brigade-verte-v3/css --allow-overwrite
+
       - name: Configurer Pages
         uses: actions/configure-pages@v5
         with:

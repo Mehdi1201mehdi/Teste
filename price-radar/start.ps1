@@ -6,7 +6,18 @@
 #   Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 
 $ErrorActionPreference = "Stop"
-Set-Location -Path $PSScriptRoot
+
+# Dossier du script : $PSScriptRoot quand on execute le .ps1, sinon le
+# dossier courant (cas ou le contenu est colle a la main dans la console).
+$scriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+Set-Location -Path $scriptDir
+
+# Verifie qu'on est bien dans le dossier du projet.
+if (-not (Test-Path "requirements.txt")) {
+    Write-Host "requirements.txt introuvable dans '$scriptDir'." -ForegroundColor Red
+    Write-Host "Placez-vous dans le dossier price-radar, puis lancez : .\start.ps1" -ForegroundColor Yellow
+    exit 1
+}
 
 # --- Trouver Python ---
 $python = $null
@@ -23,7 +34,12 @@ if (-not (Test-Path ".venv")) {
     Write-Host "-> Creation de l'environnement virtuel..." -ForegroundColor Cyan
     & $python -m venv .venv
 }
-$venvPython = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+$venvPython = Join-Path $scriptDir ".venv\Scripts\python.exe"
+if (-not (Test-Path $venvPython)) {
+    Write-Host "L'environnement virtuel n'a pas pu etre cree." -ForegroundColor Red
+    Write-Host "Supprimez le dossier .venv puis relancez le script." -ForegroundColor Yellow
+    exit 1
+}
 
 # --- Dependances ---
 Write-Host "-> Installation des dependances..." -ForegroundColor Cyan

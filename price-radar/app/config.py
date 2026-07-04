@@ -50,6 +50,36 @@ class Settings:
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
     DISCORD_WEBHOOK_URL: str = os.getenv("DISCORD_WEBHOOK_URL", "")
 
+    # --- Connecteurs d'API officielles ---
+    REDIS_URL: str = os.getenv("REDIS_URL", "")
+    API_USER_AGENT: str = os.getenv(
+        "API_USER_AGENT", "price-radar/1.0 (veille tarifaire; contact@example.com)")
+    # eBay Browse API
+    EBAY_CLIENT_ID: str = os.getenv("EBAY_CLIENT_ID", "")
+    EBAY_CLIENT_SECRET: str = os.getenv("EBAY_CLIENT_SECRET", "")
+    EBAY_MARKETPLACE: str = os.getenv("EBAY_MARKETPLACE", "EBAY_FR")
+    # Amazon Product Advertising API v5
+    AMAZON_ACCESS_KEY: str = os.getenv("AMAZON_ACCESS_KEY", "")
+    AMAZON_SECRET_KEY: str = os.getenv("AMAZON_SECRET_KEY", "")
+    AMAZON_PARTNER_TAG: str = os.getenv("AMAZON_PARTNER_TAG", "")
+    AMAZON_HOST: str = os.getenv("AMAZON_HOST", "webservices.amazon.fr")
+    AMAZON_REGION: str = os.getenv("AMAZON_REGION", "eu-west-1")
+    AMAZON_MARKETPLACE: str = os.getenv("AMAZON_MARKETPLACE", "www.amazon.fr")
+    # AliExpress Open Platform
+    ALIEXPRESS_APP_KEY: str = os.getenv("ALIEXPRESS_APP_KEY", "")
+    ALIEXPRESS_APP_SECRET: str = os.getenv("ALIEXPRESS_APP_SECRET", "")
+    ALIEXPRESS_TRACKING_ID: str = os.getenv("ALIEXPRESS_TRACKING_ID", "")
+    # Google Merchant / Content API
+    GOOGLE_MERCHANT_ID: str = os.getenv("GOOGLE_MERCHANT_ID", "")
+    GOOGLE_APPLICATION_CREDENTIALS: str = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+    # UPCitemDB (trial sans clé, ou clé pour le plan payant)
+    UPCITEMDB_KEY: str = os.getenv("UPCITEMDB_KEY", "")
+    # Barcode Lookup
+    BARCODE_LOOKUP_KEY: str = os.getenv("BARCODE_LOOKUP_KEY", "")
+    # OpenStreetMap
+    NOMINATIM_URL: str = os.getenv("NOMINATIM_URL", "https://nominatim.openstreetmap.org")
+    OVERPASS_URL: str = os.getenv("OVERPASS_URL", "https://overpass-api.de/api/interpreter")
+
     # --- Pool de proxies publics ---
     PROXY_POOL_ENABLED: bool = _bool("PROXY_POOL_ENABLED", False)
     PROXY_REFRESH_MINUTES: int = int(os.getenv("PROXY_REFRESH_MINUTES", "30"))

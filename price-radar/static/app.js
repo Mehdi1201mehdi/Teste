@@ -138,6 +138,128 @@ async function pageOpportunities() {
   await load();
 }
 
+async function pageComparateur() {
+  const conns = await api('/api-connectors');
+  const price = conns.filter((c) => c.kind === 'price');
+  const catalog = conns.filter((c) => c.kind === 'catalog');
+  const geo = conns.filter((c) => c.kind === 'geo');
+  const statusBadge = (c) => c.configured
+    ? '<span class="badge risk-faible">configuré ✔</span>'
+    : `<span class="badge stock-unknown" title="Variables .env : ${esc(c.required_env.join(', ') || 'aucune')}">${c.required_env.length ? 'clé requise' : 'sans clé'}</span>`;
+  const connLine = (c) => `<tr><td>${esc(c.label)}</td><td><span class="badge stock-unknown">${esc(c.kind)}</span></td>
+    <td>${statusBadge(c)}</td><td><a href="${esc(c.docs)}" target="_blank" rel="noopener" class="muted">docs ↗</a></td></tr>`;
+
+  view.innerHTML = `
+    <h1>Comparateur (API officielles)</h1>
+    <p class="subtitle">Compare les offres issues des API officielles et bases publiques — sans scraping</p>
+
+    <div class="card">
+      <div class="card-header">⚖️ Comparer par mot-clé (sources de prix)</div>
+      <div class="form-grid">
+        <div class="field full"><label>Produit à comparer</label>
+          <input id="cmp-q" placeholder="ex : PS5, iPhone 15, casque Sony…"></div>
+        <div class="field"><label>Résultats max / source</label>
+          <select id="cmp-limit"><option>5</option><option selected>8</option><option>12</option></select></div>
+      </div>
+      <div class="form-actions"><button class="btn" id="btn-compare">Comparer les prix</button>
+        <span class="muted" id="cmp-hint" style="align-self:center"></span></div>
+      <div id="cmp-results"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">🔖 Rechercher par code-barres (EAN / UPC)</div>
+      <div class="form-grid">
+        <div class="field full"><label>Code-barres</label>
+          <input id="bc-ean" placeholder="ex : 3017620422003 (Nutella)"></div>
+      </div>
+      <div class="form-actions"><button class="btn secondary" id="btn-barcode">Rechercher</button></div>
+      <div id="bc-results"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">🔌 Connecteurs d'API (${conns.length})</div>
+      <div class="preview-box muted" style="padding-bottom:0">Sources de <b>prix</b> — ${price.length} · bases <b>catalogue</b> — ${catalog.length} · <b>géo</b> — ${geo.length}. Renseigne les clés dans <code>.env</code> pour activer les sources fermées.</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Source</th><th>Type</th><th>Statut</th><th>Doc</th></tr></thead>
+        <tbody>${conns.map(connLine).join('')}</tbody>
+      </table></div>
+    </div>`;
+
+  document.getElementById('btn-compare').onclick = async (e) => {
+    const q = document.getElementById('cmp-q').value.trim();
+    if (!q) return toast('Entre un mot-clé', true);
+    e.target.disabled = true; e.target.textContent = '⏳ Comparaison…';
+    document.getElementById('cmp-hint').textContent = 'Interrogation des API configurées…';
+    try {
+      const r = await api(`/compare?q=${encodeURIComponent(q)}&limit=${document.getElementById('cmp-limit').value}`);
+      renderComparison(r);
+    } catch (err) { toast(err.message, true); }
+    e.target.disabled = false; e.target.textContent = 'Comparer les prix';
+    document.getElementById('cmp-hint').textContent = '';
+  };
+  document.getElementById('btn-barcode').onclick = async (e) => {
+    const ean = document.getElementById('bc-ean').value.trim();
+    if (!/^\d+$/.test(ean)) return toast('Code-barres invalide (chiffres uniquement)', true);
+    e.target.disabled = true; e.target.textContent = '⏳…';
+    try { renderBarcode(await api(`/barcode/${ean}`)); }
+    catch (err) { toast(err.message, true); }
+    e.target.disabled = false; e.target.textContent = 'Rechercher';
+  };
+}
+
+function offerRows(offers) {
+  return offers.map((o) => `<tr>
+    <td>${o.url ? `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.title || '(sans titre)')}</a>` : esc(o.title || '(sans titre)')}</td>
+    <td><b>${o.price != null ? eur(o.price) + (o.currency && o.currency !== 'EUR' ? ' ' + esc(o.currency) : '') : '—'}</b></td>
+    <td>${esc(o.seller || '')}</td>
+    <td class="muted">${esc(o.source)}</td>
+    <td>${o.condition ? esc(o.condition) : ''}</td>
+  </tr>`).join('');
+}
+
+function renderComparison(r) {
+  const s = r.stats || {};
+  const per = (r.per_source || []).map((p) => {
+    const cls = p.status === 'ok' ? 'risk-faible' : p.status === 'non_configuré' ? 'stock-unknown' : 'risk-eleve';
+    return `<span class="badge ${cls}" style="margin-right:6px">${esc(p.label)} : ${p.found}</span>`;
+  }).join('');
+  const statsHtml = s.count_priced ? `
+    <div class="hist-stats" style="padding:14px 18px">
+      <div>Prix mini<b style="color:var(--green)">${eur(s.min_price)}</b></div>
+      <div>Prix maxi<b style="color:var(--red)">${eur(s.max_price)}</b></div>
+      <div>Prix moyen<b>${eur(s.avg_price)}</b></div>
+      <div>Économie potentielle<b style="color:var(--green)">${eur(s.potential_saving)}</b></div>
+      <div>Écart<b>${pct(s.spread_percent)}</b></div>
+    </div>` : '';
+  document.getElementById('cmp-results').innerHTML = `
+    <div style="border-top:1px solid var(--border);margin-top:6px">
+      <div class="preview-box">${per || '<span class="muted">Aucune source de prix configurée — renseigne une clé (eBay, Amazon…) dans .env</span>'}</div>
+      ${statsHtml}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Offre</th><th>Prix</th><th>Vendeur</th><th>Source</th><th>État</th></tr></thead>
+        <tbody>${offerRows(r.offers || []) || '<tr><td colspan="5" class="empty">Aucune offre. Configure au moins une API de prix.</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function renderBarcode(r) {
+  const p = r.product || {};
+  const cmp = r.comparison || { offers: [], stats: {} };
+  document.getElementById('bc-results').innerHTML = `
+    <div style="border-top:1px solid var(--border);margin-top:6px" class="detail-head">
+      ${p.image ? `<img src="${esc(p.image)}" onerror="this.remove()">` : ''}
+      <div class="info">
+        <h2>${esc(p.name || '(produit inconnu)')}</h2>
+        <p class="muted">Marque : ${esc(p.brand || '—')} · Catégorie : ${esc(p.category || '—')} · EAN ${esc(p.ean)}</p>
+        <p class="muted">Sources : ${esc((p.sources || []).join(', ') || 'aucune base ne connaît ce code')}</p>
+        ${p.description ? `<p>${esc(p.description)}</p>` : ''}
+      </div>
+    </div>
+    ${(cmp.offers && cmp.offers.length) ? `<div class="table-wrap"><table>
+      <thead><tr><th>Offre</th><th>Prix</th><th>Vendeur</th><th>Source</th><th>État</th></tr></thead>
+      <tbody>${offerRows(cmp.offers)}</tbody></table></div>` : ''}`;
+}
+
 async function pageSearch() {
   const sites = await api('/websites');
   const searchable = sites.filter((s) => s.search_url_template);
@@ -664,6 +786,7 @@ const routes = {
   dashboard: pageDashboard,
   opportunites: pageOpportunities,
   recherche: pageSearch,
+  comparateur: pageComparateur,
   ajouter: pageAdd,
   produits: pageProducts,
   alertes: pageAlerts,

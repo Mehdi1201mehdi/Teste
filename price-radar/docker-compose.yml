@@ -1,0 +1,45 @@
+# Price Radar — pile complète : app + PostgreSQL + Redis.
+# Démarrage : docker compose up -d --build
+# Interface  : http://localhost:8000
+#
+# PostgreSQL et Redis sont optionnels : sans eux, l'app fonctionne en SQLite
+# + cache mémoire. Ils sont activés ici pour une mise en production propre.
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Surcharge les valeurs de .env pour pointer vers les services compose
+      DATABASE_URL: postgresql+psycopg2://priceradar:priceradar@db:5432/priceradar
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: priceradar
+      POSTGRES_PASSWORD: priceradar
+      POSTGRES_DB: priceradar
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U priceradar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  pgdata:

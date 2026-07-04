@@ -11,8 +11,16 @@ trafilatura>=1.8
 requests[socks]>=2.31    # support SOCKS4/5 pour le pool de proxies (PySocks)
 curl_cffi>=0.7           # furtivité TLS (empreinte JA3 d'un vrai navigateur)
 
+# --- Cache API (Redis) et PostgreSQL : requis pour docker-compose,
+#     inoffensifs en local (l'app retombe sur SQLite + cache mémoire) ---
+redis>=5.0
+psycopg2-binary>=2.9
+
 # --- Tests ---
 pytest>=8.0
+
+# --- Optionnel : Google Merchant / Content API ---
+# google-auth>=2.28
 
 # --- Optionnel : rendu JavaScript / anti-bot (voir README) ---
 # playwright>=1.42

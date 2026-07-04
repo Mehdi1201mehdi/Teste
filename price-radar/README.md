@@ -178,6 +178,53 @@ supprimer = retirer le fichier et sa ligne d'import. Tests : `pytest -q`.
 > eBay, Electro Dépôt) pour valider ta configuration. Respecte les CGU et
 > les limites techniques des sites.
 
+### Connecteurs d'API officielles (page *Comparateur*)
+
+En parallèle du scraping, une couche **API officielles / flux publics** dans
+`app/apiconnectors/` — un module indépendant par API, auto-enregistré,
+avec cache (Redis ou mémoire), quotas (délai mini entre appels), gestion
+d'erreurs et journalisation dans `APIConnector`.
+
+| Connecteur | Type | Clé | Fournit |
+|---|---|---|---|
+| Open Food / Beauty / Pet Food / Products Facts | catalogue | non | nom, marque, catégorie, image, EAN |
+| UPCitemDB | catalogue | trial gratuit | métadonnées + offres |
+| Barcode Lookup | catalogue | oui | métadonnées + magasins/prix |
+| eBay Browse API | prix | oui (OAuth) | offres neuf/occasion |
+| Amazon PA-API v5 | prix | oui (signé SigV4) | articles Amazon |
+| AliExpress Open Platform | prix | oui (signé) | produits AliExpress |
+| Google Merchant / Content API | catalogue | oui (OAuth) | ton catalogue marchand |
+| OpenStreetMap Nominatim / Overpass | géo | non | localisation des enseignes |
+
+Les connecteurs à clé sont **désactivés proprement** tant que les variables
+`.env` ne sont pas renseignées (`configured = false`) — aucun appel n'est
+tenté. Renseigne les clés dans `.env` pour les activer.
+
+**Endpoints :**
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/api-connectors` | Liste + statut de configuration |
+| GET | `/api/compare?q=…` | Compare les offres des API prix : min/max/moyenne/économie/% |
+| GET | `/api/barcode/{ean}` | Enrichit un produit par code-barres (bases ouvertes + offres) |
+
+> Les clés Amazon/eBay/AliExpress se signent/authentifient réellement dans le
+> code (SigV4, OAuth client_credentials, HMAC). Les appels réseau réels
+> tournent sur ta machine avec tes clés ; le parsing des réponses est
+> couvert par les tests hors-ligne (`pytest`) sur des payloads réels.
+
+### Docker
+
+```bash
+cp .env.example .env         # renseigne tes clés API
+docker compose up -d --build
+# → http://localhost:8000  (app + PostgreSQL + Redis)
+```
+
+Sans Docker, l'app fonctionne en SQLite + cache mémoire. Avec Docker Compose,
+elle bascule automatiquement sur PostgreSQL (`DATABASE_URL`) et Redis
+(`REDIS_URL`).
+
 ### Recherche & découverte de produits
 
 Deux façons de trouver des produits automatiquement, **sur les sites

@@ -595,6 +595,36 @@ def refresh_proxies():
     return {"ok": True, "summary": summary}
 
 
+# ------------------------------------------------------------- API connecteurs
+@router.get("/api-connectors")
+def list_api_connectors():
+    """Connecteurs d'API officielles + statut de configuration."""
+    from .. import apiconnectors as api
+    return [{"name": c.name, "label": c.label, "kind": c.kind, "docs": c.docs,
+             "configured": c.configured,
+             "required_env": list(c.required_env)}
+            for c in api.all_api_connectors()]
+
+
+@router.get("/compare")
+def compare(q: str, limit: int = 8, sources: str = ""):
+    """Compare les offres des API prix configurées pour un mot-clé."""
+    from ..services.comparison import search_all_sources
+    if not q.strip():
+        raise HTTPException(422, "Mot-clé vide")
+    only = [s for s in sources.split(",") if s] or None
+    return search_all_sources(q.strip(), min(limit, 20), only)
+
+
+@router.get("/barcode/{ean}")
+def barcode_lookup(ean: str):
+    """Enrichit un produit par son code-barres (bases ouvertes + offres)."""
+    from ..services.comparison import enrich_by_barcode
+    if not ean.isdigit():
+        raise HTTPException(422, "Code-barres invalide (chiffres attendus)")
+    return enrich_by_barcode(ean)
+
+
 # ----------------------------------------------------------------- connectors
 @router.get("/connectors")
 def list_connectors():

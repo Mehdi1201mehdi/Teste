@@ -123,6 +123,55 @@ class ProductScrapingCascade:
                  "no_price" if last_error == "no_price" else "error"
         return ScrapedProduct(False, None, "none", status, last_error, duration)
 
+    def fetch_raw(self, url: str, min_delay: float | None = None,
+                  force_playwright: bool = False) -> tuple[str | None, str]:
+        """Récupère le HTML brut d'une page (listing, recherche, catégorie).
+        Utilisé par la découverte de produits, pas par l'extraction produit."""
+        if not self.robots.can_fetch(url):
+            return None, "robots_denied"
+        self.polite.wait_for_domain(url, min_delay)
+
+        # Rendu JavaScript si le site l'exige (Playwright)
+        if force_playwright or settings.USE_PLAYWRIGHT_FALLBACK:
+            html = self._playwright_html(url)
+            if html:
+                pill = self.detector.detect(url, html, 200)
+                if not (pill.detected and pill.type != PoisonPillType.NONE):
+                    return html, "success"
+
+        try:
+            response = self.manager.fetch(url)
+        except Exception as exc:
+            return None, f"error:{type(exc).__name__}"
+        pill = self.detector.detect(url, response.text, response.status_code)
+        if pill.detected and pill.type != PoisonPillType.NONE:
+            return None, f"blocked:{pill.type.value}"
+        return response.text, "success"
+
+    @staticmethod
+    def _playwright_html(url: str) -> str | None:
+        try:
+            from playwright.sync_api import sync_playwright
+        except ImportError:
+            return None
+        try:
+            from playwright_stealth import stealth_sync
+        except ImportError:
+            stealth_sync = None
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_context(locale="fr-FR").new_page()
+                if stealth_sync:
+                    stealth_sync(page)
+                page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                page.wait_for_timeout(2500)
+                html = page.content()
+                browser.close()
+                return html
+        except Exception:
+            return None
+
 
 # Instance partagée (les délais par domaine doivent être globaux au process)
 cascade = ProductScrapingCascade()

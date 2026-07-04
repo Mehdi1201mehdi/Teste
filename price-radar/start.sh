@@ -23,10 +23,8 @@ if [ ! -f ".env" ]; then
   cp .env.example .env
 fi
 
-if [ ! -f "price_radar.db" ]; then
-  echo "→ Base absente : génération des données de test…"
-  python seed.py
-fi
+# Pas de données fictives : l'app démarre vide et les vrais sites
+# e-commerce (connecteurs) sont synchronisés automatiquement au lancement.
 
 echo ""
 echo "======================================================"

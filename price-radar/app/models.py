@@ -41,6 +41,9 @@ class Website(Base):
     active = Column(Boolean, default=True)
     min_delay = Column(Float, default=2.0)  # délai mini entre requêtes (s)
     needs_playwright = Column(Boolean, default=False)  # site JS-heavy
+    # Modèle d'URL de recherche du site, avec {query} comme placeholder
+    # ex : https://boutique.fr/recherche?q={query}
+    search_url_template = Column(String, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     products = relationship("Product", back_populates="website")

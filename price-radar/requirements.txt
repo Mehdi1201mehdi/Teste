@@ -10,6 +10,9 @@ lxml>=5.1
 trafilatura>=1.8
 requests[socks]>=2.31    # support SOCKS4/5 pour le pool de proxies (PySocks)
 
+# --- Tests ---
+pytest>=8.0
+
 # --- Optionnel : rendu JavaScript / anti-bot (voir README) ---
 # playwright>=1.42
 # playwright-stealth>=2.0

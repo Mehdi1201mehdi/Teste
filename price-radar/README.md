@@ -52,14 +52,16 @@ pip install -r requirements.txt
 cp .env.example .env             # puis ajustez si besoin
 ```
 
-### Données de test (interface utilisable immédiatement)
-
-```bash
-python seed.py          # 12 produits, ~370 relevés, alertes, opportunités
-python seed.py --reset  # repart de zéro
-```
-
 ### Lancement
+
+L'application démarre **vide** (aucune donnée fictive) et synchronise
+automatiquement les vrais sites e-commerce (connecteurs) dans sa base. Tu
+ajoutes ensuite des produits par URL, par recherche mot-clé ou par
+découverte de catégorie.
+
+> `seed.py` existe uniquement pour une **démo hors ligne** de l'interface
+> (données factices). Ne l'utilise pas pour de la vraie veille tarifaire.
+
 
 ```bash
 python run.py
@@ -123,6 +125,86 @@ sur un même site.
   `playwright` + `playwright-stealth`, puis `playwright install chromium`
   et passez `USE_PLAYWRIGHT_FALLBACK=true`.
 - Proxy : `SCRAPE_PROXY=http://user:pass@host:port`.
+
+### Connecteurs e-commerce (un module par enseigne)
+
+Chaque site a **son propre connecteur indépendant** dans
+`app/connectors/<site>.py`. Enseignes fournies : Amazon, Cdiscount, Fnac,
+Darty, Boulanger, Carrefour, Auchan, E.Leclerc, Leroy Merlin, Castorama,
+ManoMano, Rakuten, Rue du Commerce, LDLC, Materiel.net, Electro Dépôt,
+AliExpress, eBay — plus un connecteur **générique** (schema.org) pour tout
+autre site.
+
+Chaque connecteur déclare : domaines gérés, URL de recherche, motifs d'URL
+produit, besoin de JavaScript (Playwright), délai entre requêtes, fiabilité
+du vendeur. La logique commune (requêtes polies, backoff, rotation de proxy,
+détection de blocage, journalisation, gestion des changements de structure
+via `parse()` surchargeable) est dans `BaseConnector`.
+
+Les connecteurs sont **auto-enregistrés** (`@register`) et synchronisés dans
+la table `websites` au démarrage : l'app liste les vrais sites sans aucune
+donnée produit fictive.
+
+**Ajouter un site** (sans toucher au reste de l'app) :
+
+```python
+# app/connectors/monsite.py
+from .base import BaseConnector
+from .registry import register
+
+@register
+class MonSiteConnector(BaseConnector):
+    name = "monsite"
+    label = "Mon Site"
+    domains = ("monsite.fr",)
+    search_url_template = "https://www.monsite.fr/recherche?q={query}"
+    product_url_patterns = ("/produit/",)
+    needs_playwright = False   # True si le site charge ses prix en JS
+    # Surcharger parse(html, url) uniquement si schema.org ne suffit pas
+```
+
+Puis l'ajouter à la liste d'imports de `app/connectors/__init__.py`. Le
+supprimer = retirer le fichier et sa ligne d'import. Tests : `pytest -q`.
+
+> ⚠️ **Réalité du scraping.** Les enseignes fournies contiennent de vraies
+> URLs de recherche et une vraie extraction (la plupart exposent
+> schema.org/JSON-LD : nom, prix, ancien prix, réduction, disponibilité,
+> marque, EAN, image, référence). MAIS les sites les plus protégés (Amazon,
+> Cdiscount, AliExpress, la grande distribution…) bloquent activement le
+> scraping : ils exigent Playwright + des **proxies résidentiels** et
+> peuvent renvoyer des blocages ou changer de structure. C'est inhérent au
+> domaine. Active `USE_PLAYWRIGHT_FALLBACK=true`, le pool de proxies, et
+> commence par les sites les plus « scrapables » (LDLC, Materiel.net,
+> eBay, Electro Dépôt) pour valider ta configuration. Respecte les CGU et
+> les limites techniques des sites.
+
+### Recherche & découverte de produits
+
+Deux façons de trouver des produits automatiquement, **sur les sites
+couverts par un connecteur** (il n'existe pas de recherche « sur tout
+internet ») :
+
+1. **Recherche multi-sites par mot-clé** (page *Recherche multi-sites*).
+   Renseigne pour chaque site un *modèle d'URL de recherche* avec le
+   placeholder `{query}` (ex : `https://boutique.fr/recherche?q={query}`).
+   Tu tapes un mot-clé → le programme interroge chaque site, extrait les
+   fiches produits des résultats, les scrape et compare les prix.
+   Option « ajouter à la surveillance » pour tout suivre ensuite.
+
+2. **Découverte depuis une page catégorie** (bouton *Découvrir* sur une
+   catégorie ayant une `watch_url`). Le programme lit la page rayon,
+   découvre les liens produits et les met sous surveillance.
+
+L'extraction des liens produits est heuristique (JSON-LD `ItemList`,
+chemins de type `/produit/…`, cartes produit), limitée au domaine du site.
+La qualité dépend du site : certains chargent leurs résultats en
+JavaScript (cocher *Site JS*) ou bloquent le scraping.
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/api/connectors` | Liste des connecteurs e-commerce disponibles |
+| POST | `/api/search` | Recherche mot-clé multi-sites |
+| POST | `/api/categories/{id}/discover` | Découverte depuis une page catégorie |
 
 ### Pool de proxies publics
 

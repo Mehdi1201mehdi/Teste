@@ -52,11 +52,8 @@ if (-not (Test-Path ".env")) {
     Copy-Item ".env.example" ".env"
 }
 
-# --- Donnees de test au premier lancement ---
-if (-not (Test-Path "price_radar.db")) {
-    Write-Host "-> Base absente : generation des donnees de test..." -ForegroundColor Cyan
-    & $venvPython seed.py
-}
+# Pas de donnees fictives : l'app demarre vide et synchronise les vrais
+# sites e-commerce (connecteurs) automatiquement au lancement.
 
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor Green

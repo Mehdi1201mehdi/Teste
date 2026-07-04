@@ -24,10 +24,8 @@ if not exist ".env" (
   copy .env.example .env
 )
 
-if not exist "price_radar.db" (
-  echo Generation des donnees de test...
-  "%VENV_PY%" seed.py
-)
+REM Pas de donnees fictives : l'app demarre vide et synchronise les vrais
+REM sites e-commerce (connecteurs) automatiquement au lancement.
 
 echo.
 echo ======================================================

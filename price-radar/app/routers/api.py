@@ -90,6 +90,19 @@ class WebsiteIn(BaseModel):
     active: bool = True
     min_delay: float = 2.0
     needs_playwright: bool = False
+    search_url_template: str = ""
+
+
+class SearchIn(BaseModel):
+    query: str
+    website_ids: list[int] | None = None
+    max_per_site: int = 5
+    add_to_monitoring: bool = False
+
+
+class DiscoverIn(BaseModel):
+    max_items: int = 20
+    add_to_monitoring: bool = True
 
 
 class CategoryIn(BaseModel):
@@ -354,6 +367,7 @@ def list_websites(db: Session = Depends(get_db)):
     return [{"id": w.id, "name": w.name, "domain": w.domain,
              "trusted": w.trusted, "active": w.active,
              "min_delay": w.min_delay, "needs_playwright": w.needs_playwright,
+             "search_url_template": w.search_url_template,
              "products": len(w.products)}
             for w in db.query(models.Website).all()]
 
@@ -395,6 +409,18 @@ def create_category(payload: CategoryIn, db: Session = Depends(get_db)):
     db.add(category)
     db.commit()
     return {"id": category.id}
+
+
+@router.post("/categories/{category_id}/discover")
+def discover_category(category_id: int, payload: DiscoverIn,
+                      db: Session = Depends(get_db)):
+    """Découvre les produits d'une page catégorie et (option) les surveille."""
+    from ..services.discovery import discover_from_category
+    category = db.get(models.Category, category_id)
+    if not category:
+        raise HTTPException(404, "Catégorie introuvable")
+    return discover_from_category(db, category, min(payload.max_items, 50),
+                                  payload.add_to_monitoring)
 
 
 @router.delete("/categories/{category_id}", status_code=204)
@@ -569,19 +595,49 @@ def refresh_proxies():
     return {"ok": True, "summary": summary}
 
 
+# ----------------------------------------------------------------- connectors
+@router.get("/connectors")
+def list_connectors():
+    """Liste les connecteurs e-commerce disponibles (vrais sites)."""
+    from ..connectors import all_connectors
+    return [{"name": c.name, "label": c.label,
+             "domain": c.domains[0] if c.domains else "",
+             "domains": list(c.domains),
+             "has_search": bool(c.search_url_template),
+             "needs_playwright": c.needs_playwright,
+             "trusted": c.trusted}
+            for c in all_connectors() if c.name != "generic"]
+
+
+# --------------------------------------------------------- recherche produits
+@router.post("/search")
+def search_products(payload: SearchIn, db: Session = Depends(get_db)):
+    """Recherche par mot-clé sur les sites configurés (modèle d'URL de
+    recherche). Peut prendre du temps : plusieurs sites × plusieurs fiches."""
+    from ..services.discovery import keyword_search
+    if not payload.query.strip():
+        raise HTTPException(422, "Mot-clé vide")
+    return keyword_search(db, payload.query.strip(), payload.website_ids,
+                          min(payload.max_per_site, 10), payload.add_to_monitoring)
+
+
 # ------------------------------------------------------------ scraping direct
 @router.post("/scrape/preview")
 def scrape_preview(payload: PreviewIn):
-    """Teste l'extraction sur une URL sans rien enregistrer."""
-    scraped = cascade.fetch(payload.url)
-    if not scraped.ok or scraped.data is None:
-        return {"ok": False, "status": scraped.status, "error": scraped.error,
-                "duration_ms": scraped.duration_ms}
-    d = scraped.data
-    return {"ok": True, "method": scraped.method,
-            "duration_ms": scraped.duration_ms,
+    """Teste l'extraction sur une URL via son connecteur, sans rien
+    enregistrer."""
+    from ..connectors import for_url
+    connector = for_url(payload.url)
+    result = connector.fetch(payload.url)
+    if not result.ok or result.product is None:
+        return {"ok": False, "connector": connector.name,
+                "status": result.status, "error": result.error}
+    d = result.product
+    return {"ok": True, "connector": connector.name, "method": result.method,
             "data": {"name": d.name, "price": d.price, "old_price": d.old_price,
+                     "discount_percent": d.discount_percent,
                      "currency": d.currency, "image_url": d.image_url,
                      "availability": d.availability,
                      "shipping_cost": d.shipping_cost, "seller": d.seller,
-                     "ean": d.ean, "sources": d.sources}}
+                     "ean": d.ean, "brand": d.brand, "mpn": d.mpn,
+                     "category": d.category, "sources": d.sources}}

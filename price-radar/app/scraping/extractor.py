@@ -39,11 +39,21 @@ class ExtractedProduct:
     shipping_cost: float | None = None
     seller: str = ""
     ean: str = ""
+    brand: str = ""
+    mpn: str = ""              # référence constructeur / manufacturer part number
+    category: str = ""
     sources: list[str] = field(default_factory=list)
 
     @property
     def usable(self) -> bool:
         return self.price is not None
+
+    @property
+    def discount_percent(self) -> float | None:
+        """Pourcentage de réduction si un ancien prix est disponible."""
+        if self.old_price and self.price and self.old_price > self.price:
+            return round((self.old_price - self.price) / self.old_price * 100, 1)
+        return None
 
 
 def parse_price(value) -> float | None:
@@ -107,8 +117,18 @@ def _extract_json_ld(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
                 image = image.get("url", "")
             result.image_url = result.image_url or str(image)
             result.ean = result.ean or str(
-                item.get("gtin13") or item.get("gtin") or item.get("sku") or ""
+                item.get("gtin13") or item.get("gtin14") or item.get("gtin12")
+                or item.get("gtin") or item.get("gtin8") or ""
             )
+            result.mpn = result.mpn or str(item.get("mpn") or item.get("sku") or "")
+            brand = item.get("brand", "")
+            if isinstance(brand, dict):
+                brand = brand.get("name", "")
+            result.brand = result.brand or str(brand)
+            category = item.get("category", "")
+            if isinstance(category, list) and category:
+                category = category[0]
+            result.category = result.category or str(category)
 
             offers = item.get("offers", {})
             if isinstance(offers, list) and offers:
@@ -141,6 +161,8 @@ def _extract_meta(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
 
     result.name = result.name or meta("og:title", "twitter:title")
     result.image_url = result.image_url or meta("og:image", "twitter:image")
+    result.brand = result.brand or meta("product:brand", "og:brand", "brand")
+    result.ean = result.ean or meta("product:ean", "product:gtin13")
     price = meta("product:price:amount", "og:price:amount", "price")
     currency = meta("product:price:currency", "og:price:currency")
     if currency:

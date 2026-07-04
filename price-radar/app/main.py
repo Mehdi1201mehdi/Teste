@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .database import Base, engine
+from .database import Base, engine, run_light_migrations
 from .routers.api import router as api_router
 from .scheduler import start_scheduler, stop_scheduler
 
@@ -23,6 +23,18 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    run_light_migrations()
+    # Synchronise les vrais sites e-commerce (connecteurs) dans la BDD
+    from .connectors import sync_connectors_to_db
+    from .database import SessionLocal
+    db = SessionLocal()
+    try:
+        added = sync_connectors_to_db(db)
+        if added:
+            logging.getLogger("price-radar").info(
+                "%d connecteur(s) e-commerce synchronisé(s)", added)
+    finally:
+        db.close()
     if settings.SCHEDULER_ENABLED:
         start_scheduler()
     yield

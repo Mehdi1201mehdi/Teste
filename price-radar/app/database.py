@@ -15,3 +15,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def run_light_migrations():
+    """Ajoute les colonnes manquantes sur les bases déjà existantes (SQLite),
+    pour ne pas forcer l'utilisateur à supprimer price_radar.db."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    if "websites" not in inspector.get_table_names():
+        return  # tables pas encore créées ; create_all s'en charge
+    cols = {c["name"] for c in inspector.get_columns("websites")}
+    with engine.begin() as conn:
+        if "search_url_template" not in cols:
+            conn.execute(text(
+                "ALTER TABLE websites ADD COLUMN search_url_template "
+                "VARCHAR DEFAULT ''"))

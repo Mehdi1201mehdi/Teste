@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from .. import models
-from ..scraping.cascade import cascade
+from ..connectors import for_url as connector_for_url
 from . import alerts as alert_service
 from .opportunity import evaluate
 
@@ -79,23 +79,22 @@ def check_product(db: Session, product: models.Product) -> models.ScrapingJob:
     db.add(job)
     db.commit()
 
-    min_delay = product.website.min_delay if product.website else None
-    force_pw = bool(product.website and product.website.needs_playwright)
-    scraped = cascade.fetch(product.url, min_delay=min_delay,
-                            force_playwright=force_pw)
+    # Le connecteur du site (ou générique) gère la récupération publique
+    connector = connector_for_url(product.url)
+    result = connector.fetch(product.url)
 
-    job.method = scraped.method
-    job.duration_ms = scraped.duration_ms
+    job.method = f"{connector.name}:{result.method}" if result.method else connector.name
 
-    if not scraped.ok or scraped.data is None:
-        job.status = scraped.status
-        job.error = scraped.error
+    if not result.ok or result.product is None:
+        job.status = result.status
+        job.error = result.error
         product.last_checked_at = datetime.utcnow()
         db.commit()
-        logger.warning("Scraping échoué pour %s : %s", product.url, scraped.error)
+        logger.warning("Scraping échoué pour %s (%s) : %s",
+                       product.url, connector.name, result.error)
         return job
 
-    data = scraped.data
+    data = result.product
     # Enrichit la fiche produit si des champs manquent
     if data.name and not product.name:
         product.name = data.name
@@ -120,7 +119,7 @@ def check_product(db: Session, product: models.Product) -> models.ScrapingJob:
         return job
 
     record_price(db, product, data.price, data.old_price,
-                 data.shipping_cost, data.availability, scraped.method)
+                 data.shipping_cost, data.availability, job.method)
     job.status = "success"
     db.commit()
     return job

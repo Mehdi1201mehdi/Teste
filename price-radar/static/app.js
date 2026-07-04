@@ -138,6 +138,83 @@ async function pageOpportunities() {
   await load();
 }
 
+async function pageSearch() {
+  const sites = await api('/websites');
+  const searchable = sites.filter((s) => s.search_url_template);
+  view.innerHTML = `
+    <h1>Recherche multi-sites</h1>
+    <p class="subtitle">Cherche un produit sur les sites que tu as configurés, compare les prix et détecte les écarts</p>
+    ${searchable.length === 0 ? `<div class="card"><div class="preview-box">
+      ⚠️ Aucun site n'a d'URL de recherche configurée. Va dans
+      <a href="#/ajouter">Ajouter une surveillance</a> → section « Sites », et renseigne le champ
+      <b>URL de recherche</b> (ex : <code>https://boutique.fr/recherche?q={query}</code>).
+      </div></div>` : ''}
+    <div class="card">
+      <div class="card-header">🔎 Rechercher</div>
+      <div class="form-grid">
+        <div class="field full"><label>Mot-clé (produit à chercher)</label>
+          <input id="q" placeholder="ex : PS5, iPhone 15, aspirateur Dyson…" ${searchable.length ? '' : 'disabled'}></div>
+        <div class="field"><label>Résultats max par site</label>
+          <select id="q-max"><option>3</option><option selected>5</option><option>8</option><option>10</option></select></div>
+        <div class="field"><label style="display:flex;gap:8px;align-items:center;margin-top:22px">
+          <input type="checkbox" id="q-add"> Ajouter automatiquement les résultats à la surveillance</label></div>
+      </div>
+      <div class="field" style="padding:0 18px 12px">
+        <label>Sites à interroger</label>
+        <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px">
+          ${searchable.map((s) => `<label style="display:flex;gap:6px;align-items:center">
+            <input type="checkbox" class="q-site" value="${s.id}" checked> ${esc(s.name)}</label>`).join('') || '<span class="muted">—</span>'}
+        </div>
+      </div>
+      <div class="form-actions"><button class="btn" id="btn-search" ${searchable.length ? '' : 'disabled'}>Lancer la recherche</button>
+        <span class="muted" id="q-hint" style="align-self:center"></span></div>
+    </div>
+    <div id="search-results"></div>`;
+
+  document.getElementById('btn-search').onclick = async (e) => {
+    const query = document.getElementById('q').value.trim();
+    if (!query) return toast('Entre un mot-clé', true);
+    const ids = [...document.querySelectorAll('.q-site:checked')].map((c) => Number(c.value));
+    if (!ids.length) return toast('Sélectionne au moins un site', true);
+    e.target.disabled = true; e.target.textContent = '⏳ Recherche en cours…';
+    document.getElementById('q-hint').textContent = 'Cela peut prendre 20 s à 1 min selon le nombre de sites…';
+    try {
+      const r = await api('/search', { method: 'POST', body: JSON.stringify({
+        query, website_ids: ids,
+        max_per_site: Number(document.getElementById('q-max').value),
+        add_to_monitoring: document.getElementById('q-add').checked,
+      }) });
+      renderSearchResults(r);
+    } catch (err) { toast(err.message, true); }
+    e.target.disabled = false; e.target.textContent = 'Lancer la recherche';
+    document.getElementById('q-hint').textContent = '';
+  };
+}
+
+function renderSearchResults(r) {
+  const rows = (r.results || []).map((i) => `<tr>
+    <td>${i.image_url ? '' : ''}<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.name || i.url)}</a></td>
+    <td><b>${eur(i.price)}</b>${i.old_price ? `<div class="price-strike">${eur(i.old_price)}</div>` : ''}</td>
+    <td>${esc(i.site)}</td>
+    <td>${stockBadge(i.availability)}</td>
+    <td>${i.opportunity_level ? levelBadge(i.opportunity_level) : '<span class="muted">—</span>'}</td>
+    <td>${i.gap_percent != null ? pct(i.gap_percent) : '—'}</td>
+    <td>${i.monitored ? (i.product_id ? `<a href="#/produit/${i.product_id}">✅ suivi</a>` : '✅') : '<span class="muted">non</span>'}</td>
+  </tr>`).join('');
+  const perSite = (r.per_site || []).map((s) =>
+    `<span class="badge ${s.status === 'success' ? 'risk-faible' : 'risk-eleve'}" style="margin-right:6px" title="${esc(s.status)}">${esc(s.site)} : ${s.found}</span>`).join('');
+  document.getElementById('search-results').innerHTML = `
+    <div class="card">
+      <div class="card-header">Résultats pour « ${esc(r.query)} » — ${r.results.length} produit(s) sur ${r.sites_searched} site(s)</div>
+      <div class="preview-box">${perSite}
+        ${r.sites_without_template ? `<span class="muted"> · ${r.sites_without_template} site(s) sans URL de recherche (ignorés)</span>` : ''}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Produit</th><th>Prix</th><th>Site</th><th>Stock</th><th>Niveau</th><th>Écart %</th><th>Surveillé</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="7" class="empty">Aucun produit trouvé. Vérifie l\'URL de recherche des sites (le site bloque peut-être le scraping, ou charge ses résultats en JavaScript → coche « Site JS »).</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+}
+
 async function pageAdd() {
   const [cats, sites] = await Promise.all([api('/categories'), api('/websites')]);
   view.innerHTML = `
@@ -169,13 +246,16 @@ async function pageAdd() {
     </div>
     <div class="card">
       <div class="card-header">🌐 Sites e-commerce suivis</div>
-      <div class="table-wrap"><table><thead><tr><th>Nom</th><th>Domaine</th><th>Fiable</th><th>Produits</th><th></th></tr></thead>
+      <div class="table-wrap"><table><thead><tr><th>Nom</th><th>Domaine</th><th>Recherche</th><th>Fiable</th><th>Produits</th><th></th></tr></thead>
       <tbody>${sites.map(w => `<tr><td>${esc(w.name)}</td><td class="muted">${esc(w.domain)}</td>
+        <td>${w.search_url_template ? '🔎 ✅' : '<span class="muted">—</span>'}</td>
         <td>${w.trusted ? '✅' : '—'}</td><td>${w.products}</td>
         <td><button class="btn danger small" data-del-site="${w.id}">Supprimer</button></td></tr>`).join('')}</tbody></table></div>
       <div class="form-grid">
         <div class="field"><label>Nom</label><input id="site-name" placeholder="MonShop"></div>
         <div class="field"><label>Domaine</label><input id="site-domain" placeholder="monshop.fr"></div>
+        <div class="field full"><label>URL de recherche (pour la recherche multi-sites) — utilisez <code>{query}</code></label>
+          <input id="site-search" placeholder="https://monshop.fr/recherche?q={query}"></div>
         <div class="field"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="site-trusted"> Vendeur fiable</label>
           <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="site-pw"> Site JS (Playwright)</label></div>
       </div>
@@ -184,7 +264,9 @@ async function pageAdd() {
     <div class="card">
       <div class="card-header">🏷️ Catégories surveillées</div>
       <div class="table-wrap"><table><tbody>${cats.map(c => `<tr><td>${esc(c.name)}</td><td class="muted">${esc(c.watch_url || '')}</td><td>${c.products} produit(s)</td>
-        <td><button class="btn danger small" data-del-cat="${c.id}">Supprimer</button></td></tr>`).join('') || '<tr><td class="empty">Aucune catégorie</td></tr>'}</tbody></table></div>
+        <td style="display:flex;gap:6px">
+          ${c.watch_url ? `<button class="btn small secondary" data-discover="${c.id}">🔎 Découvrir</button>` : ''}
+          <button class="btn danger small" data-del-cat="${c.id}">Supprimer</button></td></tr>`).join('') || '<tr><td class="empty">Aucune catégorie</td></tr>'}</tbody></table></div>
       <div class="form-grid">
         <div class="field"><label>Nom</label><input id="cat-name" placeholder="High-tech"></div>
         <div class="field full"><label>URL de catégorie à surveiller (optionnel)</label><input id="cat-url" placeholder="https://exemple.com/categorie/tv"></div>
@@ -242,10 +324,21 @@ async function pageAdd() {
         domain: document.getElementById('site-domain').value.replace(/^www\./, ''),
         trusted: document.getElementById('site-trusted').checked,
         needs_playwright: document.getElementById('site-pw').checked,
+        search_url_template: document.getElementById('site-search').value.trim(),
       }) });
       toast('Site ajouté ✔'); pageAdd();
     } catch (err) { toast(err.message, true); }
   };
+  view.querySelectorAll('[data-discover]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = '⏳ Découverte…';
+    try {
+      const r = await api('/categories/' + b.dataset.discover + '/discover', {
+        method: 'POST', body: JSON.stringify({ max_items: 20, add_to_monitoring: true }) });
+      if (r.error) { toast(r.error, true); b.disabled = false; b.textContent = '🔎 Découvrir'; return; }
+      toast(`${r.results.length} produit(s) découvert(s) et mis sous surveillance sur ${r.found_links} lien(s)`);
+      location.hash = '#/produits';
+    } catch (err) { toast(err.message, true); b.disabled = false; b.textContent = '🔎 Découvrir'; }
+  });
   document.getElementById('btn-add-cat').onclick = async () => {
     try {
       await api('/categories', { method: 'POST', body: JSON.stringify({
@@ -570,6 +663,7 @@ async function pageLogs() {
 const routes = {
   dashboard: pageDashboard,
   opportunites: pageOpportunities,
+  recherche: pageSearch,
   ajouter: pageAdd,
   produits: pageProducts,
   alertes: pageAlerts,

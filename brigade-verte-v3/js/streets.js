@@ -19,6 +19,10 @@ export async function loadStreets() {
   }
 }
 
+export function getStreets() {
+  return RUES;
+}
+
 function suggestEntry(rue) {
   const pillColor = COLOR[rue.secteur] || "#64748b";
   return {

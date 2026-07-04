@@ -20,6 +20,7 @@ import {
 } from "./bp.js";
 import { generateMail } from "./mail.js";
 import { loadSectorContours } from "./sectors.js";
+import { locateNearestStreets } from "./geo.js";
 
 function renderAll() {
   renderBps();
@@ -28,6 +29,14 @@ function renderAll() {
   renderSummary();
   generateMail();
   renderStatus();
+}
+
+/** Montre ou cache le bouton "Ma position" selon le réglage GPS. */
+function applyGpsSetting() {
+  $("locateBtn").hidden = !state.gps;
+  const btn = $("gpsToggle");
+  btn.textContent = state.gps ? "📍 GPS : activé ✅" : "📍 GPS : désactivé ❌";
+  btn.setAttribute("aria-pressed", String(state.gps));
 }
 
 function bind() {
@@ -45,6 +54,15 @@ function bind() {
   };
   $("streetInput").onfocus = (e) => {
     if (e.target.value) showRueSuggest(e.target.value);
+  };
+
+  // 📍 GPS : bouton "Ma position" + option activé/désactivé (Autres options).
+  $("locateBtn").onclick = locateNearestStreets;
+  $("gpsToggle").onclick = () => {
+    state.gps = !state.gps;
+    applyGpsSetting();
+    save();
+    toast(state.gps ? "GPS activé" : "GPS désactivé");
   };
 
   $("numeroRue").oninput = () => {
@@ -274,6 +292,8 @@ async function main() {
   }
   $("numeroRue").value = state.current.numero || "";
   $("precCustom").value = state.current.precisionCustom || "";
+  if (typeof state.gps !== "boolean") state.gps = true;
+  applyGpsSetting();
   setSector(state.current.secteur || state.current.rue?.secteur || null);
 
   renderAll();

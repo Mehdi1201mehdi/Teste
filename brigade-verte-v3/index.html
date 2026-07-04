@@ -65,6 +65,7 @@
             <input id="streetInput" autocomplete="off" spellcheck="false" placeholder="Tape le nom de la rue…" aria-expanded="false" aria-autocomplete="list" role="combobox">
             <div id="streetSuggest" class="suggest" role="listbox"></div>
           </div>
+          <button class="btn btnGhost full" id="locateBtn" type="button" style="margin-top:10px">📍 Ma position — rues les plus proches</button>
 
           <label for="numeroRue">Numéro (facultatif)</label>
           <input id="numeroRue" inputmode="numeric" placeholder="ex : 152">
@@ -82,6 +83,7 @@
             <summary>Autres options</summary>
             <label for="date">Date de l'îlotage</label>
             <input type="date" id="date">
+            <button class="btn btnGhost full" id="gpsToggle" type="button" style="margin-top:10px" aria-pressed="true">📍 GPS : activé ✅</button>
             <button class="btn btnGhost full" id="exportBps" type="button" style="margin-top:10px">💾 Sauvegarder mes BP dans un fichier</button>
             <button class="btn btnGhost full" id="importBps" type="button" style="margin-top:10px">📂 Recharger des BP depuis un fichier</button>
             <input type="file" id="importFile" accept=".json,application/json" hidden>
@@ -194,6 +196,13 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="assertive"></div>
+
+<div id="successCheck" class="successCheck" aria-hidden="true">
+  <svg viewBox="0 0 52 52" role="img" aria-label="BP ajoutée">
+    <circle cx="26" cy="26" r="25" fill="#0f7a43"/>
+    <path fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M14 27l8 8 16-16"/>
+  </svg>
+</div>
 
 <script type="module" src="js/app.js"></script>
 </body>

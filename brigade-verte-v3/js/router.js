@@ -49,9 +49,12 @@ export function renderStatus() {
 }
 
 function applyStep(n) {
+  const previous = state.step;
   state.step = n;
-  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-  $("view" + n).classList.add("active");
+  document.querySelectorAll(".view").forEach((v) => {
+    v.classList.remove("active", "slide-forward", "slide-back");
+  });
+  $("view" + n).classList.add("active", n >= previous ? "slide-forward" : "slide-back");
   renderStatus();
   save();
   window.scrollTo({ top: 0, behavior: "smooth" });

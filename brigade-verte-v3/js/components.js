@@ -41,7 +41,11 @@ export function renderChips(container, items, onRemove, emptyMessage) {
         .join("")
     : `<div class="none">${esc(emptyMessage)}</div>`;
   container.querySelectorAll(".chip").forEach((btn, i) => {
-    btn.onclick = () => onRemove(i);
+    btn.onclick = () => {
+      // Rétrécit la pastille avant de la retirer réellement (voir animations.css).
+      btn.classList.add("removing");
+      setTimeout(() => onRemove(i), 140);
+    };
   });
 }
 

@@ -4,7 +4,7 @@
 import { $, esc } from "./utils.js";
 import { state, save } from "./storage.js";
 import { SECTEURS, COLOR } from "./sectors.js";
-import { toast } from "./ui.js";
+import { toast, showSuccess } from "./ui.js";
 import { go } from "./router.js";
 import { renderWastes } from "./waste.js";
 import { bpCardHtml, bindBpActions } from "./components.js";
@@ -154,6 +154,7 @@ export function addBp() {
     state.bps.push(bp);
     toast("BP ajoutée");
   }
+  showSuccess();
   resetCurrent(false);
   state.mailCustom = "";
   renderBps();

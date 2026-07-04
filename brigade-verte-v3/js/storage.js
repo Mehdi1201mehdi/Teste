@@ -14,6 +14,7 @@ function defaultState() {
     bps: [],
     editing: null,
     mailCustom: "",
+    gps: true,
     lastSaved: "",
   };
 }

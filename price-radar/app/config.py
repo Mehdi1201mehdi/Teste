@@ -30,6 +30,10 @@ class Settings:
     RESPECT_ROBOTS_TXT: bool = _bool("RESPECT_ROBOTS_TXT", True)
     USE_PLAYWRIGHT_FALLBACK: bool = _bool("USE_PLAYWRIGHT_FALLBACK", False)
     SCRAPE_PROXY: str = os.getenv("SCRAPE_PROXY", "")
+    # Furtivité TLS : imite l'empreinte JA3 d'un vrai navigateur (curl_cffi).
+    # Débloque les sites qui filtrent au niveau TLS, sans résoudre de CAPTCHA.
+    USE_CURL_CFFI: bool = _bool("USE_CURL_CFFI", True)
+    CURL_CFFI_IMPERSONATE: str = os.getenv("CURL_CFFI_IMPERSONATE", "chrome")
 
     ALERT_MIN_GAP_PERCENT: float = _float("ALERT_MIN_GAP_PERCENT", 40)
     ALERT_MIN_MARGIN_EUR: float = _float("ALERT_MIN_MARGIN_EUR", 100)

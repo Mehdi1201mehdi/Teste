@@ -10,6 +10,12 @@ import requests
 
 from ..config import settings
 
+try:
+    from curl_cffi import requests as cffi_requests
+    _HAS_CURL_CFFI = True
+except ImportError:
+    _HAS_CURL_CFFI = False
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -69,6 +75,8 @@ class RequestManager:
 
     def __init__(self):
         self.session = requests.Session()
+        # curl_cffi : furtivité au niveau TLS (empreinte JA3 d'un navigateur)
+        self.use_cffi = settings.USE_CURL_CFFI and _HAS_CURL_CFFI
         if settings.SCRAPE_PROXY:
             self.session.proxies = {
                 "http": settings.SCRAPE_PROXY,
@@ -106,17 +114,26 @@ class RequestManager:
             try:
                 # Un proxy vivant est tiré du pool à chaque tentative (rotation)
                 proxy = self._pick_proxy()
-                response = self.session.get(
-                    url, headers=self.get_headers(),
-                    timeout=settings.SCRAPE_TIMEOUT, proxies=proxy
-                )
+                if self.use_cffi:
+                    # Imite l'empreinte TLS/JA3 d'un vrai Chrome
+                    response = cffi_requests.get(
+                        url, headers=self.get_headers(),
+                        timeout=settings.SCRAPE_TIMEOUT,
+                        proxies=proxy or (self.session.proxies or None),
+                        impersonate=settings.CURL_CFFI_IMPERSONATE,
+                    )
+                else:
+                    response = self.session.get(
+                        url, headers=self.get_headers(),
+                        timeout=settings.SCRAPE_TIMEOUT, proxies=proxy
+                    )
                 # 429/403 : on backoff sans lever tout de suite, le poison
                 # pill detector décidera quoi faire du contenu
                 if response.status_code in (403, 429) and attempt < retries - 1:
                     time.sleep(2 ** (attempt + 1))
                     continue
                 return response
-            except requests.RequestException as exc:
+            except Exception as exc:  # requests.* ou curl_cffi.*
                 last_exc = exc
                 if attempt < retries - 1:
                     time.sleep(2 ** attempt)  # backoff exponentiel

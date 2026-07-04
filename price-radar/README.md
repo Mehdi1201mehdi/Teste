@@ -241,6 +241,31 @@ cycle.
 | GET | `/api/proxies/stats` | Compteurs, latence, protocoles |
 | POST | `/api/proxies/refresh` | Lancer un cycle complet |
 
+### Anti-bot : échelle de furtivité (et ce qui est volontairement exclu)
+
+Le scraping monte en puissance seulement autant que nécessaire :
+
+1. **`requests` + rotation d'UA/headers + délais polis** — sites non protégés.
+2. **`curl_cffi`** (`USE_CURL_CFFI=true`, activé par défaut) — imite l'empreinte
+   **TLS/JA3** d'un vrai Chrome. Débloque les sites qui filtrent au niveau TLS
+   sans exécuter de JavaScript ni résoudre de challenge.
+3. **Playwright + `playwright-stealth`** (`USE_PLAYWRIGHT_FALLBACK=true`) —
+   sites rendus en JavaScript, patch des vecteurs de détection navigateur.
+4. **Pool de proxies** (idéalement résidentiels) — réputation d'IP.
+
+Ces quatre niveaux relèvent de la **furtivité** : paraître un visiteur
+normal pour lire des **prix publics**. C'est l'approche recommandée par le
+skill de scraping du dépôt.
+
+**Volontairement NON intégré** : les services/outils qui **résolvent
+activement un challenge Cloudflare/DataDome ou un CAPTCHA**
+(ex. *scrapingbypass*, *FlareSolverr*, solveurs de CAPTCHA payants).
+Défaire une mesure technique d'accès sort du cadre de la simple furtivité :
+c'est juridiquement risqué (contournement de contrôle d'accès, cf. CFAA) et
+contraire aux CGU des sites. Si un site sert un challenge Turnstile ou une
+interstitielle DataDome, considère-le comme non scrapable par cet outil —
+n'essaie pas de forcer.
+
 ### Conformité
 
 - `robots.txt` respecté par défaut (`RESPECT_ROBOTS_TXT=true`).

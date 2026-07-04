@@ -6,11 +6,18 @@ if not exist ".venv" (
   echo Creation de l'environnement virtuel...
   python -m venv .venv
 )
-call .venv\Scripts\activate.bat
+
+REM On utilise directement le python du venv (evite les soucis d'activation)
+set "VENV_PY=.venv\Scripts\python.exe"
 
 echo Installation des dependances...
-pip install -q --upgrade pip
-pip install -q -r requirements.txt
+"%VENV_PY%" -m pip install -q -r requirements.txt
+if errorlevel 1 (
+  echo.
+  echo ERREUR: l'installation des dependances a echoue. Verifiez votre connexion.
+  pause
+  exit /b 1
+)
 
 if not exist ".env" (
   echo Creation du fichier .env...
@@ -19,7 +26,7 @@ if not exist ".env" (
 
 if not exist "price_radar.db" (
   echo Generation des donnees de test...
-  python seed.py
+  "%VENV_PY%" seed.py
 )
 
 echo.

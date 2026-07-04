@@ -145,3 +145,44 @@ class Setting(Base):
 
     key = Column(String, primary_key=True)
     value = Column(Text, default="")
+
+
+class ProxySource(Base):
+    __tablename__ = "proxy_sources"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False)
+    url = Column(String, nullable=False)
+    protocol = Column(String, default="http")  # http/https/socks4/socks5/auto
+    enabled = Column(Boolean, default=True)
+    last_fetched_at = Column(DateTime, nullable=True)
+    last_count = Column(Integer, default=0)     # proxies récupérés au dernier fetch
+    last_error = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Proxy(Base):
+    __tablename__ = "proxies"
+
+    id = Column(Integer, primary_key=True)
+    # clé logique unique : "protocol://host:port"
+    key = Column(String, unique=True, nullable=False)
+    protocol = Column(String, default="http")
+    host = Column(String, nullable=False)
+    port = Column(Integer, nullable=False)
+    source = Column(String, default="")
+
+    alive = Column(Boolean, default=False)
+    latency_ms = Column(Integer, nullable=True)
+    score = Column(Integer, default=0)          # 0-100
+    success_count = Column(Integer, default=0)
+    fail_count = Column(Integer, default=0)
+    last_checked_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def url(self) -> str:
+        scheme = "socks5" if self.protocol == "socks5" else \
+                 "socks4" if self.protocol == "socks4" else \
+                 self.protocol
+        return f"{scheme}://{self.host}:{self.port}"

@@ -124,6 +124,41 @@ sur un même site.
   et passez `USE_PLAYWRIGHT_FALLBACK=true`.
 - Proxy : `SCRAPE_PROXY=http://user:pass@host:port`.
 
+### Pool de proxies publics
+
+Page **Proxies** (panneau admin) + `app/proxies/`. Pipeline complet :
+
+1. **Téléchargement** de toutes les sources actives (`proxy_sources.json`,
+   éditable aussi depuis l'UI).
+2. **Fusion + déduplication** sur la clé `protocol://host:port`.
+3. **Détection automatique du protocole** (schéma explicite dans la ligne,
+   sinon protocole déclaré par la source).
+4. **Test concurrent** (`ThreadPoolExecutor`) contre `PROXY_TEST_URL`.
+5. **Scoring 0-100** basé sur la latence et la fiabilité historique.
+6. **Persistance** en base (tables `proxies`, `proxy_sources`).
+7. **Purge** des proxies morts après `PROXY_MAX_FAILS` échecs.
+8. **Rafraîchissement automatique** toutes les `PROXY_REFRESH_MINUTES`
+   (si `PROXY_POOL_ENABLED=true`), ou à la demande via le bouton
+   « Rafraîchir maintenant » / `POST /api/proxies/refresh`.
+
+Sources livrées par défaut (dans `proxy_sources.json`, ajout/suppression
+depuis l'UI) : ProxyScrape, TheSpeedX, Monosans, ShiftyTR,
+Proxy-List-Download, OpenProxyList — en HTTP / HTTPS / SOCKS4 / SOCKS5.
+
+Quand le pool est actif, chaque requête de scraping tire un proxy vivant
+bien noté parmi les 20 meilleurs (rotation). Les proxies SOCKS nécessitent
+`requests[socks]` (déjà dans `requirements.txt`). Les listes contiennent
+des milliers d'entrées : `PROXY_TEST_LIMIT` borne le nombre testé par
+cycle.
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET/POST | `/api/proxies/sources` | Lister / ajouter une source |
+| PUT/DELETE | `/api/proxies/sources/{id}` | Activer-désactiver / supprimer |
+| GET | `/api/proxies` | Proxies vivants (filtre protocole) |
+| GET | `/api/proxies/stats` | Compteurs, latence, protocoles |
+| POST | `/api/proxies/refresh` | Lancer un cycle complet |
+
 ### Conformité
 
 - `robots.txt` respecté par défaut (`RESPECT_ROBOTS_TXT=true`).

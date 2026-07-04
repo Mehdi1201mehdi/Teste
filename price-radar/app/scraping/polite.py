@@ -75,6 +75,19 @@ class RequestManager:
                 "https": settings.SCRAPE_PROXY,
             }
 
+    def _pick_proxy(self) -> dict | None:
+        """Proxy statique (.env) prioritaire ; sinon un proxy vivant du pool
+        si PROXY_POOL_ENABLED. Import tardif pour éviter les cycles."""
+        if settings.SCRAPE_PROXY:
+            return None  # déjà appliqué à la session
+        if not settings.PROXY_POOL_ENABLED:
+            return None
+        try:
+            from ..proxies import get_working_proxy
+            return get_working_proxy()
+        except Exception:
+            return None
+
     def get_headers(self) -> dict:
         return {
             "User-Agent": random.choice(USER_AGENTS),
@@ -91,8 +104,11 @@ class RequestManager:
         last_exc: Exception | None = None
         for attempt in range(retries):
             try:
+                # Un proxy vivant est tiré du pool à chaque tentative (rotation)
+                proxy = self._pick_proxy()
                 response = self.session.get(
-                    url, headers=self.get_headers(), timeout=settings.SCRAPE_TIMEOUT
+                    url, headers=self.get_headers(),
+                    timeout=settings.SCRAPE_TIMEOUT, proxies=proxy
                 )
                 # 429/403 : on backoff sans lever tout de suite, le poison
                 # pill detector décidera quoi faire du contenu

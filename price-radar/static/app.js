@@ -458,6 +458,96 @@ async function pageSettings() {
   };
 }
 
+async function pageProxies() {
+  const [stats, sources, proxies] = await Promise.all([
+    api('/proxies/stats'), api('/proxies/sources'), api('/proxies?alive_only=true&limit=100'),
+  ]);
+  view.innerHTML = `
+    <h1>Proxies</h1>
+    <p class="subtitle">Pool de proxies publics gratuits — téléchargés, fusionnés, testés, scorés et renouvelés automatiquement</p>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Pool</div><div class="value">${stats.enabled ? '<span style="color:var(--green)">actif</span>' : '<span style="color:var(--muted)">désactivé</span>'}</div></div>
+      <div class="stat-card"><div class="label">Proxies vivants</div><div class="value" style="color:var(--green)">${stats.alive}</div></div>
+      <div class="stat-card"><div class="label">Total en base</div><div class="value">${stats.total}</div></div>
+      <div class="stat-card"><div class="label">Meilleure latence</div><div class="value">${stats.best_latency_ms != null ? stats.best_latency_ms + ' ms' : '—'}</div></div>
+      <div class="stat-card"><div class="label">Rafraîchissement</div><div class="value">${stats.refresh_minutes} min</div></div>
+    </div>
+    ${stats.enabled ? '' : '<div class="card"><div class="preview-box muted">⚠️ Le pool est désactivé. Activez-le avec <code>PROXY_POOL_ENABLED=true</code> dans <code>.env</code> pour la rotation automatique pendant le scraping. Vous pouvez tout de même tester le pool ci-dessous.</div></div>'}
+    <div class="card">
+      <div class="card-header">Proxies vivants par protocole
+        <button class="btn small" id="btn-refresh-proxies" style="margin-left:auto">🔄 Rafraîchir maintenant</button></div>
+      <div class="preview-box">
+        ${['http', 'https', 'socks4', 'socks5'].map((p) => `<span class="badge stock-in" style="margin-right:8px">${p} : ${stats.alive_by_protocol[p] || 0}</span>`).join('')}
+        <span class="muted"> · ${stats.test_limit_per_cycle} proxies testés par cycle</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">🌐 Sources (panneau admin) — ${sources.length} source(s)</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Source</th><th>Protocole</th><th>URL</th><th>Dernier fetch</th><th>Proxies</th><th>État</th><th>Actions</th></tr></thead>
+        <tbody>${sources.map((s) => `<tr>
+          <td>${esc(s.name)}</td>
+          <td><span class="badge stock-unknown">${esc(s.protocol)}</span></td>
+          <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis" title="${esc(s.url)}"><span class="muted">${esc(s.url)}</span></td>
+          <td class="muted">${dt(s.last_fetched_at)}</td>
+          <td>${s.last_error ? `<span class="badge risk-eleve" title="${esc(s.last_error)}">erreur</span>` : s.last_count}</td>
+          <td>${s.enabled ? '<span class="badge risk-faible">activée</span>' : '<span class="badge stock-unknown">désactivée</span>'}</td>
+          <td style="display:flex;gap:6px">
+            <button class="btn small secondary" data-toggle-src="${s.id}">${s.enabled ? 'Désactiver' : 'Activer'}</button>
+            <button class="btn small danger" data-del-src="${s.id}">✕</button>
+          </td></tr>`).join('')}</tbody>
+      </table></div>
+      <div class="form-grid">
+        <div class="field"><label>Nom</label><input id="src-name" placeholder="Ma source"></div>
+        <div class="field"><label>Protocole</label><select id="src-proto"><option>http</option><option>https</option><option>socks4</option><option>socks5</option><option value="auto">auto (détecté)</option></select></div>
+        <div class="field full"><label>URL de la liste</label><input id="src-url" placeholder="https://exemple.com/proxies.txt"></div>
+      </div>
+      <div class="form-actions"><button class="btn secondary" id="btn-add-src">Ajouter la source</button></div>
+    </div>
+    <div class="card">
+      <div class="card-header">✅ Top proxies vivants (${proxies.length})</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Proxy</th><th>Protocole</th><th>Latence</th><th>Score</th><th>Succès</th><th>Échecs</th><th>Testé</th></tr></thead>
+        <tbody>${proxies.map((p) => `<tr>
+          <td><code>${esc(p.host)}:${p.port}</code></td>
+          <td><span class="badge stock-unknown">${esc(p.protocol)}</span></td>
+          <td>${p.latency_ms != null ? p.latency_ms + ' ms' : '—'}</td>
+          <td>${scoreCell(p.score)}</td>
+          <td class="muted">${p.success_count}</td><td class="muted">${p.fail_count}</td>
+          <td class="muted">${dt(p.last_checked_at)}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Aucun proxy vivant. Cliquez « Rafraîchir maintenant » pour lancer un cycle.</td></tr>'}
+      </tbody></table></div>
+    </div>`;
+
+  document.getElementById('btn-refresh-proxies').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = '⏳ Cycle en cours (peut prendre 1 min)…';
+    try {
+      const r = await api('/proxies/refresh', { method: 'POST' });
+      const s = r.summary;
+      toast(`Cycle terminé : ${s.alive_in_db} vivants / ${s.collected_unique} collectés, ${s.purged_dead} morts purgés`);
+      pageProxies();
+    } catch (err) { toast(err.message, true); e.target.disabled = false; e.target.textContent = '🔄 Rafraîchir maintenant'; }
+  };
+  document.getElementById('btn-add-src').onclick = async () => {
+    try {
+      await api('/proxies/sources', { method: 'POST', body: JSON.stringify({
+        name: document.getElementById('src-name').value,
+        url: document.getElementById('src-url').value,
+        protocol: document.getElementById('src-proto').value,
+      }) });
+      toast('Source ajoutée ✔'); pageProxies();
+    } catch (err) { toast(err.message, true); }
+  };
+  view.querySelectorAll('[data-toggle-src]').forEach((b) => b.onclick = async () => {
+    await api('/proxies/sources/' + b.dataset.toggleSrc + '/toggle', { method: 'PUT' });
+    pageProxies();
+  });
+  view.querySelectorAll('[data-del-src]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Supprimer cette source ?')) return;
+    await api('/proxies/sources/' + b.dataset.delSrc, { method: 'DELETE' });
+    toast('Source supprimée'); pageProxies();
+  });
+}
+
 async function pageLogs() {
   const logs = await api('/logs');
   const badge = (s) => ({ success: 'risk-faible', blocked: 'risk-eleve', error: 'risk-eleve', robots_denied: 'risk-moyen', no_price: 'risk-moyen', pending: 'stock-unknown' }[s] || 'stock-unknown');
@@ -483,6 +573,7 @@ const routes = {
   ajouter: pageAdd,
   produits: pageProducts,
   alertes: pageAlerts,
+  proxies: pageProxies,
   parametres: pageSettings,
   logs: pageLogs,
 };

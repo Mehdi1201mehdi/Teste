@@ -46,5 +46,15 @@ class Settings:
     TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
     DISCORD_WEBHOOK_URL: str = os.getenv("DISCORD_WEBHOOK_URL", "")
 
+    # --- Pool de proxies publics ---
+    PROXY_POOL_ENABLED: bool = _bool("PROXY_POOL_ENABLED", False)
+    PROXY_REFRESH_MINUTES: int = int(os.getenv("PROXY_REFRESH_MINUTES", "30"))
+    PROXY_FETCH_TIMEOUT: int = int(os.getenv("PROXY_FETCH_TIMEOUT", "20"))
+    PROXY_TEST_URL: str = os.getenv("PROXY_TEST_URL", "http://httpbin.org/ip")
+    PROXY_TEST_TIMEOUT: float = _float("PROXY_TEST_TIMEOUT", 8.0)
+    PROXY_TEST_WORKERS: int = int(os.getenv("PROXY_TEST_WORKERS", "50"))
+    PROXY_TEST_LIMIT: int = int(os.getenv("PROXY_TEST_LIMIT", "400"))
+    PROXY_MAX_FAILS: int = int(os.getenv("PROXY_MAX_FAILS", "3"))
+
 
 settings = Settings()

@@ -265,12 +265,22 @@ function bind() {
 
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  if (document.readyState === "complete") {
+  // Quand une nouvelle version de l'appli est installée, la page se recharge
+  // une fois automatiquement pour que HTML et JavaScript restent synchronisés.
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloaded) return;
+    reloaded = true;
+    window.location.reload();
+  });
+  const register = () => {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  };
+  if (document.readyState === "complete") {
+    register();
   } else {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("service-worker.js").catch(() => {});
-    });
+    window.addEventListener("load", register);
   }
 }
 

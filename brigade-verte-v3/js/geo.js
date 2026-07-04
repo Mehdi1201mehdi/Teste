@@ -25,10 +25,21 @@ function fmtDist(d) {
 }
 
 /** Localise l'agent et affiche les 5 rues les plus proches dans les suggestions. */
-export function locateNearestStreets() {
+export async function locateNearestStreets() {
   if (!navigator.geolocation) {
     toast("GPS non disponible sur cet appareil");
     return;
+  }
+  // Si la localisation a déjà été bloquée pour ce site, le navigateur ne
+  // redemandera pas : on l'explique clairement au lieu d'échouer en silence.
+  try {
+    const status = await navigator.permissions?.query?.({ name: "geolocation" });
+    if (status?.state === "denied") {
+      toast("Localisation bloquée pour ce site — réactive-la dans les réglages du navigateur (icône 🔒 à côté de l'adresse)");
+      return;
+    }
+  } catch (e) {
+    /* API permissions absente (vieux Safari) : on tente directement */
   }
   toast("📡 Recherche de ta position…");
   navigator.geolocation.getCurrentPosition(

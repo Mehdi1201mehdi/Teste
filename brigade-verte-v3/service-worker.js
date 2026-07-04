@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v3.4.0";
+const VERSION = "v3.5.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 
@@ -65,19 +65,6 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-async function networkFirst(request, cacheName) {
-  try {
-    const response = await fetch(request);
-    const cache = await caches.open(cacheName);
-    cache.put(request, response.clone());
-    return response;
-  } catch (e) {
-    const cached = await caches.match(request);
-    if (cached) return cached;
-    throw e;
-  }
-}
-
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
@@ -90,6 +77,20 @@ async function staleWhileRevalidate(request, cacheName) {
   return cached || (await network) || Response.error();
 }
 
+// HTML/CSS/JS : cache d'abord, uniquement depuis le cache versionné installé
+// d'un bloc. Cela garantit que la page et ses scripts sont TOUJOURS de la même
+// version — jamais un HTML neuf avec un vieux JavaScript. Les mises à jour
+// arrivent par l'installation d'un nouveau service worker (VERSION changée),
+// et la page se recharge alors automatiquement (voir app.js).
+async function cacheFirst(request, cacheName) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  const cache = await caches.open(cacheName);
+  cache.put(request, response.clone());
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -99,7 +100,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, SHELL_CACHE));
+    event.respondWith(
+      (async () => (await caches.match("./index.html")) || fetch(request))(),
+    );
     return;
   }
 
@@ -108,5 +111,5 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
+  event.respondWith(cacheFirst(request, SHELL_CACHE));
 });

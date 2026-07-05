@@ -86,141 +86,201 @@ def _map_availability(value: str) -> str:
     return AVAILABILITY_MAP.get(key, "unknown")
 
 
-def _extract_json_ld(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
-    """Cherche un objet schema.org/Product dans les scripts JSON-LD."""
+def _first(*values) -> str:
+    """Première valeur non vide, en chaîne (sinon '')."""
+    for v in values:
+        if v:
+            return str(v)
+    return ""
+
+
+def _ld_image(value) -> str:
+    """URL d'image depuis un champ JSON-LD 'image' (str, liste ou objet)."""
+    if isinstance(value, list) and value:
+        value = value[0]
+    if isinstance(value, dict):
+        value = value.get("url", "")
+    return str(value or "")
+
+
+def _ld_scalar(value) -> str:
+    """Valeur scalaire depuis un champ JSON-LD (brand/category : str/liste/objet)."""
+    if isinstance(value, list) and value:
+        value = value[0]
+    if isinstance(value, dict):
+        value = value.get("name") or value.get("value") or ""
+    return str(value or "")
+
+
+def _is_ld_product(item: dict) -> bool:
+    item_type = item.get("@type", "")
+    types = item_type if isinstance(item_type, list) else [item_type]
+    return "Product" in types
+
+
+def _ld_documents(soup: BeautifulSoup):
+    """Objets JSON-LD décodés depuis chaque <script> (au niveau document)."""
     for script in soup.find_all("script", type="application/ld+json"):
         try:
             data = json.loads(script.string or "")
         except (json.JSONDecodeError, TypeError):
             continue
-        candidates = data if isinstance(data, list) else [data]
-        # @graph imbriqué
-        flat = []
-        for item in candidates:
-            if isinstance(item, dict) and "@graph" in item:
-                flat.extend(item["@graph"])
-            else:
-                flat.append(item)
-        for item in flat:
-            if not isinstance(item, dict):
-                continue
-            item_type = item.get("@type", "")
-            types = item_type if isinstance(item_type, list) else [item_type]
-            if "Product" not in types:
-                continue
-
-            result.name = result.name or str(item.get("name", "")).strip()
-            image = item.get("image", "")
-            if isinstance(image, list) and image:
-                image = image[0]
-            if isinstance(image, dict):
-                image = image.get("url", "")
-            result.image_url = result.image_url or str(image)
-            result.ean = result.ean or str(
-                item.get("gtin13") or item.get("gtin14") or item.get("gtin12")
-                or item.get("gtin") or item.get("gtin8") or ""
-            )
-            result.mpn = result.mpn or str(item.get("mpn") or item.get("sku") or "")
-            brand = item.get("brand", "")
-            if isinstance(brand, dict):
-                brand = brand.get("name", "")
-            result.brand = result.brand or str(brand)
-            category = item.get("category", "")
-            if isinstance(category, list) and category:
-                category = category[0]
-            result.category = result.category or str(category)
-
-            offers = item.get("offers", {})
-            if isinstance(offers, list) and offers:
-                offers = offers[0]
-            if isinstance(offers, dict):
-                # AggregateOffer → lowPrice
-                price = offers.get("price") or offers.get("lowPrice")
-                result.price = result.price or parse_price(price)
-                result.currency = str(offers.get("priceCurrency") or "EUR")
-                result.availability = _map_availability(str(offers.get("availability", "")))
-                seller = offers.get("seller", {})
-                if isinstance(seller, dict):
-                    result.seller = result.seller or str(seller.get("name", ""))
-            if result.price:
-                result.sources.append("json-ld")
-                return True
-    return False
+        yield from (data if isinstance(data, list) else [data])
 
 
-def _extract_meta(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
-    """OpenGraph / meta produit / microdata itemprop."""
-    def meta(*names: str) -> str:
-        for name in names:
-            tag = soup.find("meta", attrs={"property": name}) or \
-                  soup.find("meta", attrs={"name": name}) or \
-                  soup.find("meta", attrs={"itemprop": name})
-            if tag and tag.get("content"):
-                return tag["content"].strip()
-        return ""
+def _ld_nodes(item):
+    """Nœuds d'un document JSON-LD (déplie @graph si présent)."""
+    graph = item.get("@graph") if isinstance(item, dict) else None
+    return graph if isinstance(graph, list) else [item]
 
-    result.name = result.name or meta("og:title", "twitter:title")
-    result.image_url = result.image_url or meta("og:image", "twitter:image")
-    result.brand = result.brand or meta("product:brand", "og:brand", "brand")
-    result.ean = result.ean or meta("product:ean", "product:gtin13")
-    price = meta("product:price:amount", "og:price:amount", "price")
-    currency = meta("product:price:currency", "og:price:currency")
-    if currency:
-        result.currency = currency
-    if not price:
-        tag = soup.find(attrs={"itemprop": "price"})
-        if tag:
-            price = tag.get("content") or tag.get_text()
-    if price and not result.price:
-        result.price = parse_price(price)
+
+def _iter_ld_products(soup: BeautifulSoup):
+    """Itère les objets schema.org/Product des scripts JSON-LD (@graph inclus)."""
+    for item in _ld_documents(soup):
+        for node in _ld_nodes(item):
+            if isinstance(node, dict) and _is_ld_product(node):
+                yield node
+
+
+def _ld_seller(offers: dict) -> str:
+    seller = offers.get("seller", {})
+    return str(seller.get("name", "")) if isinstance(seller, dict) else ""
+
+
+def _apply_ld_offer(offers, result: ExtractedProduct):
+    """Renseigne prix/devise/dispo/vendeur depuis un bloc offers JSON-LD."""
+    if isinstance(offers, list) and offers:
+        offers = offers[0]
+    if not isinstance(offers, dict):
+        return
+    result.price = result.price or parse_price(
+        offers.get("price") or offers.get("lowPrice"))  # AggregateOffer → lowPrice
+    result.currency = str(offers.get("priceCurrency") or "EUR")
+    result.availability = _map_availability(str(offers.get("availability", "")))
+    result.seller = result.seller or _ld_seller(offers)
+
+
+def _apply_ld_product(item: dict, result: ExtractedProduct):
+    """Renseigne les champs produit depuis un objet schema.org/Product."""
+    result.name = result.name or str(item.get("name", "")).strip()
+    result.image_url = result.image_url or _ld_image(item.get("image", ""))
+    result.ean = result.ean or _first(
+        item.get("gtin13"), item.get("gtin14"), item.get("gtin12"),
+        item.get("gtin"), item.get("gtin8"))
+    result.mpn = result.mpn or _first(item.get("mpn"), item.get("sku"))
+    result.brand = result.brand or _ld_scalar(item.get("brand", ""))
+    result.category = result.category or _ld_scalar(item.get("category", ""))
+    _apply_ld_offer(item.get("offers", {}), result)
+
+
+def _extract_json_ld(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
+    """Cherche un objet schema.org/Product dans les scripts JSON-LD."""
+    for item in _iter_ld_products(soup):
+        _apply_ld_product(item, result)
         if result.price:
-            result.sources.append("meta")
+            result.sources.append("json-ld")
             return True
     return False
 
 
+def _meta_content(soup: BeautifulSoup, *names: str) -> str:
+    """Contenu du 1er <meta> trouvé par property / name / itemprop."""
+    for name in names:
+        tag = soup.find("meta", attrs={"property": name}) or \
+              soup.find("meta", attrs={"name": name}) or \
+              soup.find("meta", attrs={"itemprop": name})
+        if tag and tag.get("content"):
+            return tag["content"].strip()
+    return ""
+
+
+def _meta_price_text(soup: BeautifulSoup) -> str:
+    """Prix brut depuis les meta produit, sinon microdata itemprop=price."""
+    price = _meta_content(soup, "product:price:amount", "og:price:amount", "price")
+    if price:
+        return price
+    tag = soup.find(attrs={"itemprop": "price"})
+    if tag:
+        return tag.get("content") or tag.get_text()
+    return ""
+
+
+def _extract_meta(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
+    """OpenGraph / meta produit / microdata itemprop."""
+    result.name = result.name or _meta_content(soup, "og:title", "twitter:title")
+    result.image_url = result.image_url or _meta_content(soup, "og:image", "twitter:image")
+    result.brand = result.brand or _meta_content(soup, "product:brand", "og:brand", "brand")
+    result.ean = result.ean or _meta_content(soup, "product:ean", "product:gtin13")
+    currency = _meta_content(soup, "product:price:currency", "og:price:currency")
+    if currency:
+        result.currency = currency
+    if result.price:
+        return False
+    result.price = parse_price(_meta_price_text(soup))
+    if result.price:
+        result.sources.append("meta")
+        return True
+    return False
+
+
+PRICE_SELECTORS = (
+    '[class*="price--current"]', '[class*="current-price"]',
+    '[class*="product-price"]', '[class*="sales-price"]',
+    '[data-price]', ".price", '[class*="price"]',
+)
+OLD_PRICE_SELECTOR = ('del, s, [class*="old-price"], '
+                      '[class*="price--old"], [class*="strike"]')
+
+
+def _css_name(soup: BeautifulSoup, result: ExtractedProduct):
+    if result.name:
+        return
+    h1 = soup.find("h1")
+    if h1:
+        result.name = h1.get_text(strip=True)
+    elif soup.title:
+        result.name = soup.title.get_text(strip=True)
+
+
+def _css_price(soup: BeautifulSoup, result: ExtractedProduct):
+    if result.price:
+        return
+    for selector in PRICE_SELECTORS:
+        for tag in soup.select(selector):
+            price = parse_price(tag.get("data-price") or tag.get_text())
+            if price:
+                result.price = price
+                result.sources.append(f"css:{selector}")
+                return
+
+
+def _css_old_price(soup: BeautifulSoup, result: ExtractedProduct):
+    if result.old_price is not None:
+        return
+    for tag in soup.select(OLD_PRICE_SELECTOR):
+        old = parse_price(tag.get_text())
+        if old and (result.price is None or old > result.price):
+            result.old_price = old
+            return
+
+
+def _css_regex_price(soup: BeautifulSoup, result: ExtractedProduct):
+    """Dernier recours : première occurrence '1 234,56 €' dans le body."""
+    if result.price:
+        return
+    m = PRICE_RE.search(soup.get_text(" ", strip=True)[:20000])
+    if m:
+        result.price = parse_price(m.group(0))
+        if result.price:
+            result.sources.append("regex")
+
+
 def _extract_css_fallback(soup: BeautifulSoup, result: ExtractedProduct) -> bool:
     """Sélecteurs génériques rencontrés sur la plupart des boutiques."""
-    if not result.name:
-        h1 = soup.find("h1")
-        if h1:
-            result.name = h1.get_text(strip=True)
-        elif soup.title:
-            result.name = soup.title.get_text(strip=True)
-
-    price_selectors = [
-        '[class*="price--current"]', '[class*="current-price"]',
-        '[class*="product-price"]', '[class*="sales-price"]',
-        '[data-price]', ".price", '[class*="price"]',
-    ]
-    if not result.price:
-        for selector in price_selectors:
-            for tag in soup.select(selector):
-                price = parse_price(tag.get("data-price") or tag.get_text())
-                if price:
-                    result.price = price
-                    result.sources.append(f"css:{selector}")
-                    break
-            if result.price:
-                break
-
-    # Prix barré (ancien prix)
-    if result.old_price is None:
-        for tag in soup.select('del, s, [class*="old-price"], '
-                               '[class*="price--old"], [class*="strike"]'):
-            old = parse_price(tag.get_text())
-            if old and (result.price is None or old > result.price):
-                result.old_price = old
-                break
-
-    # Dernier recours : première occurrence "1 234,56 €" dans le body
-    if not result.price:
-        body_text = soup.get_text(" ", strip=True)[:20000]
-        m = PRICE_RE.search(body_text)
-        if m:
-            result.price = parse_price(m.group(0))
-            if result.price:
-                result.sources.append("regex")
+    _css_name(soup, result)
+    _css_price(soup, result)
+    _css_old_price(soup, result)
+    _css_regex_price(soup, result)
     return result.price is not None
 
 
@@ -234,33 +294,40 @@ def _extract_shipping(soup: BeautifulSoup, result: ExtractedProduct):
         result.shipping_cost = parse_price(m.group(1))
 
 
-def extract_product(html: str) -> ExtractedProduct:
-    soup = BeautifulSoup(html, "lxml")
-    result = ExtractedProduct()
+IN_STOCK_RE = re.compile(r"en stock|disponible|in stock|add to cart|ajouter au panier")
+OUT_STOCK_RE = re.compile(r"rupture|épuisé|out of stock|indisponible|sold out")
 
+
+def _run_extraction_cascade(soup: BeautifulSoup, result: ExtractedProduct):
+    """JSON-LD → meta → CSS. Complète nom/ancien prix même si le prix vient
+    du JSON-LD."""
     _extract_json_ld(soup, result)
     if not result.price:
         _extract_meta(soup, result)
     if not result.price:
         _extract_css_fallback(soup, result)
-    else:
-        # Compléter old_price / nom même si le prix vient du JSON-LD
-        _extract_css_fallback(soup, result) if not result.name else None
-        if result.old_price is None:
-            for tag in soup.select('del, s, [class*="old-price"], [class*="strike"]'):
-                old = parse_price(tag.get_text())
-                if old and old > (result.price or 0):
-                    result.old_price = old
-                    break
+        return
+    if not result.name:
+        _extract_css_fallback(soup, result)
+    _css_old_price(soup, result)
+
+
+def _extract_availability_text(soup: BeautifulSoup, result: ExtractedProduct):
+    """Disponibilité déduite du texte si toujours inconnue."""
+    if result.availability != "unknown":
+        return
+    text = soup.get_text(" ", strip=True).lower()[:30000]
+    if IN_STOCK_RE.search(text):
+        result.availability = "in_stock"
+    elif OUT_STOCK_RE.search(text):
+        result.availability = "out_of_stock"
+
+
+def extract_product(html: str) -> ExtractedProduct:
+    soup = BeautifulSoup(html, "lxml")
+    result = ExtractedProduct()
+    _run_extraction_cascade(soup, result)
     _extract_shipping(soup, result)
-
-    # Disponibilité en texte si toujours inconnue
-    if result.availability == "unknown":
-        text = soup.get_text(" ", strip=True).lower()[:30000]
-        if re.search(r"en stock|disponible|in stock|add to cart|ajouter au panier", text):
-            result.availability = "in_stock"
-        elif re.search(r"rupture|épuisé|out of stock|indisponible|sold out", text):
-            result.availability = "out_of_stock"
-
+    _extract_availability_text(soup, result)
     result.name = (result.name or "").strip()[:300]
     return result

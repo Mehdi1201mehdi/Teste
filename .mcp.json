@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "codescene": {
+      "command": "npx",
+      "args": ["-y", "@codescene/codehealth-mcp"],
+      "env": {
+        "CS_ENABLED_TOOLS": "code_health_review,code_health_score,pre_commit_code_health_safeguard,analyze_change_set"
+      }
+    }
+  }
+}

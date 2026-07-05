@@ -10,6 +10,31 @@ DEFAULT_PRODUCT_HINTS = ("/product", "/produit", "/dp/", "/gp/product", "/p/",
                          "/item", "/article", "/ref/", "/prod/", "/pd/", "-p-",
                          "/f-", "/mp/")
 
+# Signatures de liens-pièges (honeypots) : liens invisibles pour un humain
+# mais présents dans le HTML, posés pour repérer et bannir les robots.
+_HIDDEN_STYLES = ("display:none", "visibility:hidden", "opacity:0")
+
+
+def _is_honeypot(tag) -> bool:
+    """True si l'ancre (ou un parent proche) est manifestement cachée : on
+    l'ignore pour ne pas tomber dans le piège et se faire bannir."""
+    node = tag
+    depth = 0
+    while node is not None and getattr(node, "get", None) and depth < 4:
+        style = (node.get("style") or "").replace(" ", "").lower()
+        if any(s in style for s in _HIDDEN_STYLES):
+            return True
+        if node.get("hidden") is not None:
+            return True
+        if str(node.get("aria-hidden", "")).lower() == "true":
+            return True
+        classes = " ".join(node.get("class") or []).lower()
+        if "honeypot" in classes or "trap" in classes:
+            return True
+        node = node.parent
+        depth += 1
+    return False
+
 
 def extract_product_links(html: str, base_url: str,
                           patterns: tuple[str, ...] = (),
@@ -49,17 +74,21 @@ def extract_product_links(html: str, base_url: str,
                             url = target.get("url") or target.get("@id")
                         add(url)
 
-    # 2. Ancres dont le chemin ressemble à une fiche produit
+    # 2. Ancres dont le chemin ressemble à une fiche produit (hors honeypots)
     for a in soup.find_all("a", href=True):
+        if _is_honeypot(a):
+            continue
         path = urlparse(urljoin(base_url, a["href"])).path.lower()
         if any(h in path for h in hints):
             add(a["href"])
 
-    # 3. Ancres dans des cartes produit
+    # 3. Ancres dans des cartes produit (hors honeypots)
     if len(found) < limit:
         for a in soup.select('[class*="product"] a[href], [class*="produit"] a[href], '
                              '[class*="card"] a[href], [data-product] a[href], '
                              'article a[href]'):
+            if _is_honeypot(a):
+                continue
             add(a["href"])
             if len(found) >= limit:
                 break

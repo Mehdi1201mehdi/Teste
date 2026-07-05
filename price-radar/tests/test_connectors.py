@@ -64,6 +64,21 @@ def test_extract_product_links_filters_domain():
     assert not any("/aide" in l for l in links)        # non-produit exclu
 
 
+def test_extract_product_links_skips_honeypots():
+    html = """
+    <html><body>
+    <div class="product"><a href="/produit/reel">Réel</a></div>
+    <a href="/produit/piege-1" style="display:none">piège</a>
+    <div style="visibility:hidden"><a href="/produit/piege-2">piège</a></div>
+    <a href="/produit/piege-3" class="honeypot">piège</a>
+    <a href="/produit/piege-4" aria-hidden="true">piège</a>
+    </body></html>
+    """
+    links = extract_product_links(html, "https://shop.fr/cat")
+    assert "https://shop.fr/produit/reel" in links
+    assert not any("piege" in l for l in links)        # tous les pièges ignorés
+
+
 # -------------------------------------------------------------------- registry
 def test_registry_populated():
     names = {c.name for c in connectors.all_connectors()}

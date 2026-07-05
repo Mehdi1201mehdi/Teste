@@ -20,6 +20,8 @@ class APIOffer:
     source: str
     title: str = ""
     price: float | None = None
+    old_price: float | None = None      # prix barré / d'origine si dispo
+    discount_percent: float | None = None
     currency: str = "EUR"
     availability: str = "unknown"
     seller: str = ""

@@ -614,6 +614,55 @@ def proxies_ip_check(proxy: str = ""):
     return check(proxy or None)
 
 
+# ------------------------------------------------------------- Veille prix
+@router.get("/pricewatch/config")
+def pricewatch_get_config(db: Session = Depends(get_db)):
+    from ..pricewatch import get_config
+    return get_config(db)
+
+
+@router.put("/pricewatch/config")
+def pricewatch_set_config(payload: dict, db: Session = Depends(get_db)):
+    from ..pricewatch import set_config
+    return set_config(db, payload)
+
+
+@router.get("/pricewatch/keyword")
+def pricewatch_keyword(q: str, limit: int = 10, db: Session = Depends(get_db)):
+    """Tape un mot-clé (PC gaming, TV, bricolage) → produits en forte baisse."""
+    from ..pricewatch.keyword import keyword_deals
+    if not q.strip():
+        raise HTTPException(422, "Mot-clé vide")
+    return keyword_deals(db, q.strip(), min(limit, 20))
+
+
+@router.get("/pricewatch/export")
+def pricewatch_export(q: str, format: str = "csv", limit: int = 20,
+                      db: Session = Depends(get_db)):
+    """Exporte les baisses d'un mot-clé en CSV / Excel / JSON."""
+    from ..datasources.exports import EXPORTS
+    from ..pricewatch.keyword import keyword_deals
+    if format not in EXPORTS:
+        raise HTTPException(422, "Format : json | csv | xlsx")
+    if not q.strip():
+        raise HTTPException(422, "Mot-clé vide")
+    data = keyword_deals(db, q.strip(), min(limit, 20))
+    rows = [{
+        "Produit": d["name"], "Marque": d.get("brand", ""),
+        "Catégorie": d.get("category", ""), "Source": d["source"],
+        "Ancien prix": d["old_price"], "Prix actuel": d["price"],
+        "Baisse €": d["discount_amount"], "Baisse %": d["discount_percent"],
+        "Disponibilité": d["availability"], "URL": d["url"],
+        "Date du scan": d.get("scanned_at", ""),
+        "Score opportunité": d["score"],
+    } for d in data["deals"]]
+    fn, media_type, ext = EXPORTS[format]
+    content = fn(rows)
+    safe = "".join(c for c in q if c.isalnum()) or "veille"
+    return Response(content=content, media_type=media_type, headers={
+        "Content-Disposition": f'attachment; filename="baisses-{safe}.{ext}"'})
+
+
 # ----------------------------------------------- Module "Sources API gratuites"
 class ApiKeyIn(BaseModel):
     env_key: str

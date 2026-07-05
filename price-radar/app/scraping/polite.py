@@ -97,14 +97,21 @@ class RequestManager:
             return None
 
     def get_headers(self) -> dict:
+        # En-têtes proches d'un vrai navigateur (Accept-*, Sec-Fetch-*) pour
+        # ne pas ressortir comme un script — furtivité, pas de contournement.
         return {
             "User-Agent": random.choice(USER_AGENTS),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                      "image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7",
             "Accept-Encoding": "gzip, deflate, br",
             "DNT": "1",
             "Connection": "keep-alive",
             "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
         }
 
     def fetch(self, url: str, retry_count: int | None = None) -> requests.Response:

@@ -147,6 +147,88 @@ const FREE_LABEL = {
   'open-source': 'Open source', 'free-tier': 'Free tier',
 };
 
+async function pageVeillePrix() {
+  view.innerHTML = `
+    <h1>Veille prix</h1>
+    <p class="subtitle">Tape un mot-clé → les produits avec la plus forte baisse, classés. Pour aligner tes prix.</p>
+    <div class="card">
+      <div class="card-header">📉 Chercher les baisses</div>
+      <div class="form-grid">
+        <div class="field full"><label>Mot-clé</label>
+          <input id="vp-q" placeholder="ex : PC gaming, TV, perceuse…"></div>
+        <div class="field"><label>Résultats max / source</label>
+          <select id="vp-limit"><option>5</option><option selected>10</option><option>15</option></select></div>
+      </div>
+      <div style="padding:0 18px 8px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="muted" style="align-self:center">Préréglages :</span>
+        ${['PC gaming', 'TV', 'outil bricolage', 'aspirateur', 'casque'].map((p) =>
+          `<button class="btn small secondary vp-preset" data-q="${esc(p)}">${esc(p)}</button>`).join('')}
+      </div>
+      <div class="form-actions"><button class="btn" id="vp-go">Chercher les baisses</button>
+        <span class="muted" id="vp-hint" style="align-self:center"></span></div>
+    </div>
+    <div id="vp-results"></div>`;
+
+  const run = async (query) => {
+    document.getElementById('vp-q').value = query;
+    const btn = document.getElementById('vp-go');
+    btn.disabled = true; btn.textContent = '⏳ Recherche des baisses…';
+    document.getElementById('vp-hint').textContent = 'API + sites accessibles… peut prendre 20-40 s.';
+    try {
+      const limit = document.getElementById('vp-limit').value;
+      const r = await api(`/pricewatch/keyword?q=${encodeURIComponent(query)}&limit=${limit}`);
+      renderVeille(r, query);
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false; btn.textContent = 'Chercher les baisses';
+    document.getElementById('vp-hint').textContent = '';
+  };
+  document.getElementById('vp-go').onclick = () => {
+    const q = document.getElementById('vp-q').value.trim();
+    if (!q) return toast('Entre un mot-clé', true);
+    run(q);
+  };
+  document.getElementById('vp-q').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('vp-go').click();
+  });
+  view.querySelectorAll('.vp-preset').forEach((b) => b.onclick = () => run(b.dataset.q));
+}
+
+function renderVeille(r, query) {
+  const lvlBadge = (l) => l ? `<span class="badge ${l === 'baisse-urgente' ? 'exceptionnel' : l === 'baisse-forte' ? 'fort' : 'moyen'}">${esc(l)}</span>` : '';
+  const per = (r.per_source || []).map((p) => {
+    const cls = p.status === 'ok' ? 'risk-faible' : p.status === 'non_configuré' ? 'stock-unknown' : 'risk-eleve';
+    const label = p.status === 'non_disponible' ? 'non disponible' : p.status;
+    return `<span class="badge ${cls}" style="margin-right:6px">${esc(p.source)} : ${esc(label)}${p.found ? ' (' + p.found + ')' : ''}</span>`;
+  }).join('');
+  const rows = (r.deals || []).map((d) => `<tr>
+    <td><div class="product-cell">${d.image ? `<img src="${esc(d.image)}" loading="lazy" onerror="this.style.visibility='hidden'">` : '<img style="visibility:hidden">'}
+      <div><a class="name" href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a>
+      <div class="site">${esc(d.source)}</div></div></div></td>
+    <td>${eur(d.old_price)}</td>
+    <td><b>${eur(d.price)}</b></td>
+    <td class="gap-positive">−${eur(d.discount_amount)}</td>
+    <td class="gap-positive"><b>−${pct(d.discount_percent)}</b></td>
+    <td>${scoreCell(d.score)}</td>
+    <td>${lvlBadge(d.level)}</td>
+    <td>${stockBadge(d.availability)}</td>
+    <td class="muted" style="white-space:normal;max-width:220px">${esc(d.advice)}</td>
+  </tr>`).join('');
+  document.getElementById('vp-results').innerHTML = `
+    <div class="card">
+      <div class="card-header">${r.count} baisse(s) pour « ${esc(r.query)} »
+        <span style="margin-left:auto">Export :
+          <a href="/api/pricewatch/export?q=${encodeURIComponent(query)}&format=csv" target="_blank">CSV</a> ·
+          <a href="/api/pricewatch/export?q=${encodeURIComponent(query)}&format=xlsx" target="_blank">Excel</a> ·
+          <a href="/api/pricewatch/export?q=${encodeURIComponent(query)}&format=json" target="_blank">JSON</a></span>
+      </div>
+      <div class="preview-box">${per || '<span class="muted">Aucune source</span>'}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Produit</th><th>Ancien prix</th><th>Prix actuel</th><th>Baisse €</th><th>Baisse %</th><th>Score</th><th>Niveau</th><th>Stock</th><th>Action</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="9" class="empty">Aucune baisse trouvée. Les sources sans prix barré (ou bloquées) n'apparaissent pas. Configure une clé eBay (page Comparateur) ou ajoute des sites accessibles.</td></tr>`}</tbody>
+      </table></div>
+    </div>`;
+}
+
 async function pageSources() {
   const [cats, sources, auto] = await Promise.all([
     api('/datasources/categories'), api('/datasources'), api('/datasources/autocollect'),
@@ -960,6 +1042,7 @@ async function pageLogs() {
 const routes = {
   dashboard: pageDashboard,
   opportunites: pageOpportunities,
+  'veille-prix': pageVeillePrix,
   recherche: pageSearch,
   comparateur: pageComparateur,
   'sources-api': pageSources,

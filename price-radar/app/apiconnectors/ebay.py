@@ -70,8 +70,25 @@ class EbayBrowse(APIConnector):
                 value = float(price.get("value")) if price.get("value") else None
             except (TypeError, ValueError):
                 value = None
+            # Prix barré / réduction eBay (marketingPrice)
+            mp = it.get("marketingPrice", {}) or {}
+            old = None
+            discount = None
+            try:
+                orig = (mp.get("originalPrice", {}) or {}).get("value")
+                old = float(orig) if orig else None
+            except (TypeError, ValueError):
+                old = None
+            try:
+                discount = float(mp.get("discountPercentage")) \
+                    if mp.get("discountPercentage") else None
+            except (TypeError, ValueError):
+                discount = None
+            if old and value and old > value and discount is None:
+                discount = round((old - value) / old * 100, 1)
             offers.append(APIOffer(
                 source=self.name, title=it.get("title", ""), price=value,
+                old_price=old, discount_percent=discount,
                 currency=price.get("currency", "EUR"),
                 availability="in_stock", seller=seller, image=image,
                 url=it.get("itemWebUrl", ""),

@@ -1,0 +1,83 @@
+"""Tests de la Veille prix : calculs, règles, score, service par mot-clé."""
+from app.pricewatch import scoring
+
+
+def test_compute_discount():
+    assert scoring.compute_discount(149.99, 89.99) == (60.0, 40.0)
+    assert scoring.compute_discount(100, 100) == (0.0, 0.0)
+    assert scoring.compute_discount(None, 50) == (None, None)
+    assert scoring.compute_discount(0, 50) == (None, None)
+
+
+def test_is_suspicious():
+    cfg = {"suspiciousMinPrice": 1.0, "suspiciousMaxDiscountPercent": 95}
+    assert scoring.is_suspicious(100, 0.5, 99.5, cfg) is True     # prix < 1€
+    assert scoring.is_suspicious(100, 3, 97, cfg) is True         # -97% aberrant
+    assert scoring.is_suspicious(100, 60, 40, cfg) is False       # normal
+
+
+def test_passes_rules():
+    cfg = {"minDiscountPercent": 20, "minDiscountAmount": 10,
+           "ignoreOutOfStock": True}
+    assert scoring.passes_rules(40, 60, True, False, cfg) is True
+    assert scoring.passes_rules(15, 60, True, False, cfg) is False   # < 20%
+    assert scoring.passes_rules(40, 5, True, False, cfg) is False    # < 10€
+    assert scoring.passes_rules(40, 60, False, False, cfg) is False  # rupture
+    assert scoring.passes_rules(40, 60, True, True, cfg) is False    # suspect
+
+
+def test_classify_alert():
+    cfg = {"minDiscountPercent": 20, "alertPercent": 30, "urgentPercent": 50}
+    assert scoring.classify_alert(55, cfg) == "baisse-urgente"
+    assert scoring.classify_alert(35, cfg) == "baisse-forte"
+    assert scoring.classify_alert(22, cfg) == "baisse"
+    assert scoring.classify_alert(10, cfg) is None
+
+
+def test_opportunity_score_ordering():
+    strong = scoring.opportunity_score(60, 120, True, True, True, 5)
+    weak = scoring.opportunity_score(21, 12, False, False, False, 0)
+    assert strong > weak
+    assert 0 <= weak <= 100 and 0 <= strong <= 100
+
+
+def test_example_from_spec():
+    # Aspirateur : 149,99 -> 89,99 = -60€ / -40%
+    amount, percent = scoring.compute_discount(149.99, 89.99)
+    assert amount == 60.0 and percent == 40.0
+    cfg = {"minDiscountPercent": 20, "minDiscountAmount": 10,
+           "ignoreOutOfStock": True, "suspiciousMinPrice": 1.0,
+           "suspiciousMaxDiscountPercent": 95, "alertPercent": 30,
+           "urgentPercent": 50}
+    assert scoring.passes_rules(percent, amount, True, False, cfg) is True
+    assert scoring.classify_alert(percent, cfg) == "baisse-forte"
+
+
+def test_keyword_deals_filters_and_ranks(monkeypatch):
+    """Le service ne garde que les vraies baisses et les classe par score."""
+    import app.pricewatch.keyword as kw
+    from app.apiconnectors.base import APIOffer
+
+    class FakeConn:
+        name = "ebay_api"; label = "eBay"; configured = True
+        def search(self, q, n):
+            return [
+                APIOffer(source="ebay_api", title="TV 4K", price=300.0,
+                         old_price=600.0, availability="in_stock"),   # -50%
+                APIOffer(source="ebay_api", title="TV mini", price=95.0,
+                         old_price=100.0, availability="in_stock"),   # -5% (rejeté)
+                APIOffer(source="ebay_api", title="TV sans promo", price=200.0,
+                         availability="in_stock"),                    # pas de baisse
+            ]
+    monkeypatch.setattr(kw.api, "price_sources", lambda: [FakeConn()])
+    monkeypatch.setattr(kw, "keyword_search",
+                        lambda *a, **k: {"results": [], "per_site": []})
+    monkeypatch.setattr(kw, "get_config", lambda db: {
+        "minDiscountPercent": 20, "minDiscountAmount": 10,
+        "ignoreOutOfStock": True, "suspiciousMinPrice": 1.0,
+        "suspiciousMaxDiscountPercent": 95, "alertPercent": 30,
+        "urgentPercent": 50})
+    res = kw.keyword_deals(db=None, query="TV", max_per_source=10)
+    assert res["count"] == 1                          # seule la -50% passe
+    assert res["deals"][0]["discount_percent"] == 50.0
+    assert res["deals"][0]["level"] == "baisse-urgente"

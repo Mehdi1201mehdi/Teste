@@ -79,6 +79,48 @@ def test_normalize_various_shapes():
 
 
 # --------------------------------------------------------------------- exports
+def test_store_save_and_get(tmp_path, monkeypatch):
+    # BDD SQLite isolée
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    import app.database as database
+    from app import models
+    eng = create_engine(f"sqlite:///{tmp_path}/t.db",
+                        connect_args={"check_same_thread": False})
+    models.Base.metadata.create_all(bind=eng)
+    Session = sessionmaker(bind=eng)
+    db = Session()
+    from app.datasources.store import get_result, save_result
+    save_result(db, "fakestore", [{"a": 1}, {"a": 2}])
+    assert get_result(db, "fakestore") == [{"a": 1}, {"a": 2}]
+    save_result(db, "fakestore", [{"a": 9}])       # upsert
+    assert get_result(db, "fakestore") == [{"a": 9}]
+    assert get_result(db, "inconnu") is None
+    db.close()
+
+
+def test_autocollect_skips_unconfigured(monkeypatch):
+    """L'auto-collecte ne doit appeler QUE les sources prêtes."""
+    import app.scheduler as sched
+    import app.datasources.base as base
+    import app.datasources.store as store
+    from app import models
+    from app.database import engine
+    models.Base.metadata.create_all(bind=engine)   # tables présentes
+
+    called = []
+    monkeypatch.setattr(base.connector, "fetchData",
+                        lambda src, path, db: called.append(src["id"]) or
+                        {"ok": True, "status": "ok", "count": 1, "records": [{}]})
+    monkeypatch.setattr(store, "save_result", lambda *a, **k: None)
+    sched.run_datasource_autocollect()
+    # sources à clé non configurées : jamais appelées
+    assert "openweathermap" not in called
+    assert "serpapi" not in called
+    # une source sans clé avec test défini : appelée
+    assert "fakestore" in called
+
+
 def test_exports_produce_bytes():
     records = [{"name": "A", "price": 10, "nested": {"k": "v"}},
                {"name": "B", "price": 20, "tags": ["x", "y"]}]

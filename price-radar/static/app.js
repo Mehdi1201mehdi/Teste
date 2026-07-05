@@ -148,13 +148,19 @@ const FREE_LABEL = {
 };
 
 async function pageSources() {
-  const [cats, sources] = await Promise.all([
-    api('/datasources/categories'), api('/datasources'),
+  const [cats, sources, auto] = await Promise.all([
+    api('/datasources/categories'), api('/datasources'), api('/datasources/autocollect'),
   ]);
   window._dsCats = cats;
   view.innerHTML = `
     <h1>Sources API gratuites</h1>
     <p class="subtitle">${sources.length} sources — API officielles, open data, free tier et frameworks. Priorité aux API, jamais de contournement anti-bot.</p>
+    <div class="card"><div class="preview-box" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <span>🤖 Auto-collecte : ${auto.enabled
+        ? `<span class="badge risk-faible">active · toutes les ${auto.minutes} min</span>`
+        : `<span class="badge stock-unknown">désactivée</span> <span class="muted">(active-la avec DATASOURCE_AUTO_COLLECT=true dans .env)</span>`}</span>
+      <button class="btn small" id="ds-collect-all" style="margin-left:auto">▶ Tout collecter maintenant</button>
+    </div></div>
     <div class="filters">
       <div class="field"><label>Catégorie</label><select id="ds-cat"><option value="">Toutes</option>
         ${Object.entries(cats).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('')}</select></div>
@@ -171,6 +177,15 @@ async function pageSources() {
   document.getElementById('ds-filter').onclick = loadSourcesList;
   document.getElementById('ds-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadSourcesList(); });
   document.getElementById('ds-logs-refresh').onclick = loadDsLogs;
+  document.getElementById('ds-collect-all').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = '⏳ Collecte de toutes les sources prêtes…';
+    try {
+      const r = await api('/datasources/collect-all', { method: 'POST' });
+      toast(`Auto-collecte : ${r.collected} source(s) collectée(s), ${r.skipped} ignorée(s)`);
+      loadDsLogs();
+    } catch (err) { toast(err.message, true); }
+    e.target.disabled = false; e.target.textContent = '▶ Tout collecter maintenant';
+  };
   await loadSourcesList();
   await loadDsLogs();
 }

@@ -624,10 +624,6 @@ class CollectIn(BaseModel):
     path: str | None = None
 
 
-# Dernier résultat de collecte par source (mémoire process), pour l'export
-_LAST_RESULTS: dict[str, list[dict]] = {}
-
-
 def _log_ds(db, source_id, action, res):
     db.add(models.ApiCollectLog(
         source_id=source_id, action=action,
@@ -648,6 +644,12 @@ def datasources(db: Session = Depends(get_db), category: str | None = None,
                 search: str = ""):
     from ..datasources import list_sources
     return list_sources(db, category, search)
+
+
+@router.get("/datasources/autocollect")
+def datasource_autocollect_status():
+    return {"enabled": settings.DATASOURCE_AUTO_COLLECT,
+            "minutes": settings.DATASOURCE_COLLECT_MINUTES}
 
 
 @router.post("/datasources/{source_id}/test")
@@ -674,8 +676,30 @@ def datasource_collect(source_id: str, payload: CollectIn,
     res = connector.fetchData(source, payload.path, db)
     _log_ds(db, source_id, "collect", res)
     if res.get("ok"):
-        _LAST_RESULTS[source_id] = res["records"]
+        from ..datasources.store import save_result
+        save_result(db, source_id, res["records"])
     return res
+
+
+@router.post("/datasources/collect-all")
+def datasource_collect_all(db: Session = Depends(get_db)):
+    """Collecte immédiatement toutes les sources API prêtes (activées + clé
+    OK + endpoint défini). Le pendant manuel de l'auto-collecte."""
+    from ..datasources import connector, get_source, list_sources
+    from ..datasources.store import save_result
+    done, skipped = 0, 0
+    for row in list_sources(db):
+        if (row["kind"] != "api" or not row["enabled"]
+                or not row["configured"] or not row["has_test"]):
+            skipped += 1
+            continue
+        source = get_source(row["id"])
+        res = connector.fetchData(source, None, db)
+        _log_ds(db, source_id=row["id"], action="collect", res=res)
+        if res.get("ok"):
+            save_result(db, row["id"], res["records"])
+            done += 1
+    return {"ok": True, "collected": done, "skipped": skipped}
 
 
 @router.put("/datasources/{source_id}/toggle")
@@ -718,9 +742,10 @@ def datasource_logs(db: Session = Depends(get_db), limit: int = 100):
 def datasource_export(source_id: str, format: str = "json",
                       db: Session = Depends(get_db)):
     from ..datasources.exports import EXPORTS
+    from ..datasources.store import get_result
     if format not in EXPORTS:
         raise HTTPException(422, "Format : json | csv | xlsx")
-    records = _LAST_RESULTS.get(source_id)
+    records = get_result(db, source_id)
     if not records:
         raise HTTPException(404, "Aucun résultat à exporter — lance d'abord "
                                  "une collecte sur cette source.")

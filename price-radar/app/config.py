@@ -22,6 +22,9 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./price_radar.db")
     SCHEDULER_ENABLED: bool = _bool("SCHEDULER_ENABLED", True)
     DEFAULT_CHECK_FREQUENCY: int = int(os.getenv("DEFAULT_CHECK_FREQUENCY", "360"))
+    # Auto-collecte des sources API prêtes (sans intervention)
+    DATASOURCE_AUTO_COLLECT: bool = _bool("DATASOURCE_AUTO_COLLECT", False)
+    DATASOURCE_COLLECT_MINUTES: int = int(os.getenv("DATASOURCE_COLLECT_MINUTES", "720"))
 
     SCRAPE_MIN_DELAY: float = _float("SCRAPE_MIN_DELAY", 2.0)
     SCRAPE_MAX_DELAY: float = _float("SCRAPE_MAX_DELAY", 5.0)

@@ -159,6 +159,17 @@ class ApiSourceState(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ApiCollectResult(Base):
+    """Dernier résultat de collecte persistant par source (pour l'export et
+    l'auto-collecte). Ne contient jamais de clés."""
+    __tablename__ = "api_collect_results"
+
+    source_id = Column(String, primary_key=True)
+    count = Column(Integer, default=0)
+    payload = Column(Text, default="[]")   # JSON des enregistrements (borné)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ApiCollectLog(Base):
     """Journal des tests/collectes d'API. Ne contient JAMAIS de clés."""
     __tablename__ = "api_collect_logs"

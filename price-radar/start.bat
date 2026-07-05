@@ -34,4 +34,5 @@ echo   API interactive : http://localhost:8000/docs
 echo   (Ctrl+C pour arreter)
 echo ======================================================
 echo.
-python run.py
+REM Lancer avec le python du venv (sinon 'ModuleNotFoundError: uvicorn')
+"%VENV_PY%" run.py

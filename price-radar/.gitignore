@@ -3,3 +3,5 @@ __pycache__/
 .venv/
 .env
 price_radar.db
+.pytest_cache/
+test_disco.db

@@ -1,10 +1,11 @@
 """API REST : dashboard, opportunités, produits, sites, catégories,
 alertes, paramètres, logs, scraping manuel."""
 from datetime import datetime, timedelta
+from typing import Annotated
 
 from fastapi import (APIRouter, Depends, File, HTTPException, Query, Response,
                      UploadFile)
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -178,61 +179,67 @@ def dashboard(db: Session = Depends(get_db)):
 
 
 # -------------------------------------------------------------- opportunities
+class OpportunityFilters(BaseModel):
+    category_id: int | None = None
+    website_id: int | None = None
+    level: str | None = Field(None, pattern="^(faible|moyen|fort|exceptionnel)$")
+    min_margin: float | None = None
+    min_gap_percent: float | None = None
+    min_price: float | None = None
+    max_price: float | None = None
+    availability: str | None = None
+    since_days: int = 30
+    search: str = ""
+    sort: str = Field("score", pattern="^(score|margin|price|gap|date|website)$")
+    order: str = Field("desc", pattern="^(asc|desc)$")
+    limit: int = 100
+    offset: int = 0
+
+
+_OPP_SORT_COLUMNS = {
+    "score": models.PriceCheck.score,
+    "margin": models.PriceCheck.margin_eur,
+    "price": models.PriceCheck.price,
+    "gap": models.PriceCheck.gap_percent,
+    "date": models.PriceCheck.created_at,
+    "website": models.Product.website_id,
+}
+
+
+def _apply_opportunity_filters(q, f: OpportunityFilters):
+    """Applique les filtres de la requête opportunités (data-driven)."""
+    for value, col in ((f.category_id, models.Product.category_id),
+                       (f.website_id, models.Product.website_id),
+                       (f.level, models.PriceCheck.opportunity_level),
+                       (f.availability, models.PriceCheck.availability)):
+        if value:
+            q = q.filter(col == value)
+    for value, col in ((f.min_margin, models.PriceCheck.margin_eur),
+                       (f.min_gap_percent, models.PriceCheck.gap_percent),
+                       (f.min_price, models.PriceCheck.price)):
+        if value is not None:
+            q = q.filter(col >= value)
+    if f.max_price is not None:
+        q = q.filter(models.PriceCheck.price <= f.max_price)
+    if f.since_days:
+        q = q.filter(models.PriceCheck.created_at >=
+                     datetime.utcnow() - timedelta(days=f.since_days))
+    if f.search:
+        q = q.filter(models.Product.name.ilike(f"%{f.search}%"))
+    return q
+
+
 @router.get("/opportunities")
-def opportunities(
-    db: Session = Depends(get_db),
-    category_id: int | None = None,
-    website_id: int | None = None,
-    level: str | None = Query(None, pattern="^(faible|moyen|fort|exceptionnel)$"),
-    min_margin: float | None = None,
-    min_gap_percent: float | None = None,
-    min_price: float | None = None,
-    max_price: float | None = None,
-    availability: str | None = None,
-    since_days: int = 30,
-    search: str = "",
-    sort: str = Query("score", pattern="^(score|margin|price|gap|date|website)$"),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    limit: int = 100,
-    offset: int = 0,
-):
+def opportunities(filters: Annotated[OpportunityFilters, Query()],
+                  db: Session = Depends(get_db)):
     q = (db.query(models.PriceCheck)
          .join(models.Product)
          .filter(models.PriceCheck.gap_percent.isnot(None)))
-    if since_days:
-        q = q.filter(models.PriceCheck.created_at >=
-                     datetime.utcnow() - timedelta(days=since_days))
-    if category_id:
-        q = q.filter(models.Product.category_id == category_id)
-    if website_id:
-        q = q.filter(models.Product.website_id == website_id)
-    if level:
-        q = q.filter(models.PriceCheck.opportunity_level == level)
-    if min_margin is not None:
-        q = q.filter(models.PriceCheck.margin_eur >= min_margin)
-    if min_gap_percent is not None:
-        q = q.filter(models.PriceCheck.gap_percent >= min_gap_percent)
-    if min_price is not None:
-        q = q.filter(models.PriceCheck.price >= min_price)
-    if max_price is not None:
-        q = q.filter(models.PriceCheck.price <= max_price)
-    if availability:
-        q = q.filter(models.PriceCheck.availability == availability)
-    if search:
-        q = q.filter(models.Product.name.ilike(f"%{search}%"))
-
-    sort_col = {
-        "score": models.PriceCheck.score,
-        "margin": models.PriceCheck.margin_eur,
-        "price": models.PriceCheck.price,
-        "gap": models.PriceCheck.gap_percent,
-        "date": models.PriceCheck.created_at,
-        "website": models.Product.website_id,
-    }[sort]
-    q = q.order_by(sort_col.asc() if order == "asc" else sort_col.desc())
-
+    q = _apply_opportunity_filters(q, filters)
+    col = _OPP_SORT_COLUMNS[filters.sort]
+    q = q.order_by(col.asc() if filters.order == "asc" else col.desc())
     total = q.count()
-    rows = q.offset(offset).limit(min(limit, 500)).all()
+    rows = q.offset(filters.offset).limit(min(filters.limit, 500)).all()
     return {"total": total,
             "items": [check_dict(c, with_product=True) for c in rows]}
 

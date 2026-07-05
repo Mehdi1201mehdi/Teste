@@ -178,6 +178,55 @@ supprimer = retirer le fichier et sa ligne d'import. Tests : `pytest -q`.
 > eBay, Electro Dépôt) pour valider ta configuration. Respecte les CGU et
 > les limites techniques des sites.
 
+### Module « Sources API gratuites » (page dédiée)
+
+Un catalogue de **110 sources** (API officielles, open data, free tier,
+frameworks) piloté par `sources.config.json`, avec un **connecteur générique
+REST** qui teste, collecte, normalise et exporte — sans casser l'existant.
+
+**Catégories** : scraping, frameworks, recherche/SERP, open-data,
+géolocalisation, e-commerce, actualités, social, météo/environnement,
+finance/crypto, utilitaires.
+
+**Ce que fait la page** : filtre par catégorie + recherche, badges
+Gratuit / Free tier / Open source / Open data, boutons **Tester**,
+**Collecter**, **Activer/Désactiver**, **Export JSON/CSV/Excel**, champ clé
+API (stockée côté serveur, **jamais réaffichée**), logs & historique en
+temps réel.
+
+**Sécurité** : clés lues depuis `.env` (ou saisies puis stockées côté
+serveur), jamais renvoyées au frontend ni écrites dans les logs (masquage).
+Rate-limit par source, timeout, retry + backoff, gestion propre des erreurs
+HTTP 401/403/404/429/500 avec proposition d'**alternative sans clé**. On ne
+contourne **jamais** Cloudflare/DataDome/CAPTCHA : un blocage renvoie une
+erreur claire + l'alternative.
+
+**Ajouter une source** = une entrée dans `sources.config.json` :
+
+```jsonc
+// exemple SANS clé (fonctionne immédiatement)
+{ "id": "open-meteo", "name": "Open-Meteo", "category": "weather",
+  "freeType": "free", "baseUrl": "https://api.open-meteo.com/v1",
+  "authType": "none", "envKey": "", "kind": "api",
+  "test": { "path": "/forecast?latitude=49.9&longitude=2.3&current=temperature_2m" } }
+
+// exemple AVEC clé (renseigne OPENWEATHER_API_KEY dans .env)
+{ "id": "openweathermap", "name": "OpenWeatherMap", "category": "weather",
+  "freeType": "free-tier", "baseUrl": "https://api.openweathermap.org/data/2.5",
+  "authType": "api-key", "envKey": "OPENWEATHER_API_KEY", "kind": "api",
+  "test": { "path": "/weather?q=Amiens", "auth_in": "query", "auth_param": "appid" },
+  "alternative": "open-meteo" }
+```
+
+Aucun code à écrire : le connecteur générique (`app/datasources/base.py`)
+gère `testConnection()`, `fetchData()`, `normalizeData()`, `errorHandler()`,
+l'injection de clé (query/header), le rate-limit et le backoff.
+
+**Endpoints :** `GET /api/datasources`, `GET /api/datasources/categories`,
+`POST /api/datasources/{id}/test`, `POST /api/datasources/{id}/collect`,
+`PUT /api/datasources/{id}/toggle`, `POST /api/datasources/keys`,
+`GET /api/datasources/logs`, `GET /api/datasources/{id}/export?format=json|csv|xlsx`.
+
 ### Connecteurs d'API officielles (page *Comparateur*)
 
 En parallèle du scraping, une couche **API officielles / flux publics** dans

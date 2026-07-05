@@ -138,6 +138,135 @@ async function pageOpportunities() {
   await load();
 }
 
+const FREE_BADGE = {
+  'free': 'stock-in', 'open-data': 'risk-faible',
+  'open-source': 'moyen', 'free-tier': 'risk-moyen',
+};
+const FREE_LABEL = {
+  'free': 'Gratuit', 'open-data': 'Open data',
+  'open-source': 'Open source', 'free-tier': 'Free tier',
+};
+
+async function pageSources() {
+  const [cats, sources] = await Promise.all([
+    api('/datasources/categories'), api('/datasources'),
+  ]);
+  window._dsCats = cats;
+  view.innerHTML = `
+    <h1>Sources API gratuites</h1>
+    <p class="subtitle">${sources.length} sources — API officielles, open data, free tier et frameworks. Priorité aux API, jamais de contournement anti-bot.</p>
+    <div class="filters">
+      <div class="field"><label>Catégorie</label><select id="ds-cat"><option value="">Toutes</option>
+        ${Object.entries(cats).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join('')}</select></div>
+      <div class="field"><label>Recherche</label><input id="ds-search" placeholder="nom, id…"></div>
+      <button class="btn" id="ds-filter">Filtrer</button>
+    </div>
+    <div id="ds-list"></div>
+    <div class="card">
+      <div class="card-header">🧾 Logs & historique
+        <button class="btn small secondary" id="ds-logs-refresh" style="margin-left:auto">Rafraîchir</button></div>
+      <div class="table-wrap" id="ds-logs"></div>
+    </div>`;
+
+  document.getElementById('ds-filter').onclick = loadSourcesList;
+  document.getElementById('ds-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadSourcesList(); });
+  document.getElementById('ds-logs-refresh').onclick = loadDsLogs;
+  await loadSourcesList();
+  await loadDsLogs();
+}
+
+async function loadSourcesList() {
+  const cat = document.getElementById('ds-cat').value;
+  const search = document.getElementById('ds-search').value.trim();
+  const params = new URLSearchParams();
+  if (cat) params.set('category', cat);
+  if (search) params.set('search', search);
+  const sources = await api('/datasources?' + params);
+  const rows = sources.map((s) => {
+    const statut = s.kind !== 'api'
+      ? `<span class="badge stock-unknown">${s.kind === 'framework' ? 'framework' : 'liste'}</span>`
+      : s.configured ? '<span class="badge risk-faible">prêt ✔</span>'
+      : `<span class="badge stock-unknown">clé requise</span>`;
+    const keyField = (s.authType !== 'none' && s.kind === 'api' && !s.configured)
+      ? `<div style="display:flex;gap:4px;margin-top:4px"><input class="ds-key" data-env="${esc(s.envKey)}" placeholder="${esc(s.envKey)}" style="width:150px;padding:5px 8px;font-size:12px">
+         <button class="btn small secondary" data-savekey="${esc(s.envKey)}">💾</button></div>` : '';
+    return `<tr data-id="${esc(s.id)}">
+      <td><div><b>${esc(s.name)}</b> ${s.enabled ? '' : '<span class="badge stock-out">off</span>'}
+        <div class="site"><a href="${esc(s.docs)}" target="_blank" rel="noopener" class="muted">docs ↗</a> · ${esc(s.rateLimit || '')}</div>${keyField}</div></td>
+      <td class="muted">${esc(window._dsCats[s.category] || s.category)}</td>
+      <td><span class="badge ${FREE_BADGE[s.freeType] || 'stock-unknown'}">${FREE_LABEL[s.freeType] || s.freeType}</span></td>
+      <td class="muted">${esc(s.authType)}</td>
+      <td>${statut}</td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn small secondary" data-test="${esc(s.id)}">Tester</button>
+        ${s.kind === 'api' ? `<button class="btn small" data-collect="${esc(s.id)}">Collecter</button>` : ''}
+        <button class="btn small secondary" data-toggle="${esc(s.id)}">${s.enabled ? 'Désactiver' : 'Activer'}</button>
+      </div>
+      <div class="ds-result" data-result="${esc(s.id)}"></div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('ds-list').innerHTML = `
+    <div class="card"><div class="card-header">${sources.length} source(s)</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Source</th><th>Catégorie</th><th>Type</th><th>Auth</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" class="empty">Aucune source</td></tr>'}</tbody>
+    </table></div></div>`;
+
+  const box = (id) => document.querySelector(`[data-result="${CSS.escape(id)}"]`);
+  view.querySelectorAll('[data-test]').forEach((b) => b.onclick = async () => {
+    const id = b.dataset.test; b.disabled = true; b.textContent = '…';
+    try {
+      const r = await api(`/datasources/${id}/test`, { method: 'POST' });
+      const cls = r.status === 'ok' ? 'risk-faible' : r.status === 'info' ? 'stock-unknown' : 'risk-eleve';
+      box(id).innerHTML = `<span class="badge ${cls}" style="margin-top:6px">${esc(r.status)}${r.ms != null ? ' · ' + r.ms + ' ms' : ''}</span>
+        <span class="muted"> ${esc(r.message || '')}${r.alternative ? ' → ' + esc(r.alternative) : ''}</span>`;
+    } catch (err) { toast(err.message, true); }
+    b.disabled = false; b.textContent = 'Tester'; loadDsLogs();
+  });
+  view.querySelectorAll('[data-collect]').forEach((b) => b.onclick = async () => {
+    const id = b.dataset.collect; b.disabled = true; b.textContent = '…';
+    try {
+      const r = await api(`/datasources/${id}/collect`, { method: 'POST', body: JSON.stringify({}) });
+      if (r.ok) {
+        box(id).innerHTML = `<span class="badge risk-faible" style="margin-top:6px">${r.count} résultat(s)</span>
+          <span style="margin-left:6px">Export :
+          <a href="/api/datasources/${id}/export?format=json" target="_blank">JSON</a> ·
+          <a href="/api/datasources/${id}/export?format=csv" target="_blank">CSV</a> ·
+          <a href="/api/datasources/${id}/export?format=xlsx" target="_blank">Excel</a></span>
+          <pre style="max-height:120px;overflow:auto;margin-top:6px">${esc(JSON.stringify(r.records.slice(0, 3), null, 1))}</pre>`;
+      } else {
+        box(id).innerHTML = `<span class="badge risk-eleve" style="margin-top:6px">${esc(r.status)}</span> <span class="muted">${esc(r.message || '')}${r.alternative ? ' → ' + esc(r.alternative) : ''}</span>`;
+      }
+    } catch (err) { toast(err.message, true); }
+    b.disabled = false; b.textContent = 'Collecter'; loadDsLogs();
+  });
+  view.querySelectorAll('[data-toggle]').forEach((b) => b.onclick = async () => {
+    await api(`/datasources/${b.dataset.toggle}/toggle`, { method: 'PUT' });
+    loadSourcesList();
+  });
+  view.querySelectorAll('[data-savekey]').forEach((b) => b.onclick = async () => {
+    const env = b.dataset.savekey;
+    const input = view.querySelector(`.ds-key[data-env="${CSS.escape(env)}"]`);
+    if (!input.value.trim()) return toast('Entre une clé', true);
+    try {
+      await api('/datasources/keys', { method: 'POST', body: JSON.stringify({ env_key: env, value: input.value.trim() }) });
+      toast('Clé enregistrée (jamais réaffichée) ✔'); loadSourcesList();
+    } catch (err) { toast(err.message, true); }
+  });
+}
+
+async function loadDsLogs() {
+  const logs = await api('/datasources/logs?limit=40');
+  const badge = (s) => ({ ok: 'risk-faible', error: 'risk-eleve', unconfigured: 'stock-unknown', info: 'stock-unknown' }[s] || 'stock-unknown');
+  document.getElementById('ds-logs').innerHTML = `<table>
+    <thead><tr><th>Date</th><th>Source</th><th>Action</th><th>Statut</th><th>HTTP</th><th>Durée</th><th>Message</th></tr></thead>
+    <tbody>${logs.map((l) => `<tr>
+      <td class="muted">${dt(l.created_at)}</td><td>${esc(l.source_id)}</td>
+      <td class="muted">${esc(l.action)}</td><td><span class="badge ${badge(l.status)}">${esc(l.status)}</span></td>
+      <td class="muted">${l.http ?? ''}</td><td class="muted">${l.duration_ms != null ? l.duration_ms + ' ms' : ''}</td>
+      <td class="muted" style="white-space:normal;max-width:340px">${esc(l.message || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="empty">Aucun log</td></tr>'}</tbody></table>`;
+}
+
 async function pageComparateur() {
   const conns = await api('/api-connectors');
   const price = conns.filter((c) => c.kind === 'price');
@@ -818,6 +947,7 @@ const routes = {
   opportunites: pageOpportunities,
   recherche: pageSearch,
   comparateur: pageComparateur,
+  'sources-api': pageSources,
   ajouter: pageAdd,
   produits: pageProducts,
   alertes: pageAlerts,

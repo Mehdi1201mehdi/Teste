@@ -16,6 +16,9 @@ curl_cffi>=0.7           # furtivité TLS (empreinte JA3 d'un vrai navigateur)
 redis>=5.0
 psycopg2-binary>=2.9
 
+# --- Export Excel du module Sources API ---
+openpyxl>=3.1
+
 # --- Tests ---
 pytest>=8.0
 

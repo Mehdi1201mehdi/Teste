@@ -150,6 +150,30 @@ class Setting(Base):
     value = Column(Text, default="")
 
 
+class ApiSourceState(Base):
+    """État d'activation d'une source du catalogue (sources.config.json)."""
+    __tablename__ = "api_source_states"
+
+    source_id = Column(String, primary_key=True)
+    enabled = Column(Boolean, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ApiCollectLog(Base):
+    """Journal des tests/collectes d'API. Ne contient JAMAIS de clés."""
+    __tablename__ = "api_collect_logs"
+
+    id = Column(Integer, primary_key=True)
+    source_id = Column(String, nullable=False)
+    action = Column(String, default="test")   # test | collect | export
+    status = Column(String, default="")        # ok | error | unconfigured | info
+    http = Column(Integer, nullable=True)
+    duration_ms = Column(Integer, nullable=True)
+    count = Column(Integer, nullable=True)
+    message = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ProxySource(Base):
     __tablename__ = "proxy_sources"
 

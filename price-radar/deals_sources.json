@@ -4,13 +4,12 @@
   "feeds": [
     { "name": "Dealabs (a chaud)", "type": "rss", "url": "https://www.dealabs.com/rss/hot", "enabled": true },
     { "name": "Dealabs (nouveaux)", "type": "rss", "url": "https://www.dealabs.com/rss/nouveaux-deals", "enabled": true },
-    { "name": "Dealabs (populaires)", "type": "rss", "url": "https://www.dealabs.com/rss/populaires", "enabled": true },
-    { "name": "Dealabs high-tech", "type": "rss", "url": "https://www.dealabs.com/groupe/high-tech/rss", "enabled": true },
-    { "name": "Dealabs informatique", "type": "rss", "url": "https://www.dealabs.com/groupe/informatique/rss", "enabled": true },
-    { "name": "Dealabs electromenager", "type": "rss", "url": "https://www.dealabs.com/groupe/electromenager/rss", "enabled": true },
-    { "name": "Dealabs maison-jardin (bricolage)", "type": "rss", "url": "https://www.dealabs.com/groupe/maison-jardin/rss", "enabled": true },
-    { "name": "Dealabs gaming", "type": "rss", "url": "https://www.dealabs.com/groupe/gaming/rss", "enabled": true },
-    { "name": "Dealabs TV & Image", "type": "rss", "url": "https://www.dealabs.com/groupe/tv/rss", "enabled": true },
+
+    { "_note": "Flux supplementaires desactives par defaut : active-les si leur URL repond (ouvre l'URL dans ton navigateur ; si tu vois du XML c'est bon, si 404 corrige l'URL).", "name": "Dealabs high-tech", "type": "rss", "url": "https://www.dealabs.com/groupe/high-tech/rss", "enabled": false },
+    { "name": "Dealabs informatique", "type": "rss", "url": "https://www.dealabs.com/groupe/informatique/rss", "enabled": false },
+    { "name": "Dealabs electromenager", "type": "rss", "url": "https://www.dealabs.com/groupe/electromenager/rss", "enabled": false },
+    { "name": "Dealabs gaming", "type": "rss", "url": "https://www.dealabs.com/groupe/gaming/rss", "enabled": false },
+    { "name": "Dealabs TV & Image", "type": "rss", "url": "https://www.dealabs.com/groupe/tv/rss", "enabled": false },
 
     { "name": "EXEMPLE API JSON (a remplir via retro-ingenierie, desactive)", "type": "json", "url": "https://exemple-de-site-de-deals.tld/api/deals?limit=100", "enabled": false,
       "map": { "items": "data.deals", "title": "title", "price": "price.current", "old_price": "price.was", "discount": "discountPercent", "merchant": "merchant.name", "url": "url" } }

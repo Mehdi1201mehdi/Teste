@@ -77,37 +77,103 @@ def load_feeds() -> list[dict]:
         return []
 
 
+def _dig(obj, path: str):
+    """Navigue dans un JSON via un chemin pointé, ex 'data.deals.0.price'."""
+    if not path:
+        return obj
+    cur = obj
+    for part in path.split("."):
+        if isinstance(cur, list):
+            try:
+                cur = cur[int(part)]
+            except (ValueError, IndexError):
+                return None
+        elif isinstance(cur, dict):
+            cur = cur.get(part)
+        else:
+            return None
+        if cur is None:
+            return None
+    return cur
+
+
+def harvest_json_feed(feed: dict) -> tuple[list[dict], str]:
+    """Lit une API JSON (issue de la rétro-ingénierie d'un site de deals) et
+    la normalise via le mapping `map` déclaré dans deals_sources.json."""
+    from .sitemap import _get
+    body, status = _get(feed["url"])
+    if body is None:
+        return [], status
+    try:
+        data = json.loads(body)
+    except (json.JSONDecodeError, TypeError):
+        return [], "parse_error"
+
+    m = feed.get("map", {})
+    items = _dig(data, m.get("items", ""))
+    if items is None:
+        items = data if isinstance(data, list) else []
+    out = []
+    for it in items:
+        price = _price(str(_dig(it, m.get("price", "")) or ""))
+        old = _price(str(_dig(it, m.get("old_price", "")) or ""))
+        disc_raw = _dig(it, m.get("discount", ""))
+        try:
+            discount = float(disc_raw) if disc_raw not in (None, "") else None
+        except (TypeError, ValueError):
+            discount = None
+        if old and price and old > price and discount is None:
+            discount = round((old - price) / old * 100, 1)
+        out.append({
+            "name": str(_dig(it, m.get("title", "")) or "").strip(),
+            "url": str(_dig(it, m.get("url", "")) or ""),
+            "merchant": str(_dig(it, m.get("merchant", "")) or ""),
+            "price": price, "old_price": old, "discount_percent": discount,
+        })
+    return out, "ok"
+
+
+def _harvest_rss_feed(feed: dict, limit: int) -> tuple[list[dict], str]:
+    items, status = fetch_rss_items(feed["url"], limit)
+    if status != "ok":
+        return [], status
+    out = []
+    for it in items:
+        parsed = parse_deal(it.get("title", ""), it.get("description", ""))
+        if not parsed:
+            continue
+        out.append({"name": it.get("title", "").strip(),
+                    "url": it.get("link", ""), "merchant": parsed["merchant"],
+                    "price": parsed["price"], "old_price": parsed["old_price"],
+                    "discount_percent": parsed["discount_percent"]})
+    return out, "ok"
+
+
 def harvest(min_discount: float = 20, limit_per_feed: int = 100,
             merchant_filter: str = "") -> dict:
-    """Récolte tous les flux actifs et renvoie les baisses classées."""
+    """Récolte tous les flux actifs (RSS ou JSON) et classe les baisses."""
     deals: list[dict] = []
     per_feed: list[dict] = []
     for feed in load_feeds():
         if not feed.get("enabled", True):
             continue
-        items, status = fetch_rss_items(feed["url"], limit_per_feed)
+        if feed.get("type") == "json":
+            items, status = harvest_json_feed(feed)
+        else:
+            items, status = _harvest_rss_feed(feed, limit_per_feed)
         if status != "ok":
             per_feed.append({"feed": feed["name"], "status": "non_disponible",
                             "found": 0})
             continue
         n = 0
-        for it in items:
-            parsed = parse_deal(it.get("title", ""), it.get("description", ""))
-            if not parsed:
-                continue
-            if parsed["discount_percent"] is None or \
-                    parsed["discount_percent"] < min_discount:
+        for d in items:
+            pct = d.get("discount_percent")
+            if pct is None or pct < min_discount:
                 continue
             if merchant_filter and merchant_filter.lower() not in \
-                    parsed["merchant"].lower():
+                    (d.get("merchant") or "").lower():
                 continue
-            deals.append({
-                "name": it.get("title", "").strip(),
-                "url": it.get("link", ""), "merchant": parsed["merchant"],
-                "price": parsed["price"], "old_price": parsed["old_price"],
-                "discount_percent": parsed["discount_percent"],
-                "feed": feed["name"],
-            })
+            deals.append({**d, "feed": feed["name"]})
             n += 1
         per_feed.append({"feed": feed["name"], "status": "ok", "found": n})
 

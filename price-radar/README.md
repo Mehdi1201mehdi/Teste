@@ -227,6 +227,38 @@ l'injection de clé (query/header), le rate-limit et le backoff.
 `PUT /api/datasources/{id}/toggle`, `POST /api/datasources/keys`,
 `GET /api/datasources/logs`, `GET /api/datasources/{id}/export?format=json|csv|xlsx`.
 
+### Baisses du jour (flux de bons plans + rétro-ingénierie)
+
+Page *Baisses du jour* (`app/pricewatch/deals.py`, `deals_sources.json`).
+Au lieu de scraper Amazon/Cdiscount (protégés), on lit des **sources
+publiques** qui republient déjà légalement leurs grosses promos :
+
+- **Flux RSS** de sites de bons plans (Dealabs par catégorie…) — `type: "rss"`.
+- **API JSON interne** d'un site de deals, obtenue par **rétro-ingénierie**
+  légitime — `type: "json"` + un `map` de champs.
+
+Le moteur extrait produit + prix + ancien prix + % + marchand, filtre par
+seuil et marchand, classe par plus forte baisse, exporte (CSV/Excel/JSON).
+Un flux mort → « non disponible », jamais de plantage. **Aucune clé, aucun
+site protégé scrapé, aucun CAPTCHA/DataDome contourné.**
+
+**Rétro-ingénierie propre d'une source JSON** (technique légitime : on lit
+une API publique que le site appelle lui-même, on ne défait aucune
+protection) :
+
+1. Ouvre le site de deals dans Chrome → **F12** → onglet **Réseau** →
+   filtre **Fetch/XHR**.
+2. Recharge / scrolle la page ; repère la requête qui renvoie les deals en
+   **JSON**.
+3. Copie son **URL** dans `deals_sources.json` (`type: "json"`) et remplis
+   `map` avec les chemins des champs (ex. `"items": "data.deals"`,
+   `"price": "price.current"`).
+
+C'est plus propre que le RSS (données structurées, EAN, catégorie). Si un
+site sert un CAPTCHA/DataDome, il est hors périmètre — on ne force pas.
+
+Endpoints : `GET /api/pricewatch/deals`, `GET /api/pricewatch/deals/export`.
+
 ### Connecteurs d'API officielles (page *Comparateur*)
 
 En parallèle du scraping, une couche **API officielles / flux publics** dans

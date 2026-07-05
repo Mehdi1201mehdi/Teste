@@ -1,7 +1,18 @@
 {
-  "_comment": "Flux RSS de sites de bons plans (ils republient legalement les grosses promos Amazon/Cdiscount/Fnac...). Editable ici ou depuis la page 'Baisses du jour'. Les URLs peuvent changer : verifie/ajuste si un flux ne repond plus. On lit du RSS public, on ne scrape aucun site protege.",
+  "_comment": "Flux de bons plans (ils republient legalement les grosses promos Amazon/Cdiscount/Fnac...). type='rss' (defaut) ou 'json' (API interne d'un site, obtenue par retro-ingenierie). Editable ici ou depuis la page 'Baisses du jour'. On lit du PUBLIC, on ne scrape aucun site protege et on ne contourne aucun CAPTCHA.",
+  "_comment_retro": "Pour ajouter une source JSON propre : ouvre le site de deals dans Chrome > F12 > onglet Reseau > filtre Fetch/XHR > recharge/scrolle > repere la requete qui renvoie les deals en JSON > copie son URL ici et remplis 'map' avec les chemins des champs (ex 'data.deals' pour la liste, 'price.amount' pour le prix).",
   "feeds": [
-    { "name": "Dealabs (à chaud)", "url": "https://www.dealabs.com/rss/hot", "enabled": true },
-    { "name": "Dealabs (nouveaux)", "url": "https://www.dealabs.com/rss/nouveaux-deals", "enabled": true }
+    { "name": "Dealabs (a chaud)", "type": "rss", "url": "https://www.dealabs.com/rss/hot", "enabled": true },
+    { "name": "Dealabs (nouveaux)", "type": "rss", "url": "https://www.dealabs.com/rss/nouveaux-deals", "enabled": true },
+    { "name": "Dealabs (populaires)", "type": "rss", "url": "https://www.dealabs.com/rss/populaires", "enabled": true },
+    { "name": "Dealabs high-tech", "type": "rss", "url": "https://www.dealabs.com/groupe/high-tech/rss", "enabled": true },
+    { "name": "Dealabs informatique", "type": "rss", "url": "https://www.dealabs.com/groupe/informatique/rss", "enabled": true },
+    { "name": "Dealabs electromenager", "type": "rss", "url": "https://www.dealabs.com/groupe/electromenager/rss", "enabled": true },
+    { "name": "Dealabs maison-jardin (bricolage)", "type": "rss", "url": "https://www.dealabs.com/groupe/maison-jardin/rss", "enabled": true },
+    { "name": "Dealabs gaming", "type": "rss", "url": "https://www.dealabs.com/groupe/gaming/rss", "enabled": true },
+    { "name": "Dealabs TV & Image", "type": "rss", "url": "https://www.dealabs.com/groupe/tv/rss", "enabled": true },
+
+    { "name": "EXEMPLE API JSON (a remplir via retro-ingenierie, desactive)", "type": "json", "url": "https://exemple-de-site-de-deals.tld/api/deals?limit=100", "enabled": false,
+      "map": { "items": "data.deals", "title": "title", "price": "price.current", "old_price": "price.was", "discount": "discountPercent", "merchant": "merchant.name", "url": "url" } }
   ]
 }

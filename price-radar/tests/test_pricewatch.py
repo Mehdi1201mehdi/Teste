@@ -83,6 +83,35 @@ def test_deal_harvest_filters(monkeypatch):
     assert res2["per_feed"][0]["status"] == "non_disponible"
 
 
+def test_deal_json_feed_mapping(monkeypatch):
+    """Une source JSON rétro-ingénierée est normalisée via son mapping."""
+    import app.pricewatch.deals as deals
+    payload = {"data": {"deals": [
+        {"title": "PC portable RTX 4070", "price": {"current": 999, "was": 1499},
+         "merchant": {"name": "Cdiscount"}, "url": "https://x/1"},
+        {"title": "Souris", "price": {"current": 19, "was": 20},
+         "merchant": {"name": "Amazon"}, "url": "https://x/2"},
+    ]}}
+    import json as _json
+    monkeypatch.setattr("app.pricewatch.sitemap._get",
+                        lambda url: (_json.dumps(payload), "ok"))
+    feed = {"name": "J", "type": "json", "url": "http://x", "enabled": True,
+            "map": {"items": "data.deals", "title": "title",
+                    "price": "price.current", "old_price": "price.was",
+                    "merchant": "merchant.name", "url": "url"}}
+    items, status = deals.harvest_json_feed(feed)
+    assert status == "ok" and len(items) == 2
+    pc = items[0]
+    assert pc["price"] == 999.0 and pc["old_price"] == 1499.0
+    assert pc["discount_percent"] == 33.4 and pc["merchant"] == "Cdiscount"
+
+
+def test_dig_dotted_path():
+    from app.pricewatch.deals import _dig
+    assert _dig({"a": {"b": [10, 20]}}, "a.b.1") == 20
+    assert _dig({"a": 1}, "a.z") is None
+
+
 def test_repricing_recommendations():
     from app.pricewatch import repricing
     cfg = {"alignThresholdPercent": 3, "raiseThresholdPercent": 10,

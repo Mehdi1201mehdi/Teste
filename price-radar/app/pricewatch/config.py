@@ -17,6 +17,10 @@ DEFAULTS = {
     "urgentPercent": 50,
     "suspiciousMinPrice": 1.0,
     "suspiciousMaxDiscountPercent": 95,
+    # Repricing (comparaison avec ton fichier Excel)
+    "alignThresholdPercent": 3,    # au-delà, tu es "trop cher" -> baisser
+    "raiseThresholdPercent": 10,   # en-deçà, tu es "bien moins cher" -> monter
+    "undercutPercent": 1,          # de combien passer sous le concurrent
 }
 
 

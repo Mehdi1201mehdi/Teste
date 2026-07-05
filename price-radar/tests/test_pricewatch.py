@@ -53,6 +53,43 @@ def test_example_from_spec():
     assert scoring.classify_alert(percent, cfg) == "baisse-forte"
 
 
+def test_repricing_recommendations():
+    from app.pricewatch import repricing
+    cfg = {"alignThresholdPercent": 3, "raiseThresholdPercent": 10,
+           "undercutPercent": 1}
+    # Je suis bien plus cher -> baisser
+    r = repricing.recommend(349.0, 279.99, cfg)
+    assert r["action"] == "baisser" and r["target"] < 279.99
+    # Je suis bien moins cher -> augmenter (marge)
+    r = repricing.recommend(1290.0, 1490.0, cfg)
+    assert r["action"] == "augmenter"
+    # Aligné -> ok
+    r = repricing.recommend(100.0, 100.5, cfg)
+    assert r["action"] == "ok"
+    # Donnée manquante
+    assert repricing.recommend(None, 100.0, cfg)["action"] == "donnees_manquantes"
+
+
+def test_repricing_parse_csv_and_analyze():
+    from app.pricewatch import repricing
+    csv_bytes = ("Produit;EAN;Mon prix;Prix concurrent;Site concurrent\n"
+                 "Casque;4548736132566;349,00;279,99;Amazon\n"
+                 "TV;8806091985702;1290,00;1490,00;Boulanger\n"
+                 "PS5;071;549,00;499,00;Cdiscount\n").encode("utf-8-sig")
+    cfg = {"alignThresholdPercent": 3, "raiseThresholdPercent": 10,
+           "undercutPercent": 1}
+    res = repricing.analyze(csv_bytes, "produits.csv", cfg)
+    assert res["ok"] and res["count"] == 3
+    # colonnes bien détectées (accents/casse/; gérés)
+    assert res["mapping"]["my_price"] == "Mon prix"
+    assert res["mapping"]["competitor_price"] == "Prix concurrent"
+    # tri par plus gros écart : la TV (-13%) ou casque (+25%) en tête
+    actions = {r["name"]: r["action"] for r in res["rows"]}
+    assert actions["Casque"] == "baisser"
+    assert actions["TV"] == "augmenter"
+    assert res["counts"]["baisser"] >= 1 and res["counts"]["augmenter"] >= 1
+
+
 def test_keyword_deals_filters_and_ranks(monkeypatch):
     """Le service ne garde que les vraies baisses et les classe par score."""
     import app.pricewatch.keyword as kw

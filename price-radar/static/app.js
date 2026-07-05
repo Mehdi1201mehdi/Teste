@@ -150,9 +150,22 @@ const FREE_LABEL = {
 async function pageVeillePrix() {
   view.innerHTML = `
     <h1>Veille prix</h1>
-    <p class="subtitle">Tape un mot-clé → les produits avec la plus forte baisse, classés. Pour aligner tes prix.</p>
+    <p class="subtitle">Importe ton Excel pour savoir quels prix baisser ou augmenter, et cherche les baisses concurrentes.</p>
+
     <div class="card">
-      <div class="card-header">📉 Chercher les baisses</div>
+      <div class="card-header">📊 Mon Excel → baisser / augmenter
+        <a href="/api/pricewatch/repricing/template" style="margin-left:auto;font-size:13px">⬇ Télécharger le modèle</a></div>
+      <div class="preview-box muted">Ton fichier doit contenir au minimum <b>ton prix</b> et le <b>prix concurrent</b> (colonnes : Produit, EAN, Mon prix, Prix concurrent, Site concurrent). Tout se calcule sur ton PC — aucun envoi, aucune clé.</div>
+      <div class="form-actions" style="align-items:center">
+        <input type="file" id="rp-file" accept=".csv,.xlsx,.xlsm" style="color:var(--muted)">
+        <button class="btn" id="rp-go">Analyser mon fichier</button>
+        <span class="muted" id="rp-hint"></span>
+      </div>
+      <div id="rp-results"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">📉 Chercher les baisses (concurrents)</div>
       <div class="form-grid">
         <div class="field full"><label>Mot-clé</label>
           <input id="vp-q" placeholder="ex : PC gaming, TV, perceuse…"></div>
@@ -191,6 +204,61 @@ async function pageVeillePrix() {
     if (e.key === 'Enter') document.getElementById('vp-go').click();
   });
   view.querySelectorAll('.vp-preset').forEach((b) => b.onclick = () => run(b.dataset.q));
+
+  document.getElementById('rp-go').onclick = async (e) => {
+    const input = document.getElementById('rp-file');
+    if (!input.files.length) return toast('Choisis un fichier Excel ou CSV', true);
+    e.target.disabled = true; e.target.textContent = '⏳ Analyse…';
+    try {
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      const res = await fetch('/api/pricewatch/repricing', { method: 'POST', body: fd });
+      const r = await res.json();
+      if (!res.ok || !r.ok) {
+        document.getElementById('rp-results').innerHTML =
+          `<div class="preview-box"><span class="badge risk-eleve">${esc((r && (r.error || r.detail)) || 'Erreur')}</span></div>`;
+      } else {
+        renderRepricing(r);
+      }
+    } catch (err) { toast(err.message, true); }
+    e.target.disabled = false; e.target.textContent = 'Analyser mon fichier';
+  };
+}
+
+function renderRepricing(r) {
+  const actBadge = (a) => ({
+    baisser: '<span class="badge fort">⬇ BAISSER</span>',
+    augmenter: '<span class="badge stock-in">⬆ AUGMENTER</span>',
+    ok: '<span class="badge risk-faible">= OK</span>',
+    donnees_manquantes: '<span class="badge stock-unknown">? donnée manquante</span>',
+  }[a] || a);
+  const c = r.counts || {};
+  const rows = r.rows.map((x) => `<tr>
+    <td><b>${esc(x.name || x.ean || '?')}</b>${x.competitor ? `<div class="site">vs ${esc(x.competitor)}</div>` : ''}</td>
+    <td>${eur(x.my_price)}</td>
+    <td>${eur(x.competitor_price)}</td>
+    <td class="${x.gap > 0 ? '' : 'gap-positive'}">${x.gap != null ? (x.gap > 0 ? '+' : '') + eur(x.gap) : '—'}</td>
+    <td>${x.gap_percent != null ? (x.gap_percent > 0 ? '+' : '') + pct(x.gap_percent) : '—'}</td>
+    <td>${actBadge(x.action)}</td>
+    <td><b>${x.target_price != null ? eur(x.target_price) : '—'}</b></td>
+    <td class="muted" style="white-space:normal;max-width:240px">${esc(x.reason)}</td>
+  </tr>`).join('');
+  document.getElementById('rp-results').innerHTML = `
+    <div style="border-top:1px solid var(--border);margin-top:6px">
+      <div class="preview-box">
+        <span class="badge fort" style="margin-right:6px">⬇ Baisser : ${c.baisser || 0}</span>
+        <span class="badge stock-in" style="margin-right:6px">⬆ Augmenter : ${c.augmenter || 0}</span>
+        <span class="badge risk-faible" style="margin-right:6px">= OK : ${c.ok || 0}</span>
+        <span style="margin-left:auto">Export :
+          <a href="/api/pricewatch/repricing/export?format=xlsx" target="_blank">Excel</a> ·
+          <a href="/api/pricewatch/repricing/export?format=csv" target="_blank">CSV</a> ·
+          <a href="/api/pricewatch/repricing/export?format=json" target="_blank">JSON</a></span>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Produit</th><th>Mon prix</th><th>Prix concurrent</th><th>Écart €</th><th>Écart %</th><th>Action</th><th>Prix conseillé</th><th>Pourquoi</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="8" class="empty">Aucune ligne exploitable</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
 }
 
 function renderVeille(r, query) {

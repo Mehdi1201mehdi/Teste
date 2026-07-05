@@ -2,7 +2,8 @@
 alertes, paramètres, logs, scraping manuel."""
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import (APIRouter, Depends, File, HTTPException, Query, Response,
+                     UploadFile)
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -634,6 +635,54 @@ def pricewatch_keyword(q: str, limit: int = 10, db: Session = Depends(get_db)):
     if not q.strip():
         raise HTTPException(422, "Mot-clé vide")
     return keyword_deals(db, q.strip(), min(limit, 20))
+
+
+@router.get("/pricewatch/repricing/template")
+def repricing_template():
+    """Télécharge le modèle Excel/CSV à remplir."""
+    from ..pricewatch.repricing import template_csv
+    return Response(content=template_csv(), media_type="text/csv", headers={
+        "Content-Disposition": 'attachment; filename="modele-repricing.csv"'})
+
+
+# Dernier résultat de repricing (mémoire process) pour l'export
+_LAST_REPRICING: list[dict] = []
+
+
+@router.post("/pricewatch/repricing")
+async def repricing_analyze(file: UploadFile = File(...),
+                            db: Session = Depends(get_db)):
+    """Analyse ton fichier Excel/CSV : quel produit baisser / augmenter."""
+    from ..pricewatch import get_config
+    from ..pricewatch.repricing import analyze
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(413, "Fichier trop volumineux (max 10 Mo)")
+    result = analyze(content, file.filename or "fichier.csv", get_config(db))
+    if result.get("ok"):
+        global _LAST_REPRICING
+        _LAST_REPRICING = result["rows"]
+    return result
+
+
+@router.get("/pricewatch/repricing/export")
+def repricing_export(format: str = "xlsx"):
+    """Exporte la dernière analyse de repricing."""
+    from ..datasources.exports import EXPORTS
+    if format not in EXPORTS:
+        raise HTTPException(422, "Format : json | csv | xlsx")
+    if not _LAST_REPRICING:
+        raise HTTPException(404, "Analyse d'abord un fichier.")
+    rows = [{
+        "Produit": r["name"], "EAN": r["ean"], "Concurrent": r["competitor"],
+        "Mon prix": r["my_price"], "Prix concurrent": r["competitor_price"],
+        "Écart €": r["gap"], "Écart %": r["gap_percent"],
+        "Action": r["action"], "Prix conseillé": r["target_price"],
+        "Raison": r["reason"],
+    } for r in _LAST_REPRICING]
+    fn, media_type, ext = EXPORTS[format]
+    return Response(content=fn(rows), media_type=media_type, headers={
+        "Content-Disposition": f'attachment; filename="repricing.{ext}"'})
 
 
 @router.get("/pricewatch/export")

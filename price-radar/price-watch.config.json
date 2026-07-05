@@ -1,0 +1,14 @@
+{
+  "_comment": "Règles de la Veille prix. Modifiable ici ou depuis la page 'Veille prix'. minDiscountPercent/Amount = seuils de détection ; suspicious* = filtres anti prix aberrants.",
+  "minDiscountPercent": 20,
+  "minDiscountAmount": 10,
+  "ignoreOutOfStock": true,
+  "scanDelayMs": 3000,
+  "maxProductsPerSource": 100,
+  "enableAlerts": true,
+  "allowedSourcesOnly": true,
+  "alertPercent": 30,
+  "urgentPercent": 50,
+  "suspiciousMinPrice": 1.0,
+  "suspiciousMaxDiscountPercent": 95
+}

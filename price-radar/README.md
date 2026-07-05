@@ -296,9 +296,23 @@ Le scraping monte en puissance seulement autant que nécessaire :
 2. **`curl_cffi`** (`USE_CURL_CFFI=true`, activé par défaut) — imite l'empreinte
    **TLS/JA3** d'un vrai Chrome. Débloque les sites qui filtrent au niveau TLS
    sans exécuter de JavaScript ni résoudre de challenge.
-3. **Playwright + `playwright-stealth`** (`USE_PLAYWRIGHT_FALLBACK=true`) —
-   sites rendus en JavaScript, patch des vecteurs de détection navigateur.
+3. **Navigateur furtif interchangeable** (`USE_PLAYWRIGHT_FALLBACK=true`,
+   `PLAYWRIGHT_ENGINE=…`) — sites rendus en JavaScript. Moteurs au choix,
+   avec repli automatique si l'un n'est pas installé :
+   - `stealth` : Playwright + `playwright-stealth` (défaut)
+   - `patchright` : Playwright patché anti-détection (drop-in)
+   - `camoufox` : Firefox furtif (fingerprint au niveau C++)
+   - `plain` : Playwright sans furtivité
+
+   Installe le moteur choisi puis son navigateur, ex. :
+   `pip install patchright && patchright install chromium`, ou
+   `pip install camoufox[geoip] && camoufox fetch`.
 4. **Pool de proxies** (idéalement résidentiels) — réputation d'IP.
+
+> La furtivité navigateur (niveau 3) augmente tes chances sur les sites
+> **moyennement** protégés. Contre DataDome / Cloudflare Turnstile des gros
+> sites, elle ne suffit pas seule : il faut la combiner au niveau 4
+> (proxies résidentiels), et même là c'est fragile et à ré-entretenir.
 
 Ces quatre niveaux relèvent de la **furtivité** : paraître un visiteur
 normal pour lire des **prix publics**. C'est l'approche recommandée par le

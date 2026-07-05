@@ -29,6 +29,9 @@ class Settings:
     SCRAPE_RETRIES: int = int(os.getenv("SCRAPE_RETRIES", "3"))
     RESPECT_ROBOTS_TXT: bool = _bool("RESPECT_ROBOTS_TXT", True)
     USE_PLAYWRIGHT_FALLBACK: bool = _bool("USE_PLAYWRIGHT_FALLBACK", False)
+    # Moteur navigateur furtif : stealth | patchright | camoufox | plain
+    PLAYWRIGHT_ENGINE: str = os.getenv("PLAYWRIGHT_ENGINE", "stealth")
+    BROWSER_WAIT_MS: int = int(os.getenv("BROWSER_WAIT_MS", "2500"))
     SCRAPE_PROXY: str = os.getenv("SCRAPE_PROXY", "")
     # Furtivité TLS : imite l'empreinte JA3 d'un vrai navigateur (curl_cffi).
     # Débloque les sites qui filtrent au niveau TLS, sans résoudre de CAPTCHA.

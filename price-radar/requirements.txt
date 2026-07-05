@@ -22,7 +22,12 @@ pytest>=8.0
 # --- Optionnel : Google Merchant / Content API ---
 # google-auth>=2.28
 
-# --- Optionnel : rendu JavaScript / anti-bot (voir README) ---
+# --- Optionnel : moteurs navigateur furtifs (PLAYWRIGHT_ENGINE) ---
+# Choisis-en UN selon .env, puis installe le navigateur associé :
+#   stealth    : playwright>=1.42  playwright-stealth>=2.0   (playwright install chromium)
+#   patchright : patchright>=1.42                            (patchright install chromium)
+#   camoufox   : camoufox[geoip]>=0.4                        (camoufox fetch)
 # playwright>=1.42
 # playwright-stealth>=2.0
-# curl_cffi>=0.6
+# patchright>=1.42
+# camoufox[geoip]>=0.4

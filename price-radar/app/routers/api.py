@@ -121,6 +121,7 @@ class ProxySourceIn(BaseModel):
     name: str
     url: str
     protocol: str = "http"
+    format: str = "text"
     enabled: bool = True
 
 
@@ -515,6 +516,7 @@ def list_logs(db: Session = Depends(get_db), limit: int = 200,
 def list_proxy_sources(db: Session = Depends(get_db)):
     ensure_sources_seeded(db)
     return [{"id": s.id, "name": s.name, "url": s.url, "protocol": s.protocol,
+             "format": getattr(s, "format", "text"),
              "enabled": s.enabled, "last_count": s.last_count,
              "last_error": s.last_error,
              "last_fetched_at": s.last_fetched_at.isoformat() if s.last_fetched_at else None}
@@ -593,6 +595,23 @@ def refresh_proxies():
     Synchrone — peut prendre plusieurs dizaines de secondes."""
     summary = ProxyManager().refresh()
     return {"ok": True, "summary": summary}
+
+
+@router.post("/proxies/sources/reload")
+def reload_proxy_sources(db: Session = Depends(get_db)):
+    """Importe les nouvelles sources de proxy_sources.json (par nom), sans
+    toucher aux sources existantes."""
+    from ..proxies.manager import reload_sources_from_file
+    added = reload_sources_from_file(db)
+    return {"ok": True, "added": added}
+
+
+@router.get("/proxies/ip-check")
+def proxies_ip_check(proxy: str = ""):
+    """Vérifie l'IP publique du scan, directement ou via un proxy donné
+    (ex. http://1.2.3.4:8080). Utile pour confirmer la rotation d'IP."""
+    from ..proxies.ipcheck import check
+    return check(proxy or None)
 
 
 # ------------------------------------------------------------- API connecteurs

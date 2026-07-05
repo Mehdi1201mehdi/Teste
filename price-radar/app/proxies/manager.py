@@ -55,10 +55,30 @@ def ensure_sources_seeded(db: Session):
         db.add(models.ProxySource(
             name=s["name"], url=s["url"],
             protocol=s.get("protocol", "http"),
+            format=s.get("format", "text"),
             enabled=s.get("enabled", True),
         ))
     db.commit()
     logger.info("Sources de proxies initialisées depuis proxy_sources.json")
+
+
+def reload_sources_from_file(db: Session) -> int:
+    """Ajoute les sources du fichier proxy_sources.json absentes de la BDD
+    (par nom). Ne touche pas aux sources existantes ni à celles que tu as
+    supprimées manuellement puis re-supprimées. Retourne le nombre ajouté."""
+    existing = {s.name for s in db.query(models.ProxySource).all()}
+    added = 0
+    for s in load_default_sources():
+        if s["name"] in existing:
+            continue
+        db.add(models.ProxySource(
+            name=s["name"], url=s["url"],
+            protocol=s.get("protocol", "http"),
+            format=s.get("format", "text"),
+            enabled=s.get("enabled", True)))
+        added += 1
+    db.commit()
+    return added
 
 
 # ------------------------------------------------------------------- détection
@@ -78,7 +98,7 @@ def detect_protocol(scheme: str | None, source_protocol: str) -> str:
 
 
 def parse_proxy_list(text: str, source_protocol: str) -> list[tuple[str, str, int]]:
-    """Retourne [(protocol, host, port)] pour chaque ligne valide."""
+    """Retourne [(protocol, host, port)] pour chaque ligne valide (format texte)."""
     out = []
     for line in text.splitlines():
         line = line.strip()
@@ -93,6 +113,39 @@ def parse_proxy_list(text: str, source_protocol: str) -> list[tuple[str, str, in
         protocol = detect_protocol(m.group("scheme"), source_protocol)
         out.append((protocol, m.group("host"), port))
     return out
+
+
+def parse_geonode(text: str, source_protocol: str) -> list[tuple[str, str, int]]:
+    """Parse la réponse JSON de l'API Geonode : {"data":[{"ip","port",
+    "protocols":[...]}]}. Une entrée peut exposer plusieurs protocoles."""
+    import json
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    out = []
+    for e in data.get("data", []):
+        host = e.get("ip")
+        port = e.get("port")
+        if not host or not port:
+            continue
+        try:
+            port = int(port)
+        except (TypeError, ValueError):
+            continue
+        protocols = e.get("protocols") or [source_protocol]
+        for proto in protocols:
+            proto = str(proto).lower()
+            if proto in ("http", "https", "socks4", "socks5"):
+                out.append((proto, host, port))
+    return out
+
+
+def parse_source_body(text: str, source_protocol: str,
+                      fmt: str) -> list[tuple[str, str, int]]:
+    if fmt == "geonode":
+        return parse_geonode(text, source_protocol)
+    return parse_proxy_list(text, source_protocol)
 
 
 # ------------------------------------------------------------------- test/score
@@ -129,7 +182,8 @@ class ProxyManager:
             resp = requests.get(source.url, timeout=settings.PROXY_FETCH_TIMEOUT,
                                 headers={"User-Agent": "price-radar/1.0"})
             resp.raise_for_status()
-            proxies = parse_proxy_list(resp.text, source.protocol)
+            proxies = parse_source_body(resp.text, source.protocol,
+                                        getattr(source, "format", "text") or "text")
             source.last_fetched_at = datetime.utcnow()
             source.last_count = len(proxies)
             source.last_error = ""

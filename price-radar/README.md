@@ -270,9 +270,21 @@ Page **Proxies** (panneau admin) + `app/proxies/`. Pipeline complet :
    (si `PROXY_POOL_ENABLED=true`), ou à la demande via le bouton
    « Rafraîchir maintenant » / `POST /api/proxies/refresh`.
 
-Sources livrées par défaut (dans `proxy_sources.json`, ajout/suppression
-depuis l'UI) : ProxyScrape, TheSpeedX, Monosans, ShiftyTR,
-Proxy-List-Download, OpenProxyList — en HTTP / HTTPS / SOCKS4 / SOCKS5.
+Sources livrées par défaut (dans `proxy_sources.json`, ~29 entrées,
+ajout/suppression depuis l'UI) : ProxyScrape **v4**, **Geonode** (API JSON),
+TheSpeedX, Monosans, ShiftyTR, Proxy-List-Download, OpenProxyList,
+**iplocate**, **Proxifly**, **jetkai**, **hookzof**, **clarketm**, **mmpx12**
+— en HTTP / HTTPS / SOCKS4 / SOCKS5.
+
+Deux formats de source sont gérés : `text` (liste `ip:port`, avec ou sans
+schéma) et `geonode` (réponse JSON de l'API Geonode, multi-protocole). Le
+champ `format` est réglable par source (fichier ou panneau admin). Bouton
+**« Recharger depuis le fichier »** pour importer de nouvelles sources sans
+perdre tes réglages.
+
+**Vérification d'IP** (page Proxies → *Vérifier mon IP*) : confirme quelle IP
+publique sert au scan (directe ou via un proxy), avec géolocalisation —
+via les API gratuites ipify + ip-api. Endpoint `GET /api/proxies/ip-check`.
 
 Quand le pool est actif, chaque requête de scraping tire un proxy vivant
 bien noté parmi les 20 meilleurs (rotation). Les proxies SOCKS nécessitent

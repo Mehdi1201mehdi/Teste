@@ -23,7 +23,8 @@ def run_light_migrations():
     from sqlalchemy import inspect, text
 
     inspector = inspect(engine)
-    if "websites" not in inspector.get_table_names():
+    tables = inspector.get_table_names()
+    if "websites" not in tables:
         return  # tables pas encore créées ; create_all s'en charge
     cols = {c["name"] for c in inspector.get_columns("websites")}
     with engine.begin() as conn:
@@ -31,3 +32,10 @@ def run_light_migrations():
             conn.execute(text(
                 "ALTER TABLE websites ADD COLUMN search_url_template "
                 "VARCHAR DEFAULT ''"))
+    if "proxy_sources" in tables:
+        pcols = {c["name"] for c in inspector.get_columns("proxy_sources")}
+        with engine.begin() as conn:
+            if "format" not in pcols:
+                conn.execute(text(
+                    "ALTER TABLE proxy_sources ADD COLUMN format "
+                    "VARCHAR DEFAULT 'text'"))

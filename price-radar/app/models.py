@@ -157,6 +157,7 @@ class ProxySource(Base):
     name = Column(String, unique=True, nullable=False)
     url = Column(String, nullable=False)
     protocol = Column(String, default="http")  # http/https/socks4/socks5/auto
+    format = Column(String, default="text")     # text | geonode (JSON)
     enabled = Column(Boolean, default=True)
     last_fetched_at = Column(DateTime, nullable=True)
     last_count = Column(Integer, default=0)     # proxies récupérés au dernier fetch

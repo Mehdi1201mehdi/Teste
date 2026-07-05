@@ -697,7 +697,13 @@ async function pageProxies() {
       </div>
     </div>
     <div class="card">
-      <div class="card-header">🌐 Sources (panneau admin) — ${sources.length} source(s)</div>
+      <div class="card-header">📍 Vérifier l'IP du scan
+        <button class="btn small secondary" id="btn-ipcheck" style="margin-left:auto">Vérifier mon IP</button></div>
+      <div class="preview-box" id="ipcheck-box"><span class="muted">Confirme quelle IP publique sert au scan (directe ou via un proxy vivant du pool).</span></div>
+    </div>
+    <div class="card">
+      <div class="card-header">🌐 Sources (panneau admin) — ${sources.length} source(s)
+        <button class="btn small secondary" id="btn-reload-sources" style="margin-left:auto">↻ Recharger depuis le fichier</button></div>
       <div class="table-wrap"><table>
         <thead><tr><th>Source</th><th>Protocole</th><th>URL</th><th>Dernier fetch</th><th>Proxies</th><th>État</th><th>Actions</th></tr></thead>
         <tbody>${sources.map((s) => `<tr>
@@ -715,6 +721,7 @@ async function pageProxies() {
       <div class="form-grid">
         <div class="field"><label>Nom</label><input id="src-name" placeholder="Ma source"></div>
         <div class="field"><label>Protocole</label><select id="src-proto"><option>http</option><option>https</option><option>socks4</option><option>socks5</option><option value="auto">auto (détecté)</option></select></div>
+        <div class="field"><label>Format</label><select id="src-format"><option value="text">texte (ip:port)</option><option value="geonode">Geonode (JSON)</option></select></div>
         <div class="field full"><label>URL de la liste</label><input id="src-url" placeholder="https://exemple.com/proxies.txt"></div>
       </div>
       <div class="form-actions"><button class="btn secondary" id="btn-add-src">Ajouter la source</button></div>
@@ -742,12 +749,36 @@ async function pageProxies() {
       pageProxies();
     } catch (err) { toast(err.message, true); e.target.disabled = false; e.target.textContent = '🔄 Rafraîchir maintenant'; }
   };
+  document.getElementById('btn-ipcheck').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = '⏳…';
+    const box = document.getElementById('ipcheck-box');
+    try {
+      const r = await api('/proxies/ip-check');
+      if (r.ok) {
+        const g = r.geo || {};
+        box.innerHTML = `<span class="badge risk-faible">IP : ${esc(r.ip)}</span>
+          <span class="muted"> ${g.country ? '· ' + esc(g.country) + (g.city ? ' (' + esc(g.city) + ')' : '') : ''} ${g.isp ? '· ' + esc(g.isp) : ''} ${r.via_proxy ? '· via proxy' : '· connexion directe'}</span>`;
+      } else {
+        box.innerHTML = `<span class="badge risk-eleve">${esc(r.error || 'échec')}</span>`;
+      }
+    } catch (err) { toast(err.message, true); }
+    e.target.disabled = false; e.target.textContent = 'Vérifier mon IP';
+  };
+  document.getElementById('btn-reload-sources').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = '⏳…';
+    try {
+      const r = await api('/proxies/sources/reload', { method: 'POST' });
+      toast(r.added ? `${r.added} nouvelle(s) source(s) importée(s)` : 'Aucune nouvelle source à importer');
+      pageProxies();
+    } catch (err) { toast(err.message, true); e.target.disabled = false; e.target.textContent = '↻ Recharger depuis le fichier'; }
+  };
   document.getElementById('btn-add-src').onclick = async () => {
     try {
       await api('/proxies/sources', { method: 'POST', body: JSON.stringify({
         name: document.getElementById('src-name').value,
         url: document.getElementById('src-url').value,
         protocol: document.getElementById('src-proto').value,
+        format: document.getElementById('src-format').value,
       }) });
       toast('Source ajoutée ✔'); pageProxies();
     } catch (err) { toast(err.message, true); }

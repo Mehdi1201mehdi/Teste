@@ -637,6 +637,31 @@ def pricewatch_keyword(q: str, limit: int = 10, db: Session = Depends(get_db)):
     return keyword_deals(db, q.strip(), min(limit, 20))
 
 
+@router.get("/pricewatch/deals")
+def pricewatch_deals(min_discount: float = 20, merchant: str = ""):
+    """Baisses du jour : récolte les flux RSS de bons plans (Amazon/Cdiscount…),
+    classées par plus forte baisse. Sans clé, sans scraper les sites protégés."""
+    from ..pricewatch.deals import harvest
+    return harvest(min_discount, 100, merchant)
+
+
+@router.get("/pricewatch/deals/export")
+def pricewatch_deals_export(min_discount: float = 20, merchant: str = "",
+                            format: str = "csv"):
+    from ..datasources.exports import EXPORTS
+    from ..pricewatch.deals import harvest
+    if format not in EXPORTS:
+        raise HTTPException(422, "Format : json | csv | xlsx")
+    data = harvest(min_discount, 100, merchant)
+    rows = [{"Produit": d["name"], "Marchand": d["merchant"],
+             "Prix": d["price"], "Ancien prix": d["old_price"],
+             "Baisse %": d["discount_percent"], "URL": d["url"],
+             "Flux": d["feed"]} for d in data["deals"]]
+    fn, media_type, ext = EXPORTS[format]
+    return Response(content=fn(rows), media_type=media_type, headers={
+        "Content-Disposition": f'attachment; filename="baisses-du-jour.{ext}"'})
+
+
 @router.get("/pricewatch/repricing/template")
 def repricing_template():
     """Télécharge le modèle Excel/CSV à remplir."""

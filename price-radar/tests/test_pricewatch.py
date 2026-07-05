@@ -53,6 +53,36 @@ def test_example_from_spec():
     assert scoring.classify_alert(percent, cfg) == "baisse-forte"
 
 
+def test_deal_parser_extracts_prices():
+    from app.pricewatch.deals import parse_deal
+    d = parse_deal("Casque Sony WH-1000XM5 à 279€ au lieu de 349€ (-20%) chez Amazon", "")
+    assert d["price"] == 279.0 and d["old_price"] == 349.0
+    assert d["discount_percent"] == 20.0 and d["merchant"] == "Amazon"
+    # calcul du % quand il n'est pas écrit
+    d2 = parse_deal("TV LG à 900€ au lieu de 1500€ sur Cdiscount", "")
+    assert d2["old_price"] == 1500.0 and d2["price"] == 900.0
+    assert d2["discount_percent"] == 40.0 and d2["merchant"] == "Cdiscount"
+    # rien d'exploitable
+    assert parse_deal("Un article sympa", "") is None
+
+
+def test_deal_harvest_filters(monkeypatch):
+    import app.pricewatch.deals as deals
+    monkeypatch.setattr(deals, "load_feeds",
+                        lambda: [{"name": "F1", "url": "http://x", "enabled": True}])
+    monkeypatch.setattr(deals, "fetch_rss_items", lambda url, n: ([
+        {"title": "PS5 à 400€ au lieu de 550€ (-27%) Amazon", "link": "u1", "description": ""},
+        {"title": "Cable à 9€ au lieu de 10€ (-10%) Cdiscount", "link": "u2", "description": ""},
+    ], "ok"))
+    res = deals.harvest(min_discount=20)
+    assert res["count"] == 1                    # seul -27% passe (>=20%)
+    assert res["deals"][0]["discount_percent"] == 27.0
+    # flux mort -> non disponible, pas de crash
+    monkeypatch.setattr(deals, "fetch_rss_items", lambda url, n: ([], "http_403"))
+    res2 = deals.harvest()
+    assert res2["per_feed"][0]["status"] == "non_disponible"
+
+
 def test_repricing_recommendations():
     from app.pricewatch import repricing
     cfg = {"alignThresholdPercent": 3, "raiseThresholdPercent": 10,

@@ -1,0 +1,7 @@
+{
+  "_comment": "Flux RSS de sites de bons plans (ils republient legalement les grosses promos Amazon/Cdiscount/Fnac...). Editable ici ou depuis la page 'Baisses du jour'. Les URLs peuvent changer : verifie/ajuste si un flux ne repond plus. On lit du RSS public, on ne scrape aucun site protege.",
+  "feeds": [
+    { "name": "Dealabs (à chaud)", "url": "https://www.dealabs.com/rss/hot", "enabled": true },
+    { "name": "Dealabs (nouveaux)", "url": "https://www.dealabs.com/rss/nouveaux-deals", "enabled": true }
+  ]
+}

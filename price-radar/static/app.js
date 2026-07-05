@@ -147,6 +147,61 @@ const FREE_LABEL = {
   'open-source': 'Open source', 'free-tier': 'Free tier',
 };
 
+async function pageBaissesDuJour() {
+  view.innerHTML = `
+    <h1>Baisses du jour</h1>
+    <p class="subtitle">Grosses baisses Amazon / Cdiscount / Fnac… récoltées depuis les flux RSS de bons plans. Sans clé, sans scraper les sites protégés.</p>
+    <div class="filters">
+      <div class="field"><label>Baisse minimum (%)</label><input id="bj-min" type="number" value="20" style="width:110px"></div>
+      <div class="field"><label>Marchand</label><input id="bj-merchant" placeholder="ex : amazon, cdiscount" style="width:180px"></div>
+      <button class="btn" id="bj-go">🔄 Récolter les baisses</button>
+      <span class="muted" id="bj-hint" style="align-self:center"></span>
+    </div>
+    <div class="card">
+      <div class="preview-box muted">Les flux sont dans <code>deals_sources.json</code> (éditable). Tu croises ensuite ces baisses avec ton catalogue via la page <a href="#/veille-prix">Veille prix → Mon Excel</a>.</div>
+    </div>
+    <div id="bj-results"></div>`;
+
+  const run = async () => {
+    const min = document.getElementById('bj-min').value || 20;
+    const merchant = document.getElementById('bj-merchant').value.trim();
+    const btn = document.getElementById('bj-go');
+    btn.disabled = true; btn.textContent = '⏳ Récolte…';
+    document.getElementById('bj-hint').textContent = 'Lecture des flux RSS…';
+    try {
+      const r = await api(`/pricewatch/deals?min_discount=${min}&merchant=${encodeURIComponent(merchant)}`);
+      const per = (r.per_feed || []).map((p) =>
+        `<span class="badge ${p.status === 'ok' ? 'risk-faible' : 'risk-eleve'}" style="margin-right:6px">${esc(p.feed)} : ${p.status === 'ok' ? p.found : 'non disponible'}</span>`).join('');
+      const rows = (r.deals || []).map((d) => `<tr>
+        <td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></td>
+        <td>${d.merchant ? `<span class="badge stock-unknown">${esc(d.merchant)}</span>` : '—'}</td>
+        <td><b>${eur(d.price)}</b></td>
+        <td class="price-strike">${eur(d.old_price)}</td>
+        <td class="gap-positive"><b>−${pct(d.discount_percent)}</b></td>
+        <td class="muted">${esc(d.feed)}</td>
+      </tr>`).join('');
+      const qs = `min_discount=${min}&merchant=${encodeURIComponent(merchant)}`;
+      document.getElementById('bj-results').innerHTML = `
+        <div class="card">
+          <div class="card-header">${r.count} baisse(s) ≥ ${min}%
+            <span style="margin-left:auto">Export :
+              <a href="/api/pricewatch/deals/export?${qs}&format=csv" target="_blank">CSV</a> ·
+              <a href="/api/pricewatch/deals/export?${qs}&format=xlsx" target="_blank">Excel</a> ·
+              <a href="/api/pricewatch/deals/export?${qs}&format=json" target="_blank">JSON</a></span></div>
+          <div class="preview-box">${per || '<span class="muted">Aucun flux configuré</span>'}</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Produit</th><th>Marchand</th><th>Prix</th><th>Ancien prix</th><th>Baisse</th><th>Flux</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="6" class="empty">Aucune baisse. Vérifie les flux dans deals_sources.json (ou baisse le seuil %).</td></tr>'}</tbody>
+          </table></div>
+        </div>`;
+    } catch (err) { toast(err.message, true); }
+    btn.disabled = false; btn.textContent = '🔄 Récolter les baisses';
+    document.getElementById('bj-hint').textContent = '';
+  };
+  document.getElementById('bj-go').onclick = run;
+  run();
+}
+
 async function pageVeillePrix() {
   view.innerHTML = `
     <h1>Veille prix</h1>
@@ -1111,6 +1166,7 @@ const routes = {
   dashboard: pageDashboard,
   opportunites: pageOpportunities,
   'veille-prix': pageVeillePrix,
+  'baisses-du-jour': pageBaissesDuJour,
   recherche: pageSearch,
   comparateur: pageComparateur,
   'sources-api': pageSources,

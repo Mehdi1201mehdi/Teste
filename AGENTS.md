@@ -35,5 +35,9 @@
   score après chaque modif.
 - **Zone d'alerte (~7)** : prochaine modif = un helper, une responsabilité.
   Évaluer (`code_health_score`) avant de valider.
-- Ne jamais commiter un jeton/clé en clair. Le jeton CodeScene (si requis)
-  reste côté environnement (`CS_ACCESS_TOKEN`), jamais dans le dépôt.
+- Ne jamais commiter un jeton/clé en clair. Le jeton CodeScene est
+  **requis** (vérifié : sans lui, les outils répondent « No access token
+  configured »). Récupère un jeton **gratuit**
+  (`docs/getting-a-personal-access-token.md` du dépôt CodeScene), puis
+  expose-le via la variable d'environnement `CS_ACCESS_TOKEN`. Jamais dans
+  le dépôt.

@@ -9,7 +9,8 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .database import Base, engine, run_light_migrations
-from .routers.api import router as api_router
+from .routers import (alerts, catalog, datasources, discovery, pricewatch,
+                      products, proxies, settings_logs, sites)
 from .scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(
@@ -44,7 +45,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Price Radar",
               description="Détecteur d'erreurs de prix et d'opportunités e-commerce",
               lifespan=lifespan)
-app.include_router(api_router)
+for _module in (catalog, products, sites, alerts, settings_logs, proxies,
+                pricewatch, datasources, discovery):
+    app.include_router(_module.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 

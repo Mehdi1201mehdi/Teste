@@ -1,13 +1,16 @@
 """Rendu de page via un moteur navigateur furtif, interchangeable.
 
 Choix du moteur par `PLAYWRIGHT_ENGINE` (.env) :
-  - "stealth"   : Playwright (Chromium) + playwright-stealth   [défaut]
+  - "scrapling" : Scrapling StealthyFetcher (Camoufox furtif piloté,
+                  adaptatif, orienté performance)                [défaut]
+  - "stealth"   : Playwright (Chromium) + playwright-stealth
   - "patchright": Patchright (Playwright patché anti-détection, drop-in)
   - "camoufox"  : Camoufox (Firefox furtif, fingerprint au niveau C++)
   - "plain"     : Playwright sans furtivité
 
 Chaque moteur est importé de façon paresseuse et tolérante : s'il n'est pas
 installé, on renvoie None (repli géré par la cascade) au lieu de planter.
+Pour activer Scrapling, installe ses navigateurs une fois : `scrapling install`.
 
 ⚠️ La furtivité réduit la détection ; elle ne « bat » pas à elle seule les
 protections agressives (DataDome, Cloudflare Turnstile) qui vérifient aussi
@@ -76,9 +79,32 @@ def _render_camoufox(url: str, wait_ms: int) -> str | None:
         return html
 
 
+def _render_scrapling(url: str, wait_ms: int) -> str | None:
+    """Scrapling StealthyFetcher : Camoufox furtif piloté, adaptatif.
+
+    Nécessite `scrapling install` (navigateurs). Furtivité uniquement :
+    on laisse `solve_cloudflare=False` — on ne force aucun challenge
+    anti-bot / CAPTCHA (choix assumé, cf. en-tête du module)."""
+    try:
+        from scrapling.fetchers import StealthyFetcher
+    except ImportError:
+        return None
+    try:
+        resp = StealthyFetcher.fetch(
+            url, headless=True, network_idle=True, wait=wait_ms,
+            timeout=60000, solve_cloudflare=False)
+    except Exception as exc:            # navigateurs non installés, timeout…
+        logger.info("Scrapling indisponible (%s) : lancer `scrapling install`", exc)
+        return None
+    if not resp or (resp.status and resp.status >= 400):
+        return None
+    return resp.html_content or None
+
+
 # Moteurs disponibles : nom -> fonction de rendu
 def _engines():
     return {
+        "scrapling": _render_scrapling,
         "stealth": lambda url, w: _render_playwright(url, w, stealth=True),
         "plain": lambda url, w: _render_playwright(url, w, stealth=False),
         "patchright": _render_patchright,
@@ -93,7 +119,7 @@ def render_html(url: str, wait_ms: int | None = None) -> str | None:
     engines = _engines()
     engine = settings.PLAYWRIGHT_ENGINE if settings.PLAYWRIGHT_ENGINE in engines else "stealth"
 
-    order = [engine] + [e for e in ("stealth", "plain") if e != engine]
+    order = [engine] + [e for e in ("scrapling", "stealth", "plain") if e != engine]
     for name in order:
         try:
             html = engines[name](url, wait_ms)

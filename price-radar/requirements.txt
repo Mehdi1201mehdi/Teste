@@ -11,6 +11,8 @@ lxml>=5.1
 trafilatura>=1.8
 requests[socks]>=2.31    # support SOCKS4/5 pour le pool de proxies (PySocks)
 curl_cffi>=0.7           # furtivité TLS (empreinte JA3 d'un vrai navigateur)
+scrapling>=0.4           # parseur rapide + StealthyFetcher (moteur furtif par défaut)
+                         #   navigateurs furtifs : `scrapling install` (une seule fois)
 
 # --- Cache API (Redis) et PostgreSQL : requis pour docker-compose,
 #     inoffensifs en local (l'app retombe sur SQLite + cache mémoire) ---

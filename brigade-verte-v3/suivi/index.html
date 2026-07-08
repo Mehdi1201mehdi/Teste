@@ -3,21 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Suivi tournée — Match France / Maroc</title>
+<title>Suivi tournée — France / Maroc</title>
 <link rel="icon" href="../assets/icons/icon-32.png">
 <style>
 :root{
-  --ground:#F4F6F8; --card:#FFFFFF; --ink:#1A2430; --muted:#5B6B7C;
-  --line:#D6DEE6; --accent:#1F4E9C; --accent-ink:#FFFFFF;
-  --good:#1E7A46; --good-soft:#E2F2E8; --warn:#B85C12; --warn-soft:#F9EBDD;
-  --todo-soft:#E9EEF3; --shadow:0 1px 3px rgba(20,32,48,.10); --chip-ink:#FFFFFF;
+  --ground:#EEF1F5; --card:#FFFFFF; --ink:#141C26; --muted:#63728A;
+  --line:#DCE3EC; --accent:#123D8C; --accent-2:#1E56C4; --accent-ink:#FFFFFF;
+  --ok:#177245; --ok-soft:#E4F2E9; --pb:#C24A12; --pb-soft:#FBEADD;
+  --neutral:#EAEEF4; --shadow:0 1px 2px rgba(20,28,38,.08),0 1px 8px rgba(20,28,38,.05);
+  --chip-ink:#FFFFFF;
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --ground:#10161E; --card:#1A222D; --ink:#E8EDF3; --muted:#93A3B5;
-    --line:#2B3644; --accent:#7FA9E8; --accent-ink:#0E1826;
-    --good:#4CC07E; --good-soft:#173324; --warn:#E8963F; --warn-soft:#3A2712;
-    --todo-soft:#232E3B; --shadow:0 1px 3px rgba(0,0,0,.35); --chip-ink:#10161E;
+    --ground:#0D131C; --card:#161F2B; --ink:#E9EFF6; --muted:#8D9BB0;
+    --line:#26313F; --accent:#3E6FD6; --accent-2:#5B87E6; --accent-ink:#0B1220;
+    --ok:#43C07C; --ok-soft:#123024; --pb:#EB934A; --pb-soft:#36230F;
+    --neutral:#1F2937; --shadow:0 1px 2px rgba(0,0,0,.4);
+    --chip-ink:#0B1220;
   }
 }
 *{box-sizing:border-box}
@@ -25,238 +27,194 @@ html,body{margin:0;padding:0}
 body{
   background:var(--ground); color:var(--ink);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:16px; line-height:1.45;
-  -webkit-tap-highlight-color:transparent;
+  font-size:16px; line-height:1.45; -webkit-tap-highlight-color:transparent;
 }
-button{font:inherit; cursor:pointer}
+button{font:inherit; cursor:pointer; color:inherit}
 input,textarea{font:inherit; color:var(--ink)}
-button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
-button:disabled{opacity:.55; cursor:default}
+:focus-visible{outline:2px solid var(--accent-2); outline-offset:2px}
+button:disabled{opacity:.5; cursor:default}
+.tnum{font-variant-numeric:tabular-nums}
 
-/* ── En-tête collant ── */
+/* ══ En-tête ══ */
 header{
-  position:sticky; top:0; z-index:10;
-  background:var(--card); border-bottom:1px solid var(--line);
-  padding:12px 16px 10px; box-shadow:var(--shadow);
+  position:sticky; top:0; z-index:20; background:var(--card);
+  border-bottom:1px solid var(--line); box-shadow:var(--shadow);
+  padding:11px 16px 10px; padding-top:calc(11px + env(safe-area-inset-top));
 }
-.hd-top{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
-h1{font-size:17px; font-weight:800; letter-spacing:-.01em; margin:0}
-.hd-sub{font-size:12px; color:var(--muted); margin:1px 0 8px}
-.counts{
-  display:flex; gap:6px; font-size:12.5px; font-variant-numeric:tabular-nums;
-  white-space:nowrap;
+.hd-line{display:flex; align-items:center; gap:10px}
+.hd-line h1{font-size:16px; font-weight:800; letter-spacing:-.01em; margin:0; flex:1}
+.hd-sub{font-size:11.5px; color:var(--muted); margin:2px 0 9px}
+.stats{display:flex; gap:7px}
+.stat{
+  flex:1; background:var(--neutral); border-radius:9px; padding:6px 8px; text-align:center;
 }
-.count-chip{padding:2px 9px; border-radius:99px; font-weight:700}
-.count-chip.ok{background:var(--good-soft); color:var(--good)}
-.count-chip.pb{background:var(--warn-soft); color:var(--warn)}
-.count-chip.left{background:var(--todo-soft); color:var(--muted)}
-.progress{height:6px; border-radius:99px; background:var(--todo-soft); overflow:hidden; display:flex}
-.progress .p-ok{background:var(--good); transition:width .25s}
-.progress .p-pb{background:var(--warn); transition:width .25s}
-.searchrow{display:flex; gap:8px; margin-top:10px}
-.searchrow input{
-  flex:1; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:10px;
-  background:var(--ground);
+.stat b{display:block; font-size:17px; font-weight:800; line-height:1.1}
+.stat span{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.stat.ok b{color:var(--ok)} .stat.pb b{color:var(--pb)}
+.progress{height:5px; border-radius:99px; background:var(--neutral); overflow:hidden; display:flex; margin-top:9px}
+.progress i{display:block; height:100%; transition:width .25s}
+.progress .g{background:var(--ok)} .progress .o{background:var(--pb)}
+.search{
+  width:100%; margin-top:10px; padding:9px 12px; border:1px solid var(--line);
+  border-radius:10px; background:var(--ground);
 }
-.searchrow input::placeholder{color:var(--muted)}
+.search::placeholder{color:var(--muted)}
 
-/* ── Chargement API global ── */
-.api-bar{max-width:640px; margin:12px auto 0; padding:0}
-.api-bar button{
-  width:100%; padding:12px; border-radius:10px; border:1px dashed var(--accent);
-  background:none; color:var(--accent); font-weight:700; font-size:14.5px;
-}
-.api-note{font-size:12px; color:var(--muted); margin:6px 2px 0}
-
-/* ── Liste ── */
-main{padding:10px 12px 40px; max-width:640px; margin:0 auto}
+/* ══ Liste ══ */
+main{max-width:680px; margin:0 auto; padding:10px 12px 48px}
 .sector{
-  font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
-  color:var(--muted); margin:18px 4px 8px;
+  font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.1em;
+  color:var(--muted); margin:16px 4px 8px;
 }
 .street{
-  background:var(--card); border:1px solid var(--line); border-radius:12px;
-  margin-bottom:8px; overflow:hidden; box-shadow:var(--shadow);
-  border-left:4px solid var(--line);
+  background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line);
+  border-radius:12px; margin-bottom:8px; overflow:hidden; box-shadow:var(--shadow);
 }
-.street.st-ok{border-left-color:var(--good)}
-.street.st-pb{border-left-color:var(--warn)}
-.street-row{
-  display:flex; align-items:center; gap:10px; width:100%;
-  padding:13px 14px; background:none; border:0; color:inherit; text-align:left;
-}
-.street-name{flex:1; font-weight:600; font-size:15.5px}
-.street-meta{font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap}
-.pill{font-size:12px; font-weight:800; padding:3px 10px; border-radius:99px; white-space:nowrap}
-.pill.ok{background:var(--good-soft); color:var(--good)}
-.pill.pb{background:var(--warn-soft); color:var(--warn)}
-.pill.todo{background:var(--todo-soft); color:var(--muted)}
+.street.s-done{border-left-color:var(--ok)}
+.street.s-pb{border-left-color:var(--pb)}
+.st-row{display:flex; align-items:center; gap:11px; width:100%; padding:14px; background:none; border:0; text-align:left}
+.st-name{flex:1; font-weight:650; font-size:15.5px}
+.st-meta{font-size:12px; color:var(--muted)}
+.pill{font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:99px; white-space:nowrap}
+.pill.todo{background:var(--neutral); color:var(--muted)}
+.pill.wip{background:var(--pb-soft); color:var(--pb)}
+.pill.done{background:var(--ok-soft); color:var(--ok)}
+.chev{color:var(--muted); transition:transform .2s; font-size:13px}
+.street.open .chev{transform:rotate(90deg)}
 
-.panel{border-top:1px solid var(--line); padding:12px 14px; display:none}
+.panel{display:none; border-top:1px solid var(--line); padding:12px 14px}
 .street.open .panel{display:block}
-.actions{display:flex; gap:8px}
-.btn{
-  flex:1; padding:12px 8px; border-radius:10px; border:1px solid var(--line);
-  background:var(--ground); font-weight:700; font-size:15px; color:var(--ink);
+.bulk{display:flex; gap:8px; margin-bottom:12px}
+.bulk button{
+  flex:1; padding:11px 8px; border-radius:9px; border:1px solid var(--line);
+  background:var(--ground); font-weight:700; font-size:14px;
 }
-.btn-ras.active{background:var(--good); border-color:var(--good); color:var(--chip-ink)}
-.btn-pb.active{background:var(--warn); border-color:var(--warn); color:var(--chip-ink)}
+.bulk .b-ok.on{background:var(--ok); border-color:var(--ok); color:var(--chip-ink)}
+.st-note{
+  width:100%; margin-bottom:12px; padding:9px 12px; border:1px solid var(--line);
+  border-radius:9px; background:var(--ground); resize:vertical; min-height:40px;
+}
+.st-note::placeholder{color:var(--muted)}
+.st-note-lbl{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 2px 5px}
 
-/* ── Numéros de la rue ── */
-.nums-block{margin-top:12px}
-.nums-title{
-  font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.07em;
-  color:var(--muted); margin:0 0 7px;
-}
-.api-row{display:flex; gap:8px; align-items:center}
-.api-row button{
-  flex:none; padding:9px 14px; border-radius:10px; border:1px solid var(--accent);
-  background:none; color:var(--accent); font-weight:700; font-size:14px;
-}
-.api-status{flex:1; font-size:12.5px; color:var(--muted)}
-.gen-row{display:flex; gap:8px; margin-top:8px}
-.gen-row input{
-  flex:1; min-width:0; padding:9px 12px; border:1px solid var(--line); border-radius:10px;
-  background:var(--ground); font-variant-numeric:tabular-nums;
-}
-.gen-row input::placeholder{color:var(--muted)}
-.gen-row button{
-  flex:none; padding:9px 14px; border-radius:10px; border:1px solid var(--line);
-  background:none; color:var(--muted); font-weight:700; font-size:14px;
-}
-.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:9px}
-.chip{
-  min-width:44px; min-height:40px; padding:6px 9px; border-radius:9px;
-  border:1px solid var(--line); background:var(--ground); color:var(--ink);
-  font-weight:700; font-size:14.5px; font-variant-numeric:tabular-nums;
-}
-.chip.c-ok{background:var(--good); border-color:var(--good); color:var(--chip-ink)}
-.chip.c-pb{background:var(--warn); border-color:var(--warn); color:var(--chip-ink)}
-.chips-legend{font-size:12px; color:var(--muted); margin-top:7px}
-.nums-tools{display:flex; gap:8px; margin-top:9px}
-.nums-tools input{
-  flex:1; min-width:0; padding:8px 11px; border:1px solid var(--line); border-radius:9px;
-  background:var(--ground); font-size:14px;
-}
-.nums-tools input::placeholder{color:var(--muted)}
-.nums-tools button{
-  flex:none; padding:8px 12px; border-radius:9px; border:1px solid var(--line);
-  background:none; color:var(--muted); font-weight:700; font-size:13px;
-}
+.loading{display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13.5px; padding:6px 2px}
+.spin{width:15px; height:15px; border:2px solid var(--line); border-top-color:var(--accent-2); border-radius:50%; animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
 
-/* ── Signalements par numéro ── */
-.entries{display:none; margin-top:12px}
-.street.has-entries .entries{display:block}
-.entry{
-  border:1px solid var(--line); border-radius:10px; padding:10px;
-  margin-bottom:8px; background:var(--ground);
+/* ══ Numéros ══ */
+.nums{display:flex; flex-direction:column; gap:7px}
+.num{border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--ground)}
+.num-top{display:flex; align-items:center; gap:9px; padding:8px 9px}
+.num-lbl{
+  min-width:46px; text-align:center; font-weight:800; font-size:16px; padding:6px 6px;
+  border-radius:8px; background:var(--card); border:1px solid var(--line);
 }
-.entry-head{display:flex; align-items:center; gap:8px; margin-bottom:8px}
-.entry-head label{font-size:12.5px; font-weight:700; color:var(--muted); white-space:nowrap}
-.entry-num{
-  flex:1; min-width:0; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
-  background:var(--card); font-variant-numeric:tabular-nums;
+.num.n-ok .num-lbl{background:var(--ok); border-color:var(--ok); color:var(--chip-ink)}
+.num.n-pb .num-lbl{background:var(--pb); border-color:var(--pb); color:var(--chip-ink)}
+.num-btns{display:flex; gap:7px; flex:1}
+.nb{flex:1; padding:9px 6px; border-radius:8px; border:1px solid var(--line); background:var(--card); font-weight:700; font-size:13.5px}
+.nb-ok.on{background:var(--ok); border-color:var(--ok); color:var(--chip-ink)}
+.nb-pb.on{background:var(--pb); border-color:var(--pb); color:var(--chip-ink)}
+.num-detail{display:none; padding:0 9px 10px}
+.num.n-pb .num-detail{display:block}
+.obj{display:flex; flex-wrap:wrap; gap:6px}
+.obj button{
+  padding:7px 11px; border-radius:99px; border:1px solid var(--line); background:var(--card);
+  font-size:13px; font-weight:600;
 }
-.entry-num::placeholder{color:var(--muted)}
-.entry-del{
-  width:34px; height:34px; flex:none; border-radius:8px; border:1px solid var(--line);
-  background:var(--card); color:var(--muted); font-size:17px; font-weight:700; line-height:1;
+.obj button.on{background:var(--pb-soft); border-color:var(--pb); color:var(--pb); font-weight:750}
+.num-note{
+  width:100%; margin-top:8px; padding:8px 11px; border:1px solid var(--line);
+  border-radius:8px; background:var(--card); resize:vertical; min-height:38px;
 }
-.tags{display:flex; flex-wrap:wrap; gap:6px}
-.tag{
-  padding:7px 11px; border-radius:99px; border:1px solid var(--line);
-  background:var(--card); font-size:13px; color:var(--ink);
-}
-.tag.active{background:var(--warn-soft); border-color:var(--warn); color:var(--warn); font-weight:700}
-.entry textarea{
-  width:100%; min-height:44px; margin-top:8px; padding:9px 12px; border:1px solid var(--line);
-  border-radius:8px; background:var(--card); resize:vertical;
-}
-.entry textarea::placeholder{color:var(--muted)}
-.add-entry{
-  width:100%; padding:11px; border-radius:10px; border:1px dashed var(--warn);
-  background:none; color:var(--warn); font-weight:700; font-size:14px;
-}
+.num-note::placeholder{color:var(--muted)}
+.manual{margin-top:11px; display:flex; gap:8px}
+.manual input{flex:1; min-width:0; padding:9px 11px; border:1px solid var(--line); border-radius:9px; background:var(--ground); font-size:14px}
+.manual input::placeholder{color:var(--muted)}
+.manual button{flex:none; padding:9px 13px; border-radius:9px; border:1px solid var(--line); background:var(--ground); font-weight:700; font-size:13.5px; color:var(--muted)}
+.retry{margin-top:9px; width:100%; padding:9px; border-radius:9px; border:1px dashed var(--accent-2); background:none; color:var(--accent-2); font-weight:700; font-size:13.5px}
 
-/* ── Pied : compte rendu ── */
-.report-zone{max-width:640px; margin:24px auto 0; padding:0 0 12px}
-.big-btn{
-  width:100%; padding:15px; border-radius:12px; border:0;
-  background:var(--accent); color:var(--accent-ink); font-weight:800; font-size:16px;
-}
-.report-out{display:none; margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px}
-.report-out.show{display:block}
-.report-out pre{
-  margin:0 0 12px; white-space:pre-wrap; word-wrap:break-word;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5;
-  max-height:320px; overflow-y:auto;
-}
-.report-actions{display:flex; gap:8px}
-.mini-btn{
-  flex:1; padding:11px; border-radius:10px; border:1px solid var(--line);
-  background:var(--ground); font-weight:700; color:var(--ink);
-}
-.footrow{display:flex; gap:8px; margin-top:14px}
-.ghost{
-  flex:1; padding:11px; border-radius:10px; border:1px solid var(--line);
-  background:none; color:var(--muted); font-weight:600; font-size:14px;
-}
-.agent-row{margin-top:14px}
-.agent-row label{display:block; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:5px}
-.agent-row input{
-  width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card);
-}
+/* ══ Compte rendu ══ */
+.foot{max-width:680px; margin:22px auto 0; padding:0 12px}
+.agent{margin-bottom:12px}
+.agent label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px}
+.agent input{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card)}
+.cta{width:100%; padding:15px; border-radius:12px; border:0; background:var(--accent); color:var(--accent-ink); font-weight:800; font-size:16px; box-shadow:var(--shadow)}
+.report{display:none; margin-top:16px}
+.report.show{display:block}
+.rep-actions{display:flex; gap:8px; margin-bottom:12px}
+.rep-actions button{flex:1; padding:12px 6px; border-radius:10px; border:1px solid var(--line); background:var(--card); font-weight:700; font-size:14px}
+.rep-actions .primary{background:var(--accent-2); border-color:var(--accent-2); color:#fff}
+
+.doc{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; box-shadow:var(--shadow)}
+.doc h2{font-size:15px; margin:0 0 3px}
+.doc .meta{font-size:12px; color:var(--muted); margin:0 0 4px}
+.doc .kpis{display:flex; gap:8px; margin:12px 0 14px; flex-wrap:wrap}
+.doc .kpi{background:var(--neutral); border-radius:9px; padding:8px 12px; font-size:12.5px}
+.doc .kpi b{font-size:16px; display:block}
+.tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+table.rep{border-collapse:collapse; width:100%; font-size:13px}
+table.rep th,table.rep td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+table.rep th{background:var(--accent); color:#fff; font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:700}
+table.rep tr.grp td{background:var(--neutral); font-weight:800; font-size:12.5px}
+table.rep td.n{font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums}
+table.rep td.obj-c{color:var(--pb); font-weight:600}
+.doc .none{color:var(--ok); font-weight:700; padding:10px 0}
+.doc .closing{font-size:12px; color:var(--muted); margin-top:14px; border-top:1px solid var(--line); padding-top:10px}
+.reset{width:100%; margin-top:14px; padding:11px; border-radius:10px; border:1px solid var(--line); background:none; color:var(--muted); font-weight:600; font-size:13.5px}
+
 .toast{
-  position:fixed; bottom:18px; left:50%; transform:translateX(-50%) translateY(8px);
+  position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(8px);
   background:var(--ink); color:var(--ground); padding:10px 18px; border-radius:99px;
-  font-size:14px; font-weight:700; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
-  z-index:20; white-space:nowrap;
+  font-size:14px; font-weight:700; opacity:0; pointer-events:none; transition:.2s; z-index:40; white-space:nowrap;
 }
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
-@media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+
+@media print{
+  header,.foot .agent,.cta,.rep-actions,.reset,.search,.stats,.progress,#list,.hd-sub,body>*:not(main){display:none !important}
+  body{background:#fff}
+  .foot{margin:0} .report{display:block !important} .doc{border:0; box-shadow:none; padding:0}
+  table.rep th{background:#123D8C !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="hd-top">
+  <div class="hd-line">
     <h1>Tournée préventive</h1>
-    <div class="counts">
-      <span class="count-chip ok" id="cOk">0 RAS</span><span class="count-chip pb" id="cPb">0 signal.</span><span class="count-chip left" id="cLeft">46 restantes</span>
-    </div>
   </div>
-  <p class="hd-sub">Match France / Maroc — retransmission 22h00 · Rentrée des poubelles, mobilier &amp; conteneurs</p>
-  <div class="progress"><div class="p-ok" id="pOk" style="width:0%"></div><div class="p-pb" id="pPb" style="width:0%"></div></div>
-  <div class="searchrow">
-    <input type="search" id="search" placeholder="Rechercher une rue…" autocomplete="off">
+  <p class="hd-sub">Match France / Maroc — retransmission 22 h 00 · rentrée des bacs, mobilier &amp; conteneurs</p>
+  <div class="stats">
+    <div class="stat"><b id="sDone">0</b><span>rues faites</span></div>
+    <div class="stat pb"><b id="sPb">0</b><span>à enlever</span></div>
+    <div class="stat"><b id="sLeft">46</b><span>rues restantes</span></div>
   </div>
+  <div class="progress"><i class="g" id="pG" style="width:0"></i><i class="o" id="pO" style="width:0"></i></div>
+  <input class="search" id="search" type="search" placeholder="Rechercher une rue…" autocomplete="off">
 </header>
 
 <main>
-  <div class="api-bar">
-    <button id="apiAllBtn">📡 Charger les numéros officiels des 46 rues</button>
-    <p class="api-note" id="apiAllNote">Numéros issus de la Base Adresse Nationale (data.gouv.fr). Une fois chargés, ils restent enregistrés sur le téléphone.</p>
-  </div>
-
   <div id="list"></div>
 
-  <div class="report-zone">
-    <div class="agent-row">
+  <div class="foot">
+    <div class="agent">
       <label for="agent">Agent / équipage</label>
       <input id="agent" placeholder="Ex. : Brigade 2 — M. Dupont" autocomplete="off">
     </div>
-    <div style="height:14px"></div>
-    <button class="big-btn" id="genBtn">Générer le compte rendu</button>
-    <div class="report-out" id="reportOut">
-      <pre id="reportText"></pre>
-      <div class="report-actions">
-        <button class="mini-btn" id="copyBtn">Copier</button>
-        <button class="mini-btn" id="shareBtn">Partager</button>
+    <button class="cta" id="genBtn">Générer le compte rendu</button>
+
+    <div class="report" id="report">
+      <div class="rep-actions">
+        <button class="primary" id="shareBtn">Partager</button>
+        <button id="copyBtn">Copier</button>
+        <button id="printBtn">Imprimer / PDF</button>
       </div>
+      <div class="doc" id="doc"></div>
     </div>
-    <div class="footrow">
-      <button class="ghost" id="resetBtn">Nouvelle tournée (tout effacer)</button>
-    </div>
+
+    <button class="reset" id="resetBtn">Nouvelle tournée (tout effacer)</button>
   </div>
 </main>
 
@@ -264,6 +222,7 @@ main{padding:10px 12px 40px; max-width:640px; margin:0 auto}
 
 <script>
 "use strict";
+/* ═══ Données ═══ */
 const SECTORS = [
   { name: "Secteur Saint-Leu / Port d'Amont", streets: [
     "Place Vogel","Rue Vanmarcke","Place Parmentier","Rue des Majots","Rue de la Barrette",
@@ -281,584 +240,367 @@ const SECTORS = [
     "Rue des Corps-Nuds-Sans-Tête","Passage Logis du Roi","Rue Allart","Rue Marotte"
   ]}
 ];
-const TAGS = ["Poubelles sorties","Conteneur Veolia","Mobilier commerce","Objet / projectile","Occupant prévenu","Autre"];
 const ALL = SECTORS.flatMap(s => s.streets);
-const KEY = "tournee-france-maroc-v1";
+const SECTOR_OF = {}; SECTORS.forEach(s => s.streets.forEach(n => SECTOR_OF[n] = s.name));
+// Boutons rapides = les demandes de l'email
+const OBJETS = ["Bac / poubelle","Conteneur Veolia","Mobilier commerce","Objet / projectile","Autre"];
 
-// Mêmes API que le reste de l'application (voir js/api.js)
 const ADRESSE_API = "https://api-adresse.data.gouv.fr/search/";
-const BAN_LOOKUP = "https://plateforme.adresse.data.gouv.fr/lookup/";
 const AMIENS_CITYCODE = "80021";
+const KEY = "suivi-fr-maroc-v2";
 
-let state = { agent: "", streets: {} };
-try {
-  const saved = JSON.parse(localStorage.getItem(KEY));
-  if (saved && saved.streets) state = saved;
-} catch (e) { /* stockage indisponible : la session reste en mémoire */ }
+/* ═══ État ═══ */
+let state = { agent:"", streets:{} };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.streets) state = s; } catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
+function st(n){
+  if (!state.streets[n]) state.streets[n] = { fetched:false, nums:[], time:"" };
+  return state.streets[n];
+}
+// nums: [{num:"12", k:""|"ok"|"pb", objs:[], note:""}]
+function now(){ return new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
+function numKey(v){ const m=String(v).match(/\d+/); return m?parseInt(m[0],10):1e9; }
+function norm(s){ return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
+function baseName(n){ return n.replace(/\(.*?\)/g,"").trim(); }
 
-Object.values(state.streets).forEach(d => {
-  if (!Array.isArray(d.entries)) d.entries = [];
-  if (!Array.isArray(d.nums)) d.nums = []; // [{num:"12", st:"ok"|"pb"|""}]
-});
-
-function save(){
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
-}
-function st(name){
-  if (!state.streets[name]) state.streets[name] = { status:"todo", time:"", entries:[], nums:[], api:false };
-  return state.streets[name];
-}
-function now(){
-  return new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-}
-function numSortKey(v){
-  const m = String(v).match(/\d+/);
-  return m ? parseInt(m[0],10) : Infinity;
-}
-function sortNums(arr){
-  arr.sort((a,b) => numSortKey(a.num) - numSortKey(b.num) || String(a.num).localeCompare(String(b.num),"fr"));
-}
-function norm(s){
-  return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
-    .replace(/[^a-z0-9]+/g," ").trim();
-}
-
-/* ── Récupération des numéros officiels (Base Adresse Nationale) ── */
-function streetQuery(name){
-  return name.replace(/\(.*?\)/g,"").trim(); // "Boulevard du Cange (début de rue)" → "Boulevard du Cange"
-}
-async function fetchStreetNums(name){
-  const q = streetQuery(name);
-  let nums = [];
-  // 1) Retrouver l'identifiant BAN de la voie, puis lister tous ses numéros
-  try {
-    const r = await fetch(`${ADRESSE_API}?q=${encodeURIComponent(q)}&citycode=${AMIENS_CITYCODE}&type=street&limit=3`);
-    if (r.ok){
-      const j = await r.json();
-      const feat = (j.features || []).find(f => f.properties && f.properties.id);
-      if (feat){
-        const r2 = await fetch(BAN_LOOKUP + encodeURIComponent(feat.properties.id));
-        if (r2.ok){
-          const v = await r2.json();
-          const hns = Array.isArray(v.housenumbers) ? v.housenumbers
-            : (v.housenumbers && typeof v.housenumbers === "object") ? Object.values(v.housenumbers)
-            : Array.isArray(v.numeros) ? v.numeros : [];
-          nums = hns.map(h => {
-            if (typeof h === "string" || typeof h === "number") return String(h);
-            const n = h.numero != null ? h.numero : h.number;
-            const sfx = h.suffixe || h.suffix || "";
-            return n != null ? (String(n) + (sfx ? " " + sfx : "")) : null;
-          }).filter(Boolean);
-        }
-      }
-    }
-  } catch (e) { /* on passe au plan B */ }
-  // 2) Plan B : recherche directe de numéros sur la voie
-  if (!nums.length){
-    try {
-      const r3 = await fetch(`${ADRESSE_API}?q=${encodeURIComponent(q)}&citycode=${AMIENS_CITYCODE}&type=housenumber&limit=100`);
-      if (r3.ok){
-        const j3 = await r3.json();
-        const target = norm(q);
-        nums = (j3.features || [])
-          .filter(f => f.properties && f.properties.housenumber &&
-                       norm(f.properties.street || f.properties.name).indexOf(target) !== -1)
-          .map(f => String(f.properties.housenumber));
-      }
-    } catch (e) { /* réseau indisponible */ }
-  }
-  // Déduplication
-  const seen = new Set();
-  return nums.filter(n => { const k = norm(n); if (seen.has(k)) return false; seen.add(k); return true; });
-}
-function mergeNums(name, fetched){
-  const d = st(name);
-  const existing = new Set(d.nums.map(x => norm(x.num)));
-  let added = 0;
-  fetched.forEach(n => {
-    if (!existing.has(norm(n))){ d.nums.push({ num: n, st: "" }); added++; }
-  });
-  if (fetched.length) d.api = true;
-  return added;
+/* ═══ Récupération des numéros officiels (Base Adresse Nationale) ═══ */
+async function fetchNums(name){
+  const q = baseName(name), target = norm(q);
+  try{
+    const r = await fetch(`${ADRESSE_API}?q=${encodeURIComponent(q)}&citycode=${AMIENS_CITYCODE}&type=housenumber&autocomplete=0&limit=100`);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const seen = new Set(); const out = [];
+    (j.features||[]).forEach(f=>{
+      const p = f.properties||{};
+      if (!p.housenumber) return;
+      if (norm(p.street||p.name).indexOf(target) === -1) return;
+      const k = norm(p.housenumber);
+      if (seen.has(k)) return; seen.add(k);
+      out.push(String(p.housenumber));
+    });
+    return out.sort((a,b)=> numKey(a)-numKey(b) || String(a).localeCompare(String(b),"fr"));
+  }catch(e){ return null; }
 }
 
-/* ── Rendu de la liste ── */
+/* ═══ Rendu liste ═══ */
 const listEl = document.getElementById("list");
-const repaintFns = {};
-SECTORS.forEach(sector => {
-  const h = document.createElement("div");
-  h.className = "sector";
-  h.textContent = sector.name;
+const ctrl = {}; // name -> {open, repaint}
+SECTORS.forEach(sec=>{
+  const h = document.createElement("div"); h.className="sector"; h.textContent=sec.name;
   listEl.appendChild(h);
-  sector.streets.forEach(name => listEl.appendChild(buildStreet(name)));
+  sec.streets.forEach(n=> listEl.appendChild(buildStreet(n)));
 });
+
+function streetCounts(d){
+  const total=d.nums.length;
+  const ok=d.nums.filter(x=>x.k==="ok").length;
+  const pb=d.nums.filter(x=>x.k==="pb").length;
+  return {total, ok, pb, seen:ok+pb};
+}
+function isDone(d){ const c=streetCounts(d); return c.total>0 && c.seen===c.total && c.pb===0; }
+function hasPb(d){ return d.nums.some(x=>x.k==="pb"); }
 
 function buildStreet(name){
   const s = st(name);
-  const card = document.createElement("div");
-  card.className = "street";
-  card.dataset.name = name.toLowerCase();
+  const card = document.createElement("div"); card.className="street"; card.dataset.name=name.toLowerCase();
 
-  const row = document.createElement("button");
-  row.className = "street-row";
-  row.setAttribute("aria-expanded","false");
-  const nm = document.createElement("span");
-  nm.className = "street-name";
-  nm.textContent = name;
-  const meta = document.createElement("span");
-  meta.className = "street-meta";
-  const pill = document.createElement("span");
-  pill.className = "pill todo";
-  pill.textContent = "À faire";
-  row.append(nm, meta, pill);
+  const row = document.createElement("button"); row.className="st-row"; row.setAttribute("aria-expanded","false");
+  const nm = document.createElement("span"); nm.className="st-name"; nm.textContent=name;
+  const pill = document.createElement("span"); pill.className="pill todo"; pill.textContent="À faire";
+  const chev = document.createElement("span"); chev.className="chev"; chev.textContent="▶";
+  row.append(nm, pill, chev);
 
-  const panel = document.createElement("div");
-  panel.className = "panel";
+  const panel = document.createElement("div"); panel.className="panel";
+  const bulk = document.createElement("div"); bulk.className="bulk";
+  const bOk = document.createElement("button"); bOk.className="b-ok"; bOk.textContent="✓ Toute la rue RAS";
+  bulk.append(bOk);
+  const noteLbl = document.createElement("p"); noteLbl.className="st-note-lbl"; noteLbl.textContent="Observation libre sur la rue";
+  const stNote = document.createElement("textarea"); stNote.className="st-note";
+  stNote.placeholder="Écrire ici (ex. : commerce fermé, rue barrée, remarque pour le CSU…)";
+  stNote.value = s.note || "";
+  stNote.addEventListener("input", ()=>{ st(name).note = stNote.value; save(); });
+  const numsEl = document.createElement("div"); numsEl.className="nums";
+  const status = document.createElement("div");
+  panel.append(bulk, noteLbl, stNote, status, numsEl);
+  card.append(row, panel);
 
-  /* Boutons rue entière */
-  const actions = document.createElement("div");
-  actions.className = "actions";
-  const bRas = document.createElement("button");
-  bRas.className = "btn btn-ras";
-  bRas.textContent = "✓ Rue RAS";
-  const bPb = document.createElement("button");
-  bPb.className = "btn btn-pb";
-  bPb.textContent = "⚠ À signaler";
-  actions.append(bRas, bPb);
-
-  /* Bloc numéros */
-  const numsBlock = document.createElement("div");
-  numsBlock.className = "nums-block";
-  const numsTitle = document.createElement("p");
-  numsTitle.className = "nums-title";
-  numsTitle.textContent = "Numéros de la rue";
-  numsBlock.appendChild(numsTitle);
-
-  const apiRow = document.createElement("div");
-  apiRow.className = "api-row";
-  const apiBtn = document.createElement("button");
-  apiBtn.textContent = "📡 Charger les n°";
-  const apiStatus = document.createElement("span");
-  apiStatus.className = "api-status";
-  apiRow.append(apiBtn, apiStatus);
-
-  const genRow = document.createElement("div");
-  genRow.className = "gen-row";
-  const genInput = document.createElement("input");
-  genInput.type = "number";
-  genInput.min = "1";
-  genInput.inputMode = "numeric";
-  genInput.placeholder = "Ou : dernier n° (ex. 42)";
-  const genBtn = document.createElement("button");
-  genBtn.textContent = "Créer 1 → …";
-  genRow.append(genInput, genBtn);
-
-  const chips = document.createElement("div");
-  chips.className = "chips";
-
-  const legend = document.createElement("p");
-  legend.className = "chips-legend";
-  legend.textContent = "1 appui = fait (vert) · 2 appuis = à signaler (orange) · 3 appuis = remise à zéro";
-
-  const tools = document.createElement("div");
-  tools.className = "nums-tools";
-  const addNumInput = document.createElement("input");
-  addNumInput.placeholder = "Ajouter un n° isolé (ex. 12 bis)";
-  addNumInput.autocomplete = "off";
-  const addNumBtn = document.createElement("button");
-  addNumBtn.textContent = "+ n°";
-  tools.append(addNumInput, addNumBtn);
-
-  numsBlock.append(apiRow, genRow, chips, legend, tools);
-
-  /* Signalements */
-  const entriesEl = document.createElement("div");
-  entriesEl.className = "entries";
-  const addBtn = document.createElement("button");
-  addBtn.className = "add-entry";
-  addBtn.textContent = "+ Ajouter un signalement";
-  entriesEl.appendChild(addBtn);
-
-  function findEntry(num){
-    return st(name).entries.find(en => en.num.trim() === String(num).trim());
-  }
-
-  function buildEntry(entry){
-    const box = document.createElement("div");
-    box.className = "entry";
-    const head = document.createElement("div");
-    head.className = "entry-head";
-    const lab = document.createElement("label");
-    lab.textContent = "N°";
-    const num = document.createElement("input");
-    num.className = "entry-num";
-    num.placeholder = "Ex. : 12, 12 bis, face au 8…";
-    num.autocomplete = "off";
-    num.value = entry.num || "";
-    num.addEventListener("input", () => { entry.num = num.value; save(); });
-    const del = document.createElement("button");
-    del.className = "entry-del";
-    del.textContent = "×";
-    del.setAttribute("aria-label","Supprimer ce signalement");
-    del.addEventListener("click", () => {
-      const d = st(name);
-      const i = d.entries.indexOf(entry);
-      if (i >= 0) d.entries.splice(i,1);
-      const rec = d.nums.find(x => x.num === entry.num && x.st === "pb");
-      if (rec) rec.st = "ok";
-      box.remove();
-      save(); paintChips(); paint();
-    });
-    head.append(lab, num, del);
-
-    const tags = document.createElement("div");
-    tags.className = "tags";
-    TAGS.forEach(t => {
-      const b = document.createElement("button");
-      b.className = "tag" + (entry.tags.includes(t) ? " active" : "");
-      b.textContent = t;
-      b.addEventListener("click", () => {
-        const i = entry.tags.indexOf(t);
-        if (i >= 0) entry.tags.splice(i,1); else entry.tags.push(t);
-        b.classList.toggle("active", i < 0);
-        save();
-      });
-      tags.appendChild(b);
-    });
-
-    const note = document.createElement("textarea");
-    note.placeholder = "Précision (commerce, emplacement…)";
-    note.value = entry.note || "";
-    note.addEventListener("input", () => { entry.note = note.value; save(); });
-
-    box.append(head, tags, note);
-    entriesEl.insertBefore(box, entriesEl.lastElementChild);
-    return box;
-  }
-
-  function addEntryFor(numVal){
-    const d = st(name);
-    const entry = { num: String(numVal), tags: [], note: "" };
-    d.entries.push(entry);
-    buildEntry(entry);
-    return entry;
-  }
-
-  function removeEmptyEntry(numVal){
-    const d = st(name);
-    const idx = d.entries.findIndex(en =>
-      en.num.trim() === String(numVal).trim() && !en.tags.length && !en.note.trim());
-    if (idx >= 0){
-      d.entries.splice(idx,1);
-      entriesEl.querySelectorAll(".entry").forEach(b => {
-        const inp = b.querySelector(".entry-num");
-        if (inp && inp.value.trim() === String(numVal).trim() &&
-            !b.querySelector(".tag.active") && !b.querySelector("textarea").value.trim()){
-          b.remove();
-        }
-      });
-    }
-  }
-
-  function paintChips(){
-    chips.textContent = "";
-    const d = st(name);
-    sortNums(d.nums);
-    d.nums.forEach(rec => {
-      const c = document.createElement("button");
-      c.className = "chip" + (rec.st === "ok" ? " c-ok" : rec.st === "pb" ? " c-pb" : "");
-      c.textContent = rec.num;
-      c.setAttribute("aria-label","N° " + rec.num + (rec.st === "ok" ? " : fait" : rec.st === "pb" ? " : à signaler" : " : à faire"));
-      c.addEventListener("click", () => {
-        if (!rec.st){ rec.st = "ok"; }
-        else if (rec.st === "ok"){
-          rec.st = "pb";
-          const dd = st(name);
-          if (dd.status !== "pb"){ dd.status = "pb"; }
-          if (!dd.time) dd.time = now();
-          if (!findEntry(rec.num)) addEntryFor(rec.num);
-        } else {
-          rec.st = "";
-          removeEmptyEntry(rec.num);
-        }
-        save(); paintChips(); paint();
-      });
-      chips.appendChild(c);
-    });
-    apiStatus.textContent = d.api ? d.nums.length + " n° chargés (officiel)" : "";
-  }
-
-  function paint(){
-    const d = st(name);
-    const donePb = d.nums.filter(x => x.st === "pb").length;
-    const doneOk = d.nums.filter(x => x.st === "ok").length;
-    const total = d.nums.length;
-    const hasPb = d.status === "pb" || donePb > 0 || d.entries.length > 0;
-
-    card.classList.toggle("st-ok", d.status === "ok");
-    card.classList.toggle("st-pb", d.status !== "ok" && hasPb);
-    card.classList.toggle("has-entries", hasPb);
-    bRas.classList.toggle("active", d.status === "ok");
-    bPb.classList.toggle("active", d.status === "pb");
-    pill.className = "pill " + (d.status === "ok" ? "ok" : hasPb ? "pb" : "todo");
-    const nSig = Math.max(d.entries.length, donePb);
-    pill.textContent = d.status === "ok" ? "RAS"
-      : hasPb ? (nSig > 1 ? nSig + " signalements" : "Signalé")
+  function repaint(){
+    const d = st(name); const c = streetCounts(d);
+    const done = isDone(d), pb = hasPb(d);
+    card.classList.toggle("s-done", done);
+    card.classList.toggle("s-pb", pb);
+    pill.className = "pill " + (done ? "done" : (c.seen>0||pb) ? "wip" : "todo");
+    pill.textContent = c.total
+      ? (done ? "RAS" : (pb ? c.pb+" à enlever" : c.seen+"/"+c.total))
       : "À faire";
-    const parts = [];
-    if (total) parts.push((doneOk + donePb) + "/" + total + " n°");
-    if (d.time) parts.push(d.time);
-    meta.textContent = parts.join(" · ");
+    bOk.classList.toggle("on", done);
     updateHeader();
   }
 
-  async function loadApi(){
-    apiBtn.disabled = true;
-    apiStatus.textContent = "Chargement…";
-    const fetched = await fetchStreetNums(name);
-    apiBtn.disabled = false;
-    if (!fetched.length){
-      apiStatus.textContent = "API indisponible — utilisez « Créer 1 → … »";
-      return false;
-    }
-    mergeNums(name, fetched);
-    save(); paintChips(); paint();
-    return true;
+  function renderNums(){
+    const d = st(name);
+    numsEl.textContent=""; status.textContent="";
+    d.nums.sort((a,b)=> numKey(a.num)-numKey(b.num) || String(a.num).localeCompare(String(b.num),"fr"));
+    d.nums.forEach(rec => numsEl.appendChild(buildNum(name, rec, repaint)));
+    numsEl.appendChild(manualRow(name, repaint, renderNums));
   }
-  apiBtn.addEventListener("click", loadApi);
-  repaintFns[name] = { paintChips, paint, loadApi };
 
-  genBtn.addEventListener("click", () => {
-    const nMax = parseInt(genInput.value, 10);
-    if (!nMax || nMax < 1 || nMax > 500) { genInput.focus(); return; }
+  async function ensureFetched(){
     const d = st(name);
-    const existing = new Set(d.nums.map(x => String(x.num)));
-    for (let i = 1; i <= nMax; i++){
-      if (!existing.has(String(i))) d.nums.push({ num: String(i), st: "" });
+    if (d.fetched){ renderNums(); return; }
+    status.innerHTML = '<div class="loading"><span class="spin"></span>Chargement des numéros de la rue…</div>';
+    const got = await fetchNums(name);
+    d.fetched = true;
+    if (got && got.length){
+      const have = new Set(d.nums.map(x=>norm(x.num)));
+      got.forEach(n=>{ if(!have.has(norm(n))) d.nums.push({num:n,k:"",objs:[],note:""}); });
+      save(); renderNums();
+    } else {
+      status.innerHTML = "";
+      const warn = document.createElement("div"); warn.className="loading";
+      warn.textContent = "Numéros indisponibles hors ligne — ajoutez-les ci-dessous, ou réessayez.";
+      const retry = document.createElement("button"); retry.className="retry"; retry.textContent="↻ Réessayer le chargement";
+      retry.addEventListener("click", ()=>{ d.fetched=false; ensureFetched(); });
+      renderNums(); status.append(warn); numsEl.appendChild(retry);
     }
-    genInput.value = "";
-    save(); paintChips(); paint();
-  });
+  }
 
-  addNumBtn.addEventListener("click", () => {
-    const v = addNumInput.value.trim();
-    if (!v) { addNumInput.focus(); return; }
-    const d = st(name);
-    if (!d.nums.some(x => String(x.num) === v)) d.nums.push({ num: v, st: "" });
-    addNumInput.value = "";
-    save(); paintChips(); paint();
-  });
-
-  addBtn.addEventListener("click", () => {
-    addEntryFor("");
-    const d = st(name);
-    if (d.status !== "pb"){ d.status = "pb"; if (!d.time) d.time = now(); }
-    save(); paint();
-    const last = entriesEl.querySelectorAll(".entry");
-    if (last.length) last[last.length-1].querySelector(".entry-num").focus();
-  });
-
-  s.entries.forEach(entry => buildEntry(entry));
-
-  panel.append(actions, numsBlock, entriesEl);
-  card.append(row, panel);
-
-  row.addEventListener("click", () => {
+  row.addEventListener("click", ()=>{
     const open = card.classList.toggle("open");
-    row.setAttribute("aria-expanded", open ? "true" : "false");
+    row.setAttribute("aria-expanded", open?"true":"false");
+    if (open) ensureFetched();
   });
-  bRas.addEventListener("click", () => {
+  bOk.addEventListener("click", ()=>{
     const d = st(name);
-    if (d.status === "ok") { d.status = "todo"; d.time = ""; }
-    else {
-      d.status = "ok"; d.time = now();
-      d.nums.forEach(x => { if (x.st !== "pb") x.st = "ok"; });
-      card.classList.remove("open");
-      row.setAttribute("aria-expanded","false");
-    }
-    save(); paintChips(); paint();
-  });
-  bPb.addEventListener("click", () => {
-    const d = st(name);
-    if (d.status === "pb") { d.status = "todo"; d.time = ""; }
-    else { d.status = "pb"; d.time = now(); if (!d.entries.length) addEntryFor(""); }
-    save(); paint();
+    if (isDone(d)){ d.nums.forEach(x=>{ if(x.k==="ok") x.k=""; }); d.time=""; }
+    else { d.nums.forEach(x=>{ if(x.k!=="pb") x.k="ok"; }); if(!d.time) d.time=now(); }
+    save(); renderNums(); repaint();
   });
 
-  paintChips();
-  paint();
+  ctrl[name] = { repaint };
+  repaint();
   return card;
 }
 
-/* ── Chargement global ── */
-const apiAllBtn = document.getElementById("apiAllBtn");
-const apiAllNote = document.getElementById("apiAllNote");
-apiAllBtn.addEventListener("click", async () => {
-  apiAllBtn.disabled = true;
-  let done = 0, failed = 0;
-  for (const name of ALL){
-    if (st(name).api){ done++; apiAllBtn.textContent = `📡 Chargement… ${done}/${ALL.length}`; continue; }
-    const ok = await repaintFns[name].loadApi();
-    if (!ok) failed++;
-    done++;
-    apiAllBtn.textContent = `📡 Chargement… ${done}/${ALL.length}`;
-    await new Promise(res => setTimeout(res, 120)); // ménage l'API (limite de débit)
+function buildNum(name, rec, repaint){
+  const wrap = document.createElement("div"); wrap.className="num";
+  const top = document.createElement("div"); top.className="num-top";
+  const lbl = document.createElement("span"); lbl.className="num-lbl tnum"; lbl.textContent=rec.num;
+  const btns = document.createElement("div"); btns.className="num-btns";
+  const bOk = document.createElement("button"); bOk.className="nb nb-ok"; bOk.textContent="✓ RAS";
+  const bPb = document.createElement("button"); bPb.className="nb nb-pb"; bPb.textContent="⚠ À enlever";
+  btns.append(bOk, bPb); top.append(lbl, btns);
+
+  const detail = document.createElement("div"); detail.className="num-detail";
+  const obj = document.createElement("div"); obj.className="obj";
+  OBJETS.forEach(o=>{
+    const b = document.createElement("button"); b.textContent=o;
+    b.addEventListener("click", ()=>{
+      const i = rec.objs.indexOf(o);
+      if (i>=0) rec.objs.splice(i,1); else rec.objs.push(o);
+      b.classList.toggle("on", i<0); save();
+    });
+    obj.appendChild(b);
+  });
+  const note = document.createElement("textarea"); note.className="num-note";
+  note.placeholder="Précision (commerce, emplacement…)"; note.value=rec.note||"";
+  note.addEventListener("input", ()=>{ rec.note=note.value; save(); });
+  detail.append(obj, note);
+  wrap.append(top, detail);
+
+  function paintObjs(){ obj.querySelectorAll("button").forEach(b=> b.classList.toggle("on", rec.objs.includes(b.textContent))); }
+  function paint(){
+    wrap.classList.toggle("n-ok", rec.k==="ok");
+    wrap.classList.toggle("n-pb", rec.k==="pb");
+    bOk.classList.toggle("on", rec.k==="ok");
+    bPb.classList.toggle("on", rec.k==="pb");
   }
-  apiAllBtn.disabled = false;
-  apiAllBtn.textContent = "📡 Charger les numéros officiels des 46 rues";
-  apiAllNote.textContent = failed
-    ? (ALL.length - failed) + " rues chargées — " + failed + " rues sans réponse (réessayez ou utilisez « Créer 1 → … »)."
-    : "Numéros chargés pour les 46 rues. Ils restent enregistrés sur le téléphone.";
-});
+  bOk.addEventListener("click", ()=>{
+    rec.k = rec.k==="ok" ? "" : "ok";
+    const d=st(name); if(rec.k==="ok" && !d.time) d.time=now();
+    save(); paint(); repaint();
+  });
+  bPb.addEventListener("click", ()=>{
+    rec.k = rec.k==="pb" ? "" : "pb";
+    const d=st(name); if(rec.k==="pb" && !d.time) d.time=now();
+    if (rec.k==="pb" && !rec.objs.length){ rec.objs.push(OBJETS[0]); paintObjs(); }
+    save(); paint(); repaint();
+  });
+  paintObjs(); paint();
+  return wrap;
+}
 
-/* ── Compteurs ── */
+function manualRow(name, repaint, renderNums){
+  const row = document.createElement("div"); row.className="manual";
+  const inp = document.createElement("input"); inp.placeholder="Ajouter un n° (ex. 12 bis)"; inp.autocomplete="off";
+  const btn = document.createElement("button"); btn.textContent="+ n°";
+  const add = ()=>{
+    const v = inp.value.trim(); if(!v) return;
+    const d = st(name);
+    if (!d.nums.some(x=> norm(x.num)===norm(v))) d.nums.push({num:v,k:"",objs:[],note:""});
+    inp.value=""; save(); renderNums(); repaint();
+  };
+  btn.addEventListener("click", add);
+  inp.addEventListener("keydown", e=>{ if(e.key==="Enter") add(); });
+  row.append(inp, btn);
+  return row;
+}
+
+/* ═══ En-tête (compteurs) ═══ */
 function updateHeader(){
-  let ok = 0, pb = 0;
-  ALL.forEach(n => {
-    const d = state.streets[n];
-    if (!d) return;
-    if (d.status === "ok") ok++;
-    else if (d.status === "pb" || d.entries.length || d.nums.some(x => x.st === "pb")) pb++;
+  let done=0, pb=0, pbNums=0;
+  ALL.forEach(n=>{
+    const d = state.streets[n]; if(!d) return;
+    if (isDone(d)) done++;
+    if (hasPb(d)){ pb++; pbNums += d.nums.filter(x=>x.k==="pb").length; }
   });
-  const left = ALL.length - ok - pb;
-  document.getElementById("cOk").textContent = ok + " RAS";
-  document.getElementById("cPb").textContent = pb + " signal.";
-  document.getElementById("cLeft").textContent = left + " restante" + (left > 1 ? "s" : "");
-  document.getElementById("pOk").style.width = (ok / ALL.length * 100) + "%";
-  document.getElementById("pPb").style.width = (pb / ALL.length * 100) + "%";
+  document.getElementById("sDone").textContent = done;
+  document.getElementById("sPb").textContent = pbNums;
+  document.getElementById("sLeft").textContent = ALL.length - done;
+  document.getElementById("pG").style.width = (done/ALL.length*100)+"%";
+  document.getElementById("pO").style.width = (pb/ALL.length*100)+"%";
 }
 
-/* ── Recherche ── */
-document.getElementById("search").addEventListener("input", e => {
+/* ═══ Recherche ═══ */
+document.getElementById("search").addEventListener("input", e=>{
   const q = e.target.value.trim().toLowerCase();
-  document.querySelectorAll(".street").forEach(c => {
-    c.style.display = c.dataset.name.includes(q) ? "" : "none";
-  });
-  document.querySelectorAll(".sector").forEach(h => {
-    let el = h.nextElementSibling, visible = false;
-    while (el && !el.classList.contains("sector")) {
-      if (el.classList.contains("street") && el.style.display !== "none") visible = true;
-      el = el.nextElementSibling;
-    }
-    h.style.display = visible ? "" : "none";
+  document.querySelectorAll(".street").forEach(c=> c.style.display = c.dataset.name.includes(q)?"":"none");
+  document.querySelectorAll(".sector").forEach(h=>{
+    let el=h.nextElementSibling, vis=false;
+    while(el && !el.classList.contains("sector")){ if(el.classList.contains("street") && el.style.display!=="none") vis=true; el=el.nextElementSibling; }
+    h.style.display = vis?"":"none";
   });
 });
 
-/* ── Agent ── */
+/* ═══ Agent ═══ */
 const agentInput = document.getElementById("agent");
-agentInput.value = state.agent || "";
-agentInput.addEventListener("input", () => { state.agent = agentInput.value; save(); });
+agentInput.value = state.agent||"";
+agentInput.addEventListener("input", ()=>{ state.agent=agentInput.value; save(); });
 
-/* ── Compte rendu ── */
+/* ═══ Compte rendu ═══ */
 function fmtRange(nums){
-  const ints = nums.map(numSortKey).filter(v => v !== Infinity).sort((a,b) => a-b);
-  const others = nums.filter(v => numSortKey(v) === Infinity);
-  const out = [];
-  let start = null, prev = null;
-  ints.forEach(v => {
-    if (start === null){ start = prev = v; return; }
-    if (v === prev + 1){ prev = v; return; }
-    out.push(start === prev ? String(start) : start + "–" + prev);
-    start = prev = v;
-  });
-  if (start !== null) out.push(start === prev ? String(start) : start + "–" + prev);
-  return out.concat(others).join(", ");
+  const ints = nums.map(numKey).filter(v=>v!==1e9).sort((a,b)=>a-b);
+  const oth = nums.filter(v=>numKey(v)===1e9);
+  const out=[]; let s=null,p=null;
+  ints.forEach(v=>{ if(s===null){s=p=v;return;} if(v===p+1){p=v;return;} out.push(s===p?""+s:s+"–"+p); s=p=v; });
+  if(s!==null) out.push(s===p?""+s:s+"–"+p);
+  return out.concat(oth).join(", ");
 }
-
-function buildReport(){
+function reportData(){
   const dateStr = new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const ras = [], pbs = [], todo = [];
-  ALL.forEach(n => {
-    const d = state.streets[n];
-    const hasPb = d && (d.status === "pb" || d.entries.length || d.nums.some(x => x.st === "pb"));
-    if (d && d.status === "ok") ras.push({ n, d });
-    else if (hasPb) pbs.push({ n, d });
-    else todo.push(n);
+  const rows=[], notes=[]; let doneCount=0, pbNums=0, seenNums=0;
+  ALL.forEach(n=>{
+    const d = state.streets[n]; if(!d) return;
+    if (isDone(d)) doneCount++;
+    if (d.note && d.note.trim()) notes.push({ rue:n, note:d.note.trim() });
+    d.nums.forEach(x=>{ if(x.k) seenNums++; if(x.k==="pb"){ pbNums++;
+      rows.push({ rue:n, num:x.num, objs:x.objs.slice(), note:(x.note||"").trim(), time:d.time });
+    }});
   });
+  return { dateStr, rows, notes, doneCount, pbNums, seenNums, controlled: ALL.filter(n=>{const d=state.streets[n]; return d && (isDone(d)||hasPb(d)||d.nums.some(x=>x.k)||(d.note&&d.note.trim()));}).length };
+}
+function renderReport(){
+  const r = reportData();
+  const doc = document.getElementById("doc");
+  const esc = s => String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  let html = "";
+  html += '<h2>Compte rendu — Tournée préventive</h2>';
+  html += '<p class="meta">Match France / Maroc (22 h 00) — classé à risque</p>';
+  html += '<p class="meta tnum">'+esc(r.dateStr)+" — édité à "+now()+(state.agent?(" · "+esc(state.agent)):"")+"</p>";
+  html += '<div class="kpis">';
+  html += '<div class="kpi"><b class="tnum">'+r.controlled+" / "+ALL.length+'</b>rues contrôlées</div>';
+  html += '<div class="kpi"><b class="tnum">'+r.pbNums+'</b>adresses à enlever</div>';
+  html += '</div>';
+  if (r.rows.length){
+    // Regroupé par rue
+    const byStreet = {};
+    r.rows.forEach(x=>{ (byStreet[x.rue] = byStreet[x.rue]||[]).push(x); });
+    html += '<div class="tbl-wrap"><table class="rep"><thead><tr><th>N°</th><th>Constat</th><th>Précision</th></tr></thead><tbody>';
+    ALL.forEach(rue=>{
+      const list = byStreet[rue]; if(!list) return;
+      list.sort((a,b)=> numKey(a.num)-numKey(b.num));
+      html += '<tr class="grp"><td colspan="3">'+esc(rue)+" — "+esc(SECTOR_OF[rue])+"</td></tr>";
+      list.forEach(x=>{
+        html += "<tr><td class='n'>"+esc(x.num)+"</td><td class='obj-c'>"+esc(x.objs.join(", ")||"À enlever")+"</td><td>"+esc(x.note||"—")+"</td></tr>";
+      });
+    });
+    html += "</tbody></table></div>";
+  } else {
+    html += '<p class="none">✓ Aucune anomalie constatée — rien à faire enlever sur la voie publique.</p>';
+  }
+  if (r.notes.length){
+    html += '<div class="tbl-wrap" style="margin-top:14px"><table class="rep"><thead><tr><th>Rue</th><th>Observation</th></tr></thead><tbody>';
+    r.notes.forEach(x=>{ html += "<tr><td class='n' style='white-space:normal'>"+esc(x.rue)+"</td><td>"+esc(x.note)+"</td></tr>"; });
+    html += "</tbody></table></div>";
+  }
+  html += '<p class="closing">Compte rendu transmis au CSU et à l\'ensemble des chefs de service, afin que les bacs et tout objet ou projectile susceptible de rester sur la voie publique soient pris en charge dans les meilleurs délais.</p>';
+  doc.innerHTML = html;
+  return r;
+}
+function reportText(){
+  const r = reportData();
   const L = [];
   L.push("COMPTE RENDU — TOURNÉE PRÉVENTIVE");
-  L.push("Retransmission du match France / Maroc (22h00) — match classé à risque");
-  L.push("Date : " + dateStr + " — Édité à " + now());
-  if (state.agent) L.push("Agent / équipage : " + state.agent);
+  L.push("Match France / Maroc (22h00) — classé à risque");
+  L.push(r.dateStr + " — édité à " + now());
+  if (state.agent) L.push("Agent : " + state.agent);
   L.push("");
-  L.push("Rues contrôlées : " + (ras.length + pbs.length) + " / " + ALL.length);
-  L.push("• RAS : " + ras.length);
-  L.push("• Rues avec signalement : " + pbs.length);
-  if (pbs.length){
-    L.push("");
-    L.push("SIGNALEMENTS À PRENDRE EN CHARGE :");
-    pbs.forEach(({n,d}) => {
-      const okNums = d.nums.filter(x => x.st === "ok").map(x => x.num);
-      let head = "• " + n + (d.time ? " (" + d.time + ")" : "");
-      if (d.nums.length) head += " — n° contrôlés : " + (d.nums.filter(x => x.st).length) + "/" + d.nums.length;
-      L.push(head);
-      d.entries.forEach(en => {
-        let line = "   - " + (en.num.trim() ? "n° " + en.num.trim() : "sans n° précis");
-        if (en.tags.length) line += " — " + en.tags.join(", ");
-        if (en.note.trim()) line += " — " + en.note.trim();
-        L.push(line);
+  L.push("Rues contrôlées : " + r.controlled + "/" + ALL.length + "  |  Adresses à enlever : " + r.pbNums);
+  L.push("");
+  if (r.rows.length){
+    L.push("ADRESSES À PRENDRE EN CHARGE :");
+    const byStreet = {}; r.rows.forEach(x=>{ (byStreet[x.rue]=byStreet[x.rue]||[]).push(x); });
+    ALL.forEach(rue=>{
+      const list = byStreet[rue]; if(!list) return;
+      list.sort((a,b)=> numKey(a.num)-numKey(b.num));
+      L.push("• " + rue + " :");
+      list.forEach(x=>{
+        let s = "    - n° " + x.num + " — " + (x.objs.join(", ")||"à enlever");
+        if (x.note) s += " (" + x.note + ")";
+        L.push(s);
       });
-      if (okNums.length) L.push("   - RAS aux n° " + fmtRange(okNums));
     });
+  } else {
+    L.push("Aucune anomalie constatée — rien à enlever sur la voie publique.");
   }
-  if (ras.length){
+  if (r.notes.length){
     L.push("");
-    L.push("RUES RAS (poubelles, mobilier et conteneurs rentrés ou absents) :");
-    ras.forEach(({n,d}) => {
-      const done = d.nums.filter(x => x.st).map(x => x.num);
-      L.push("• " + n + (done.length ? " — n° " + fmtRange(done) : "") + (d.time ? " (" + d.time + ")" : ""));
-    });
-  }
-  if (todo.length){
-    L.push("");
-    L.push("RUES NON CONTRÔLÉES :");
-    L.push(todo.join(" · "));
+    L.push("OBSERVATIONS :");
+    r.notes.forEach(x=> L.push("• " + x.rue + " : " + x.note));
   }
   L.push("");
-  L.push("Compte rendu transmis au CSU et à l'ensemble des chefs de service pour prise en charge des bacs et objets restant sur la voie publique.");
+  L.push("Transmis au CSU et aux chefs de service pour prise en charge des bacs et objets restant sur la voie publique.");
   return L.join("\n");
 }
 
-const reportOut = document.getElementById("reportOut");
-const reportText = document.getElementById("reportText");
-document.getElementById("genBtn").addEventListener("click", () => {
-  reportText.textContent = buildReport();
-  reportOut.classList.add("show");
-  reportOut.scrollIntoView({ behavior:"smooth", block:"nearest" });
+const reportBox = document.getElementById("report");
+document.getElementById("genBtn").addEventListener("click", ()=>{
+  renderReport();
+  reportBox.classList.add("show");
+  reportBox.scrollIntoView({behavior:"smooth", block:"start"});
 });
-
-function toast(msg){
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 1800);
-}
+function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
 function copyText(txt){
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(txt).then(() => toast("Compte rendu copié"), () => legacyCopy(txt));
-  } else legacyCopy(txt);
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(txt).then(()=>toast("Compte rendu copié"), ()=>legacy(txt));
+  else legacy(txt);
 }
-function legacyCopy(txt){
-  const ta = document.createElement("textarea");
-  ta.value = txt;
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand("copy"); toast("Compte rendu copié"); }
-  catch (e) { toast("Copie impossible — sélectionnez le texte"); }
+function legacy(txt){
+  const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); toast("Compte rendu copié"); }catch(e){ toast("Copie impossible"); }
   document.body.removeChild(ta);
 }
-document.getElementById("copyBtn").addEventListener("click", () => copyText(reportText.textContent));
-document.getElementById("shareBtn").addEventListener("click", () => {
-  const txt = reportText.textContent;
-  if (navigator.share) navigator.share({ title:"Compte rendu tournée", text:txt }).catch(() => {});
+document.getElementById("copyBtn").addEventListener("click", ()=> copyText(reportText()));
+document.getElementById("shareBtn").addEventListener("click", ()=>{
+  const txt = reportText();
+  if (navigator.share) navigator.share({title:"Compte rendu tournée", text:txt}).catch(()=>{});
   else copyText(txt);
 });
-
-document.getElementById("resetBtn").addEventListener("click", () => {
+document.getElementById("printBtn").addEventListener("click", ()=>{ renderReport(); window.print(); });
+document.getElementById("resetBtn").addEventListener("click", ()=>{
   if (!confirm("Effacer toute la tournée en cours ?")) return;
-  state = { agent: state.agent, streets: {} };
-  save();
-  location.reload();
+  state = { agent: state.agent, streets:{} }; save(); location.reload();
 });
 
 updateHeader();

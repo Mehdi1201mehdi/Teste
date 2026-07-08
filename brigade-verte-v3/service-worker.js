@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v3.5.1";
+const VERSION = "v3.6.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 
@@ -35,6 +35,7 @@ const SHELL_ASSETS = [
   "./assets/logo/logo.svg",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
+  "./suivi/",
 ];
 
 const DATA_ASSETS = ["./data/streets.json", "./data/waste.json"];
@@ -100,6 +101,23 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
+    // La page /suivi/ est une page autonome : réseau d'abord (pour recevoir
+    // les mises à jour), cache en secours (mode terrain hors connexion).
+    if (url.pathname.includes("/suivi")) {
+      event.respondWith(
+        (async () => {
+          try {
+            const fresh = await fetch(request);
+            const cache = await caches.open(SHELL_CACHE);
+            cache.put("./suivi/", fresh.clone());
+            return fresh;
+          } catch (e) {
+            return (await caches.match("./suivi/")) || Response.error();
+          }
+        })(),
+      );
+      return;
+    }
     event.respondWith(
       (async () => (await caches.match("./index.html")) || fetch(request))(),
     );

@@ -2,608 +2,116 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Suivi tournée — France / Maroc</title>
-<link rel="icon" href="../assets/icons/icon-32.png">
-<style>
-:root{
-  --ground:#EEF1F5; --card:#FFFFFF; --ink:#141C26; --muted:#63728A;
-  --line:#DCE3EC; --accent:#123D8C; --accent-2:#1E56C4; --accent-ink:#FFFFFF;
-  --ok:#177245; --ok-soft:#E4F2E9; --pb:#C24A12; --pb-soft:#FBEADD;
-  --neutral:#EAEEF4; --shadow:0 1px 2px rgba(20,28,38,.08),0 1px 8px rgba(20,28,38,.05);
-  --chip-ink:#FFFFFF;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --ground:#0D131C; --card:#161F2B; --ink:#E9EFF6; --muted:#8D9BB0;
-    --line:#26313F; --accent:#3E6FD6; --accent-2:#5B87E6; --accent-ink:#0B1220;
-    --ok:#43C07C; --ok-soft:#123024; --pb:#EB934A; --pb-soft:#36230F;
-    --neutral:#1F2937; --shadow:0 1px 2px rgba(0,0,0,.4);
-    --chip-ink:#0B1220;
-  }
-}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  background:var(--ground); color:var(--ink);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  font-size:16px; line-height:1.45; -webkit-tap-highlight-color:transparent;
-}
-button{font:inherit; cursor:pointer; color:inherit}
-input,textarea{font:inherit; color:var(--ink)}
-:focus-visible{outline:2px solid var(--accent-2); outline-offset:2px}
-button:disabled{opacity:.5; cursor:default}
-.tnum{font-variant-numeric:tabular-nums}
-
-/* ══ En-tête ══ */
-header{
-  position:sticky; top:0; z-index:20; background:var(--card);
-  border-bottom:1px solid var(--line); box-shadow:var(--shadow);
-  padding:11px 16px 10px; padding-top:calc(11px + env(safe-area-inset-top));
-}
-.hd-line{display:flex; align-items:center; gap:10px}
-.hd-line h1{font-size:16px; font-weight:800; letter-spacing:-.01em; margin:0; flex:1}
-.hd-sub{font-size:11.5px; color:var(--muted); margin:2px 0 9px}
-.stats{display:flex; gap:7px}
-.stat{
-  flex:1; background:var(--neutral); border-radius:9px; padding:6px 8px; text-align:center;
-}
-.stat b{display:block; font-size:17px; font-weight:800; line-height:1.1}
-.stat span{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
-.stat.ok b{color:var(--ok)} .stat.pb b{color:var(--pb)}
-.progress{height:5px; border-radius:99px; background:var(--neutral); overflow:hidden; display:flex; margin-top:9px}
-.progress i{display:block; height:100%; transition:width .25s}
-.progress .g{background:var(--ok)} .progress .o{background:var(--pb)}
-.search{
-  width:100%; margin-top:10px; padding:9px 12px; border:1px solid var(--line);
-  border-radius:10px; background:var(--ground);
-}
-.search::placeholder{color:var(--muted)}
-
-/* ══ Liste ══ */
-main{max-width:680px; margin:0 auto; padding:10px 12px 48px}
-.sector{
-  font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.1em;
-  color:var(--muted); margin:16px 4px 8px;
-}
-.street{
-  background:var(--card); border:1px solid var(--line); border-left:4px solid var(--line);
-  border-radius:12px; margin-bottom:8px; overflow:hidden; box-shadow:var(--shadow);
-}
-.street.s-done{border-left-color:var(--ok)}
-.street.s-pb{border-left-color:var(--pb)}
-.st-row{display:flex; align-items:center; gap:11px; width:100%; padding:14px; background:none; border:0; text-align:left}
-.st-name{flex:1; font-weight:650; font-size:15.5px}
-.st-meta{font-size:12px; color:var(--muted)}
-.pill{font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:99px; white-space:nowrap}
-.pill.todo{background:var(--neutral); color:var(--muted)}
-.pill.wip{background:var(--pb-soft); color:var(--pb)}
-.pill.done{background:var(--ok-soft); color:var(--ok)}
-.chev{color:var(--muted); transition:transform .2s; font-size:13px}
-.street.open .chev{transform:rotate(90deg)}
-
-.panel{display:none; border-top:1px solid var(--line); padding:12px 14px}
-.street.open .panel{display:block}
-.bulk{display:flex; gap:8px; margin-bottom:12px}
-.bulk button{
-  flex:1; padding:11px 8px; border-radius:9px; border:1px solid var(--line);
-  background:var(--ground); font-weight:700; font-size:14px;
-}
-.bulk .b-ok.on{background:var(--ok); border-color:var(--ok); color:var(--chip-ink)}
-.st-note{
-  width:100%; margin-bottom:12px; padding:9px 12px; border:1px solid var(--line);
-  border-radius:9px; background:var(--ground); resize:vertical; min-height:40px;
-}
-.st-note::placeholder{color:var(--muted)}
-.st-note-lbl{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:0 2px 5px}
-
-.loading{display:flex; align-items:center; gap:9px; color:var(--muted); font-size:13.5px; padding:6px 2px}
-.spin{width:15px; height:15px; border:2px solid var(--line); border-top-color:var(--accent-2); border-radius:50%; animation:sp .7s linear infinite}
-@keyframes sp{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion:reduce){.spin{animation:none}}
-
-/* ══ Numéros ══ */
-.nums{display:flex; flex-direction:column; gap:7px}
-.num{border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--ground)}
-.num-top{display:flex; align-items:center; gap:9px; padding:8px 9px}
-.num-lbl{
-  min-width:46px; text-align:center; font-weight:800; font-size:16px; padding:6px 6px;
-  border-radius:8px; background:var(--card); border:1px solid var(--line);
-}
-.num.n-ok .num-lbl{background:var(--ok); border-color:var(--ok); color:var(--chip-ink)}
-.num.n-pb .num-lbl{background:var(--pb); border-color:var(--pb); color:var(--chip-ink)}
-.num-btns{display:flex; gap:7px; flex:1}
-.nb{flex:1; padding:9px 6px; border-radius:8px; border:1px solid var(--line); background:var(--card); font-weight:700; font-size:13.5px}
-.nb-ok.on{background:var(--ok); border-color:var(--ok); color:var(--chip-ink)}
-.nb-pb.on{background:var(--pb); border-color:var(--pb); color:var(--chip-ink)}
-.num-detail{display:none; padding:0 9px 10px}
-.num.n-pb .num-detail{display:block}
-.obj{display:flex; flex-wrap:wrap; gap:6px}
-.obj button{
-  padding:7px 11px; border-radius:99px; border:1px solid var(--line); background:var(--card);
-  font-size:13px; font-weight:600;
-}
-.obj button.on{background:var(--pb-soft); border-color:var(--pb); color:var(--pb); font-weight:750}
-.num-note{
-  width:100%; margin-top:8px; padding:8px 11px; border:1px solid var(--line);
-  border-radius:8px; background:var(--card); resize:vertical; min-height:38px;
-}
-.num-note::placeholder{color:var(--muted)}
-.manual{margin-top:11px; display:flex; gap:8px}
-.manual input{flex:1; min-width:0; padding:9px 11px; border:1px solid var(--line); border-radius:9px; background:var(--ground); font-size:14px}
-.manual input::placeholder{color:var(--muted)}
-.manual button{flex:none; padding:9px 13px; border-radius:9px; border:1px solid var(--line); background:var(--ground); font-weight:700; font-size:13.5px; color:var(--muted)}
-.retry{margin-top:9px; width:100%; padding:9px; border-radius:9px; border:1px dashed var(--accent-2); background:none; color:var(--accent-2); font-weight:700; font-size:13.5px}
-
-/* ══ Compte rendu ══ */
-.foot{max-width:680px; margin:22px auto 0; padding:0 12px}
-.agent{margin-bottom:12px}
-.agent label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px}
-.agent input{width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:var(--card)}
-.cta{width:100%; padding:15px; border-radius:12px; border:0; background:var(--accent); color:var(--accent-ink); font-weight:800; font-size:16px; box-shadow:var(--shadow)}
-.report{display:none; margin-top:16px}
-.report.show{display:block}
-.rep-actions{display:flex; gap:8px; margin-bottom:12px}
-.rep-actions button{flex:1; padding:12px 6px; border-radius:10px; border:1px solid var(--line); background:var(--card); font-weight:700; font-size:14px}
-.rep-actions .primary{background:var(--accent-2); border-color:var(--accent-2); color:#fff}
-
-.doc{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; box-shadow:var(--shadow)}
-.doc h2{font-size:15px; margin:0 0 3px}
-.doc .meta{font-size:12px; color:var(--muted); margin:0 0 4px}
-.doc .kpis{display:flex; gap:8px; margin:12px 0 14px; flex-wrap:wrap}
-.doc .kpi{background:var(--neutral); border-radius:9px; padding:8px 12px; font-size:12.5px}
-.doc .kpi b{font-size:16px; display:block}
-.tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
-table.rep{border-collapse:collapse; width:100%; font-size:13px}
-table.rep th,table.rep td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
-table.rep th{background:var(--accent); color:#fff; font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:700}
-table.rep tr.grp td{background:var(--neutral); font-weight:800; font-size:12.5px}
-table.rep td.n{font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums}
-table.rep td.obj-c{color:var(--pb); font-weight:600}
-.doc .none{color:var(--ok); font-weight:700; padding:10px 0}
-.doc .closing{font-size:12px; color:var(--muted); margin-top:14px; border-top:1px solid var(--line); padding-top:10px}
-.reset{width:100%; margin-top:14px; padding:11px; border-radius:10px; border:1px solid var(--line); background:none; color:var(--muted); font-weight:600; font-size:13.5px}
-
-.toast{
-  position:fixed; left:50%; bottom:20px; transform:translateX(-50%) translateY(8px);
-  background:var(--ink); color:var(--ground); padding:10px 18px; border-radius:99px;
-  font-size:14px; font-weight:700; opacity:0; pointer-events:none; transition:.2s; z-index:40; white-space:nowrap;
-}
-.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
-
-@media print{
-  header,.foot .agent,.cta,.rep-actions,.reset,.search,.stats,.progress,#list,.hd-sub,body>*:not(main){display:none !important}
-  body{background:#fff}
-  .foot{margin:0} .report{display:block !important} .doc{border:0; box-shadow:none; padding:0}
-  table.rep th{background:#123D8C !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
-}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0F6B3A">
+<meta name="robots" content="noindex, nofollow">
+<title>Suivi de tournée — Brigade Verte Amiens</title>
+<link rel="icon" type="image/svg+xml" href="../assets/logo/logo.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/icon-32.png">
+<link rel="apple-touch-icon" href="../assets/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Suivi tournée">
+<link rel="stylesheet" href="css/suivi.css">
 </head>
 <body>
 
-<header>
-  <div class="hd-line">
-    <h1>Tournée préventive</h1>
+<header class="top">
+  <div class="brandline">
+    <span class="logo">🌿</span>
+    <h1>Suivi de tournée</h1>
+    <span class="save-dot" id="saveDot" role="status" aria-live="polite">💾 Enregistré</span>
   </div>
-  <p class="hd-sub">Match France / Maroc — retransmission 22 h 00 · rentrée des bacs, mobilier &amp; conteneurs</p>
-  <div class="stats">
-    <div class="stat"><b id="sDone">0</b><span>rues faites</span></div>
-    <div class="stat pb"><b id="sPb">0</b><span>à enlever</span></div>
-    <div class="stat"><b id="sLeft">46</b><span>rues restantes</span></div>
+  <div class="stats-strip">
+    <div class="stat"><b id="hRues" class="tnum">0</b><span>rues</span></div>
+    <div class="stat"><b id="hNums" class="tnum">0</b><span>numéros</span></div>
+    <div class="stat s-pb"><b id="hPb" class="tnum">0</b><span>anomalies</span></div>
   </div>
-  <div class="progress"><i class="g" id="pG" style="width:0"></i><i class="o" id="pO" style="width:0"></i></div>
-  <input class="search" id="search" type="search" placeholder="Rechercher une rue…" autocomplete="off">
 </header>
 
 <main>
-  <div id="list"></div>
 
-  <div class="foot">
-    <div class="agent">
-      <label for="agent">Agent / équipage</label>
-      <input id="agent" placeholder="Ex. : Brigade 2 — M. Dupont" autocomplete="off">
+  <!-- ═══ VUE 1 : SECTEURS ═══ -->
+  <section id="view-sectors" class="view active" aria-label="Choix du secteur">
+    <p class="hello">Match France / Maroc — dispositif préventif. Choisissez un secteur, puis une rue.</p>
+    <div class="search-wrap">
+      <input id="globalSearch" class="search-input" type="search" placeholder="🔎 Rechercher une rue (tous secteurs)…" autocomplete="off" aria-label="Rechercher une rue">
+      <div id="globalSuggest" class="suggest" hidden></div>
     </div>
-    <button class="cta" id="genBtn">Générer le compte rendu</button>
+    <div id="sectorGrid" class="sector-grid"></div>
+  </section>
 
-    <div class="report" id="report">
-      <div class="rep-actions">
-        <button class="primary" id="shareBtn">Partager</button>
-        <button id="copyBtn">Copier</button>
-        <button id="printBtn">Imprimer / PDF</button>
-      </div>
-      <div class="doc" id="doc"></div>
+  <!-- ═══ VUE 2 : RUES DU SECTEUR ═══ -->
+  <section id="view-streets" class="view" aria-label="Rues du secteur">
+    <div class="subbar">
+      <button class="back" id="backStreets" aria-label="Retour aux secteurs">‹</button>
+      <h2 id="streetsTitle">Secteur</h2>
+      <span class="count" id="streetCount">0 rues</span>
+    </div>
+    <div class="search-wrap">
+      <input id="streetFilter" class="search-input" type="search" placeholder="Filtrer les rues…" autocomplete="off" aria-label="Filtrer les rues">
+    </div>
+    <div id="streetList" class="street-list"></div>
+  </section>
+
+  <!-- ═══ VUE 3 : DÉTAIL D'UNE RUE ═══ -->
+  <section id="view-street" class="view" aria-label="Contrôle de la rue">
+    <div class="subbar">
+      <button class="back" id="backStreet" aria-label="Retour à la liste des rues">‹</button>
+      <h2>Contrôle rue</h2>
     </div>
 
-    <button class="reset" id="resetBtn">Nouvelle tournée (tout effacer)</button>
-  </div>
+    <div class="street-head">
+      <span class="sec" id="streetSector">Secteur</span>
+      <h2 id="streetName">Rue</h2>
+      <div class="street-prog" id="streetProg">Chargement…</div>
+      <label class="note-lbl" for="streetNote">Observation générale sur la rue</label>
+      <textarea id="streetNote" class="street-note" placeholder="Ex. : rue barrée, travaux, commerce fermé…"></textarea>
+      <button class="bulk-ras" id="bulkRas">✓ Toute la rue RAS</button>
+    </div>
+
+    <div class="num-toolbar">
+      <input id="numFilter" class="num-filter" type="search" placeholder="Aller à un numéro…" autocomplete="off" aria-label="Filtrer les numéros">
+    </div>
+    <div class="load" id="numLoad" hidden><span class="spin"></span> Chargement des numéros de la rue…</div>
+    <div id="numList" class="num-list"></div>
+  </section>
+
+  <!-- ═══ VUE 4 : COMPTE RENDU ═══ -->
+  <section id="view-report" class="view" aria-label="Compte rendu">
+    <div class="subbar">
+      <button class="back" id="backReport" aria-label="Retour">‹</button>
+      <h2>Compte rendu</h2>
+    </div>
+
+    <div class="agent-field">
+      <label for="agentInput">Agent / équipage</label>
+      <input id="agentInput" placeholder="Ex. : Brigade 2 — M. Dupont" autocomplete="off">
+    </div>
+
+    <div class="exports">
+      <button class="exp primary" id="expShare">📤 Partager</button>
+      <button class="exp" id="expWhatsapp">🟢 WhatsApp</button>
+      <button class="exp" id="expSms">💬 SMS</button>
+      <button class="exp" id="expMail">✉️ Mail</button>
+      <button class="exp" id="expCopy">📋 Copier</button>
+      <button class="exp" id="expPrint">🖨️ PDF / Imprimer</button>
+      <button class="exp" id="expCsv">📄 CSV</button>
+      <button class="exp" id="expXls">📊 Excel</button>
+    </div>
+
+    <div class="doc" id="reportDoc"></div>
+
+    <div class="reset-line">
+      <button class="reset-btn" id="resetBtn">🗑 Nouvelle tournée (tout effacer)</button>
+    </div>
+  </section>
+
 </main>
 
-<div class="toast" id="toast"></div>
+<button class="fab" id="goReport">📋 Compte rendu</button>
+<div class="toast" id="toast" role="status" aria-live="assertive"></div>
 
-<script>
-"use strict";
-/* ═══ Données ═══ */
-const SECTORS = [
-  { name: "Secteur Saint-Leu / Port d'Amont", streets: [
-    "Place Vogel","Rue Vanmarcke","Place Parmentier","Rue des Majots","Rue de la Barrette",
-    "Rue Cécile Redlich","Rue Metz-l'Évêque","Rue des Hautes-Cornes","Rue des Augustins",
-    "Port d'Amont","Rue du Hocquet","Rue Turpin","Rue des Bondes","Place du Don","Rue du Don",
-    "Boulevard du Cange (début de rue)","Quai Bélu","Rue Saint-Leu","Rue Motte",
-    "Rue des Marissons","Rue Grainville","Rue d'Engoulvent","Rue des Huchers","Rue des Archers",
-    "Rue des Rinchevaux","Rue Édouard David","Rue de la Plumette","Rue Fernel",
-    "Rue de la Dodane","Rue Edmond Fontaine"
-  ]},
-  { name: "Secteur Centre-ville", streets: [
-    "Place de l'Hôtel de Ville","Rue des Trois Cailloux","Place René Goblet","Rue de Noyon",
-    "Place Alphonse Fiquet","Place Gambetta","Rue des Sergents","Rue des Vergeaux",
-    "Rue Delambre","Rue Duméril","Rue des Jacobins","Rue Sir Firmin-Leroux",
-    "Rue des Corps-Nuds-Sans-Tête","Passage Logis du Roi","Rue Allart","Rue Marotte"
-  ]}
-];
-const ALL = SECTORS.flatMap(s => s.streets);
-const SECTOR_OF = {}; SECTORS.forEach(s => s.streets.forEach(n => SECTOR_OF[n] = s.name));
-// Boutons rapides = les demandes de l'email
-const OBJETS = ["Bac / poubelle","Conteneur Veolia","Mobilier commerce","Objet / projectile","Autre"];
-
-const ADRESSE_API = "https://api-adresse.data.gouv.fr/search/";
-const AMIENS_CITYCODE = "80021";
-const KEY = "suivi-fr-maroc-v2";
-
-/* ═══ État ═══ */
-let state = { agent:"", streets:{} };
-try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.streets) state = s; } catch(e){}
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){} }
-function st(n){
-  if (!state.streets[n]) state.streets[n] = { fetched:false, nums:[], time:"" };
-  return state.streets[n];
-}
-// nums: [{num:"12", k:""|"ok"|"pb", objs:[], note:""}]
-function now(){ return new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}); }
-function numKey(v){ const m=String(v).match(/\d+/); return m?parseInt(m[0],10):1e9; }
-function norm(s){ return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
-function baseName(n){ return n.replace(/\(.*?\)/g,"").trim(); }
-
-/* ═══ Récupération des numéros officiels (Base Adresse Nationale) ═══ */
-async function fetchNums(name){
-  const q = baseName(name), target = norm(q);
-  try{
-    const r = await fetch(`${ADRESSE_API}?q=${encodeURIComponent(q)}&citycode=${AMIENS_CITYCODE}&type=housenumber&autocomplete=0&limit=100`);
-    if (!r.ok) return null;
-    const j = await r.json();
-    const seen = new Set(); const out = [];
-    (j.features||[]).forEach(f=>{
-      const p = f.properties||{};
-      if (!p.housenumber) return;
-      if (norm(p.street||p.name).indexOf(target) === -1) return;
-      const k = norm(p.housenumber);
-      if (seen.has(k)) return; seen.add(k);
-      out.push(String(p.housenumber));
-    });
-    return out.sort((a,b)=> numKey(a)-numKey(b) || String(a).localeCompare(String(b),"fr"));
-  }catch(e){ return null; }
-}
-
-/* ═══ Rendu liste ═══ */
-const listEl = document.getElementById("list");
-const ctrl = {}; // name -> {open, repaint}
-SECTORS.forEach(sec=>{
-  const h = document.createElement("div"); h.className="sector"; h.textContent=sec.name;
-  listEl.appendChild(h);
-  sec.streets.forEach(n=> listEl.appendChild(buildStreet(n)));
-});
-
-function streetCounts(d){
-  const total=d.nums.length;
-  const ok=d.nums.filter(x=>x.k==="ok").length;
-  const pb=d.nums.filter(x=>x.k==="pb").length;
-  return {total, ok, pb, seen:ok+pb};
-}
-function isDone(d){ const c=streetCounts(d); return c.total>0 && c.seen===c.total && c.pb===0; }
-function hasPb(d){ return d.nums.some(x=>x.k==="pb"); }
-
-function buildStreet(name){
-  const s = st(name);
-  const card = document.createElement("div"); card.className="street"; card.dataset.name=name.toLowerCase();
-
-  const row = document.createElement("button"); row.className="st-row"; row.setAttribute("aria-expanded","false");
-  const nm = document.createElement("span"); nm.className="st-name"; nm.textContent=name;
-  const pill = document.createElement("span"); pill.className="pill todo"; pill.textContent="À faire";
-  const chev = document.createElement("span"); chev.className="chev"; chev.textContent="▶";
-  row.append(nm, pill, chev);
-
-  const panel = document.createElement("div"); panel.className="panel";
-  const bulk = document.createElement("div"); bulk.className="bulk";
-  const bOk = document.createElement("button"); bOk.className="b-ok"; bOk.textContent="✓ Toute la rue RAS";
-  bulk.append(bOk);
-  const noteLbl = document.createElement("p"); noteLbl.className="st-note-lbl"; noteLbl.textContent="Observation libre sur la rue";
-  const stNote = document.createElement("textarea"); stNote.className="st-note";
-  stNote.placeholder="Écrire ici (ex. : commerce fermé, rue barrée, remarque pour le CSU…)";
-  stNote.value = s.note || "";
-  stNote.addEventListener("input", ()=>{ st(name).note = stNote.value; save(); });
-  const numsEl = document.createElement("div"); numsEl.className="nums";
-  const status = document.createElement("div");
-  panel.append(bulk, noteLbl, stNote, status, numsEl);
-  card.append(row, panel);
-
-  function repaint(){
-    const d = st(name); const c = streetCounts(d);
-    const done = isDone(d), pb = hasPb(d);
-    card.classList.toggle("s-done", done);
-    card.classList.toggle("s-pb", pb);
-    pill.className = "pill " + (done ? "done" : (c.seen>0||pb) ? "wip" : "todo");
-    pill.textContent = c.total
-      ? (done ? "RAS" : (pb ? c.pb+" à enlever" : c.seen+"/"+c.total))
-      : "À faire";
-    bOk.classList.toggle("on", done);
-    updateHeader();
-  }
-
-  function renderNums(){
-    const d = st(name);
-    numsEl.textContent=""; status.textContent="";
-    d.nums.sort((a,b)=> numKey(a.num)-numKey(b.num) || String(a.num).localeCompare(String(b.num),"fr"));
-    d.nums.forEach(rec => numsEl.appendChild(buildNum(name, rec, repaint)));
-    numsEl.appendChild(manualRow(name, repaint, renderNums));
-  }
-
-  async function ensureFetched(){
-    const d = st(name);
-    if (d.fetched){ renderNums(); return; }
-    status.innerHTML = '<div class="loading"><span class="spin"></span>Chargement des numéros de la rue…</div>';
-    const got = await fetchNums(name);
-    d.fetched = true;
-    if (got && got.length){
-      const have = new Set(d.nums.map(x=>norm(x.num)));
-      got.forEach(n=>{ if(!have.has(norm(n))) d.nums.push({num:n,k:"",objs:[],note:""}); });
-      save(); renderNums();
-    } else {
-      status.innerHTML = "";
-      const warn = document.createElement("div"); warn.className="loading";
-      warn.textContent = "Numéros indisponibles hors ligne — ajoutez-les ci-dessous, ou réessayez.";
-      const retry = document.createElement("button"); retry.className="retry"; retry.textContent="↻ Réessayer le chargement";
-      retry.addEventListener("click", ()=>{ d.fetched=false; ensureFetched(); });
-      renderNums(); status.append(warn); numsEl.appendChild(retry);
-    }
-  }
-
-  row.addEventListener("click", ()=>{
-    const open = card.classList.toggle("open");
-    row.setAttribute("aria-expanded", open?"true":"false");
-    if (open) ensureFetched();
-  });
-  bOk.addEventListener("click", ()=>{
-    const d = st(name);
-    if (isDone(d)){ d.nums.forEach(x=>{ if(x.k==="ok") x.k=""; }); d.time=""; }
-    else { d.nums.forEach(x=>{ if(x.k!=="pb") x.k="ok"; }); if(!d.time) d.time=now(); }
-    save(); renderNums(); repaint();
-  });
-
-  ctrl[name] = { repaint };
-  repaint();
-  return card;
-}
-
-function buildNum(name, rec, repaint){
-  const wrap = document.createElement("div"); wrap.className="num";
-  const top = document.createElement("div"); top.className="num-top";
-  const lbl = document.createElement("span"); lbl.className="num-lbl tnum"; lbl.textContent=rec.num;
-  const btns = document.createElement("div"); btns.className="num-btns";
-  const bOk = document.createElement("button"); bOk.className="nb nb-ok"; bOk.textContent="✓ RAS";
-  const bPb = document.createElement("button"); bPb.className="nb nb-pb"; bPb.textContent="⚠ À enlever";
-  btns.append(bOk, bPb); top.append(lbl, btns);
-
-  const detail = document.createElement("div"); detail.className="num-detail";
-  const obj = document.createElement("div"); obj.className="obj";
-  OBJETS.forEach(o=>{
-    const b = document.createElement("button"); b.textContent=o;
-    b.addEventListener("click", ()=>{
-      const i = rec.objs.indexOf(o);
-      if (i>=0) rec.objs.splice(i,1); else rec.objs.push(o);
-      b.classList.toggle("on", i<0); save();
-    });
-    obj.appendChild(b);
-  });
-  const note = document.createElement("textarea"); note.className="num-note";
-  note.placeholder="Précision (commerce, emplacement…)"; note.value=rec.note||"";
-  note.addEventListener("input", ()=>{ rec.note=note.value; save(); });
-  detail.append(obj, note);
-  wrap.append(top, detail);
-
-  function paintObjs(){ obj.querySelectorAll("button").forEach(b=> b.classList.toggle("on", rec.objs.includes(b.textContent))); }
-  function paint(){
-    wrap.classList.toggle("n-ok", rec.k==="ok");
-    wrap.classList.toggle("n-pb", rec.k==="pb");
-    bOk.classList.toggle("on", rec.k==="ok");
-    bPb.classList.toggle("on", rec.k==="pb");
-  }
-  bOk.addEventListener("click", ()=>{
-    rec.k = rec.k==="ok" ? "" : "ok";
-    const d=st(name); if(rec.k==="ok" && !d.time) d.time=now();
-    save(); paint(); repaint();
-  });
-  bPb.addEventListener("click", ()=>{
-    rec.k = rec.k==="pb" ? "" : "pb";
-    const d=st(name); if(rec.k==="pb" && !d.time) d.time=now();
-    if (rec.k==="pb" && !rec.objs.length){ rec.objs.push(OBJETS[0]); paintObjs(); }
-    save(); paint(); repaint();
-  });
-  paintObjs(); paint();
-  return wrap;
-}
-
-function manualRow(name, repaint, renderNums){
-  const row = document.createElement("div"); row.className="manual";
-  const inp = document.createElement("input"); inp.placeholder="Ajouter un n° (ex. 12 bis)"; inp.autocomplete="off";
-  const btn = document.createElement("button"); btn.textContent="+ n°";
-  const add = ()=>{
-    const v = inp.value.trim(); if(!v) return;
-    const d = st(name);
-    if (!d.nums.some(x=> norm(x.num)===norm(v))) d.nums.push({num:v,k:"",objs:[],note:""});
-    inp.value=""; save(); renderNums(); repaint();
-  };
-  btn.addEventListener("click", add);
-  inp.addEventListener("keydown", e=>{ if(e.key==="Enter") add(); });
-  row.append(inp, btn);
-  return row;
-}
-
-/* ═══ En-tête (compteurs) ═══ */
-function updateHeader(){
-  let done=0, pb=0, pbNums=0;
-  ALL.forEach(n=>{
-    const d = state.streets[n]; if(!d) return;
-    if (isDone(d)) done++;
-    if (hasPb(d)){ pb++; pbNums += d.nums.filter(x=>x.k==="pb").length; }
-  });
-  document.getElementById("sDone").textContent = done;
-  document.getElementById("sPb").textContent = pbNums;
-  document.getElementById("sLeft").textContent = ALL.length - done;
-  document.getElementById("pG").style.width = (done/ALL.length*100)+"%";
-  document.getElementById("pO").style.width = (pb/ALL.length*100)+"%";
-}
-
-/* ═══ Recherche ═══ */
-document.getElementById("search").addEventListener("input", e=>{
-  const q = e.target.value.trim().toLowerCase();
-  document.querySelectorAll(".street").forEach(c=> c.style.display = c.dataset.name.includes(q)?"":"none");
-  document.querySelectorAll(".sector").forEach(h=>{
-    let el=h.nextElementSibling, vis=false;
-    while(el && !el.classList.contains("sector")){ if(el.classList.contains("street") && el.style.display!=="none") vis=true; el=el.nextElementSibling; }
-    h.style.display = vis?"":"none";
-  });
-});
-
-/* ═══ Agent ═══ */
-const agentInput = document.getElementById("agent");
-agentInput.value = state.agent||"";
-agentInput.addEventListener("input", ()=>{ state.agent=agentInput.value; save(); });
-
-/* ═══ Compte rendu ═══ */
-function fmtRange(nums){
-  const ints = nums.map(numKey).filter(v=>v!==1e9).sort((a,b)=>a-b);
-  const oth = nums.filter(v=>numKey(v)===1e9);
-  const out=[]; let s=null,p=null;
-  ints.forEach(v=>{ if(s===null){s=p=v;return;} if(v===p+1){p=v;return;} out.push(s===p?""+s:s+"–"+p); s=p=v; });
-  if(s!==null) out.push(s===p?""+s:s+"–"+p);
-  return out.concat(oth).join(", ");
-}
-function reportData(){
-  const dateStr = new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-  const rows=[], notes=[]; let doneCount=0, pbNums=0, seenNums=0;
-  ALL.forEach(n=>{
-    const d = state.streets[n]; if(!d) return;
-    if (isDone(d)) doneCount++;
-    if (d.note && d.note.trim()) notes.push({ rue:n, note:d.note.trim() });
-    d.nums.forEach(x=>{ if(x.k) seenNums++; if(x.k==="pb"){ pbNums++;
-      rows.push({ rue:n, num:x.num, objs:x.objs.slice(), note:(x.note||"").trim(), time:d.time });
-    }});
-  });
-  return { dateStr, rows, notes, doneCount, pbNums, seenNums, controlled: ALL.filter(n=>{const d=state.streets[n]; return d && (isDone(d)||hasPb(d)||d.nums.some(x=>x.k)||(d.note&&d.note.trim()));}).length };
-}
-function renderReport(){
-  const r = reportData();
-  const doc = document.getElementById("doc");
-  const esc = s => String(s).replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  let html = "";
-  html += '<h2>Compte rendu — Tournée préventive</h2>';
-  html += '<p class="meta">Match France / Maroc (22 h 00) — classé à risque</p>';
-  html += '<p class="meta tnum">'+esc(r.dateStr)+" — édité à "+now()+(state.agent?(" · "+esc(state.agent)):"")+"</p>";
-  html += '<div class="kpis">';
-  html += '<div class="kpi"><b class="tnum">'+r.controlled+" / "+ALL.length+'</b>rues contrôlées</div>';
-  html += '<div class="kpi"><b class="tnum">'+r.pbNums+'</b>adresses à enlever</div>';
-  html += '</div>';
-  if (r.rows.length){
-    // Regroupé par rue
-    const byStreet = {};
-    r.rows.forEach(x=>{ (byStreet[x.rue] = byStreet[x.rue]||[]).push(x); });
-    html += '<div class="tbl-wrap"><table class="rep"><thead><tr><th>N°</th><th>Constat</th><th>Précision</th></tr></thead><tbody>';
-    ALL.forEach(rue=>{
-      const list = byStreet[rue]; if(!list) return;
-      list.sort((a,b)=> numKey(a.num)-numKey(b.num));
-      html += '<tr class="grp"><td colspan="3">'+esc(rue)+" — "+esc(SECTOR_OF[rue])+"</td></tr>";
-      list.forEach(x=>{
-        html += "<tr><td class='n'>"+esc(x.num)+"</td><td class='obj-c'>"+esc(x.objs.join(", ")||"À enlever")+"</td><td>"+esc(x.note||"—")+"</td></tr>";
-      });
-    });
-    html += "</tbody></table></div>";
-  } else {
-    html += '<p class="none">✓ Aucune anomalie constatée — rien à faire enlever sur la voie publique.</p>';
-  }
-  if (r.notes.length){
-    html += '<div class="tbl-wrap" style="margin-top:14px"><table class="rep"><thead><tr><th>Rue</th><th>Observation</th></tr></thead><tbody>';
-    r.notes.forEach(x=>{ html += "<tr><td class='n' style='white-space:normal'>"+esc(x.rue)+"</td><td>"+esc(x.note)+"</td></tr>"; });
-    html += "</tbody></table></div>";
-  }
-  html += '<p class="closing">Compte rendu transmis au CSU et à l\'ensemble des chefs de service, afin que les bacs et tout objet ou projectile susceptible de rester sur la voie publique soient pris en charge dans les meilleurs délais.</p>';
-  doc.innerHTML = html;
-  return r;
-}
-function reportText(){
-  const r = reportData();
-  const L = [];
-  L.push("COMPTE RENDU — TOURNÉE PRÉVENTIVE");
-  L.push("Match France / Maroc (22h00) — classé à risque");
-  L.push(r.dateStr + " — édité à " + now());
-  if (state.agent) L.push("Agent : " + state.agent);
-  L.push("");
-  L.push("Rues contrôlées : " + r.controlled + "/" + ALL.length + "  |  Adresses à enlever : " + r.pbNums);
-  L.push("");
-  if (r.rows.length){
-    L.push("ADRESSES À PRENDRE EN CHARGE :");
-    const byStreet = {}; r.rows.forEach(x=>{ (byStreet[x.rue]=byStreet[x.rue]||[]).push(x); });
-    ALL.forEach(rue=>{
-      const list = byStreet[rue]; if(!list) return;
-      list.sort((a,b)=> numKey(a.num)-numKey(b.num));
-      L.push("• " + rue + " :");
-      list.forEach(x=>{
-        let s = "    - n° " + x.num + " — " + (x.objs.join(", ")||"à enlever");
-        if (x.note) s += " (" + x.note + ")";
-        L.push(s);
-      });
-    });
-  } else {
-    L.push("Aucune anomalie constatée — rien à enlever sur la voie publique.");
-  }
-  if (r.notes.length){
-    L.push("");
-    L.push("OBSERVATIONS :");
-    r.notes.forEach(x=> L.push("• " + x.rue + " : " + x.note));
-  }
-  L.push("");
-  L.push("Transmis au CSU et aux chefs de service pour prise en charge des bacs et objets restant sur la voie publique.");
-  return L.join("\n");
-}
-
-const reportBox = document.getElementById("report");
-document.getElementById("genBtn").addEventListener("click", ()=>{
-  renderReport();
-  reportBox.classList.add("show");
-  reportBox.scrollIntoView({behavior:"smooth", block:"start"});
-});
-function toast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1800); }
-function copyText(txt){
-  if (navigator.clipboard && navigator.clipboard.writeText)
-    navigator.clipboard.writeText(txt).then(()=>toast("Compte rendu copié"), ()=>legacy(txt));
-  else legacy(txt);
-}
-function legacy(txt){
-  const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select();
-  try{ document.execCommand("copy"); toast("Compte rendu copié"); }catch(e){ toast("Copie impossible"); }
-  document.body.removeChild(ta);
-}
-document.getElementById("copyBtn").addEventListener("click", ()=> copyText(reportText()));
-document.getElementById("shareBtn").addEventListener("click", ()=>{
-  const txt = reportText();
-  if (navigator.share) navigator.share({title:"Compte rendu tournée", text:txt}).catch(()=>{});
-  else copyText(txt);
-});
-document.getElementById("printBtn").addEventListener("click", ()=>{ renderReport(); window.print(); });
-document.getElementById("resetBtn").addEventListener("click", ()=>{
-  if (!confirm("Effacer toute la tournée en cours ?")) return;
-  state = { agent: state.agent, streets:{} }; save(); location.reload();
-});
-
-updateHeader();
-</script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>

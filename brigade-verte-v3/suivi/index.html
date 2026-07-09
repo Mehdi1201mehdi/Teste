@@ -12,7 +12,236 @@
 <link rel="apple-touch-icon" href="../assets/icons/icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Suivi tournée">
-<link rel="stylesheet" href="css/suivi.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   Suivi de tournée — Brigade Verte Amiens (fichier unique)
+   Design terrain : contraste élevé, grandes cibles tactiles, sobre.
+   ═══════════════════════════════════════════════════════════════════ */
+:root{
+  --ground:#EEF1F5; --card:#FFFFFF; --card-2:#F6F8FB;
+  --ink:#111A25; --muted:#5A6B80; --line:#DBE2EC;
+  --brand:#0F6B3A; --brand-ink:#FFFFFF;
+  --accent:#1E56C4; --accent-ink:#FFFFFF;
+  --ok:#137A42; --ok-soft:#E1F1E8; --ok-ink:#FFFFFF;
+  --pb:#C43C10; --pb-soft:#FBE7DC; --pb-ink:#FFFFFF;
+  --todo:#EBEFF4; --shadow:0 1px 2px rgba(17,26,37,.07),0 2px 10px rgba(17,26,37,.05);
+  --radius:14px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0B1119; --card:#141D28; --card-2:#0F1620;
+    --ink:#E8EEF6; --muted:#94A4B8; --line:#243040;
+    --brand:#1F9E5C; --brand-ink:#04140B;
+    --accent:#4F86E8; --accent-ink:#05101F;
+    --ok:#39B56E; --ok-soft:#0F2C1D; --ok-ink:#04140B;
+    --pb:#EF8A4C; --pb-soft:#33210F; --pb-ink:#0B1119;
+    --todo:#1B2734; --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="light"]{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px; line-height:1.45; -webkit-tap-highlight-color:transparent;
+  overscroll-behavior-y:none;
+}
+button{font:inherit; cursor:pointer; color:inherit; border:0; background:none}
+input,textarea{font:inherit; color:var(--ink)}
+:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+.tnum{font-variant-numeric:tabular-nums}
+.empty,.sug-empty,.num-empty{color:var(--muted); text-align:center; padding:20px 8px; font-size:14px}
+
+/* En-tête */
+.top{
+  position:sticky; top:0; z-index:30; background:var(--card);
+  border-bottom:1px solid var(--line); box-shadow:var(--shadow);
+  padding:10px 14px 8px; padding-top:calc(10px + env(safe-area-inset-top));
+}
+.brandline{display:flex; align-items:center; gap:10px}
+.brandline .logo{width:30px;height:30px;border-radius:8px;background:var(--brand);display:grid;place-items:center;color:var(--brand-ink);font-size:16px}
+.brandline h1{font-size:15.5px; font-weight:800; margin:0; flex:1; letter-spacing:-.01em}
+.save-dot{font-size:11px; color:var(--muted); font-weight:600; white-space:nowrap}
+.stats-strip{display:flex; gap:7px; margin-top:9px}
+.stat{flex:1; background:var(--card-2); border:1px solid var(--line); border-radius:10px; padding:6px 4px; text-align:center}
+.stat b{display:block; font-size:18px; font-weight:800; line-height:1.05}
+.stat span{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em}
+.stat.s-pb b{color:var(--pb)}
+
+/* Vues */
+main{max-width:720px; margin:0 auto; padding:12px 12px 96px}
+.view{display:none; animation:fade .18s ease both}
+.view.active{display:block}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.view{animation:none}}
+
+.subbar{display:flex; align-items:center; gap:10px; margin-bottom:12px}
+.back{width:42px;height:42px;flex:none;border-radius:11px;background:var(--card);border:1px solid var(--line);font-size:20px;box-shadow:var(--shadow)}
+.subbar h2{font-size:17px; font-weight:800; margin:0; flex:1; display:flex; align-items:center; gap:8px}
+.subbar h2::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--sc,var(--brand))}
+.subbar .count{font-size:12px; color:var(--muted); font-weight:700}
+
+/* Recherche */
+.search-wrap{position:relative; margin-bottom:14px}
+.search-input{
+  width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:12px;
+  background:var(--card); box-shadow:var(--shadow); font-size:15.5px;
+}
+.search-input::placeholder{color:var(--muted)}
+.suggest{
+  position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:20;
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 8px 30px rgba(17,26,37,.18); overflow:hidden; max-height:60vh; overflow-y:auto;
+}
+.sug-item{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:13px 14px; border-bottom:1px solid var(--line); text-align:left; font-size:15px}
+.sug-item:last-child{border-bottom:0}
+.sug-item:active{background:var(--card-2)}
+
+/* Secteurs */
+.hello{font-size:13px; color:var(--muted); margin:2px 2px 14px}
+.sector-grid{display:flex; flex-direction:column; gap:10px}
+.sector-card{
+  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+  background:var(--card); border:1px solid var(--line); border-left:6px solid var(--sc);
+  border-radius:var(--radius); padding:16px 14px; box-shadow:var(--shadow);
+  transition:transform .08s ease;
+}
+.sector-card:active{transform:scale(.99)}
+.sc-emoji{font-size:26px; width:44px; height:44px; flex:none; display:grid; place-items:center; background:color-mix(in srgb,var(--sc) 16%,transparent); border-radius:12px}
+.sc-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:4px}
+.sc-name{font-size:17px; font-weight:800}
+.sc-meta{font-size:12.5px; color:var(--muted)}
+.sc-pb{color:var(--pb)}
+.sc-bar{height:6px; border-radius:99px; background:var(--todo); overflow:hidden; margin-top:3px}
+.sc-bar i{display:block; height:100%; background:var(--sc); transition:width .25s}
+.sc-go{font-size:26px; color:var(--muted); font-weight:400}
+
+/* Liste rues */
+.street-list{display:flex; flex-direction:column; gap:7px}
+.st-row{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:14px; box-shadow:var(--shadow); transition:transform .08s ease;
+}
+.st-row:active{transform:scale(.995)}
+.st-name{flex:1; font-weight:650; font-size:15.5px}
+.st-go{color:var(--muted); font-size:20px}
+.pill{font-size:11.5px; font-weight:800; padding:4px 10px; border-radius:99px; white-space:nowrap}
+.pill.todo{background:var(--todo); color:var(--muted)}
+.pill.wip{background:var(--todo); color:var(--accent)}
+.pill.done{background:var(--ok-soft); color:var(--ok)}
+.pill.pb{background:var(--pb-soft); color:var(--pb)}
+
+/* Détail rue */
+.street-head{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; margin-bottom:12px}
+.street-head .sec{display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.05em}
+.street-head .sec::before{content:"";width:9px;height:9px;border-radius:3px;background:var(--sc,var(--brand))}
+.street-head h2{font-size:20px; margin:5px 0 2px; font-weight:800}
+.street-prog{font-size:13px; color:var(--muted); font-weight:600}
+.note-lbl{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin:14px 0 6px}
+.street-note{width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:11px; background:var(--card-2); resize:vertical; min-height:44px}
+.street-note::placeholder{color:var(--muted)}
+.bulk-ras{width:100%; margin-top:12px; padding:14px; border-radius:12px; border:2px solid var(--ok); background:var(--ok-soft); color:var(--ok); font-weight:800; font-size:15.5px}
+.bulk-ras.on{background:var(--ok); color:var(--ok-ink)}
+
+.num-toolbar{margin-bottom:10px}
+.num-filter{width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:11px; background:var(--card); font-size:15px}
+.num-filter::placeholder{color:var(--muted)}
+.load{display:flex; align-items:center; gap:10px; color:var(--muted); font-size:14px; padding:14px 4px; justify-content:center}
+.spin{width:18px;height:18px;border:2.5px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+
+.num-list{display:flex; flex-direction:column; gap:8px}
+.num{border:1px solid var(--line); border-radius:12px; background:var(--card); box-shadow:var(--shadow); overflow:hidden}
+.num.n-ok{border-color:var(--ok)}
+.num.n-pb{border-color:var(--pb)}
+.num-top{display:flex; align-items:stretch; gap:0}
+.num-face{flex:1; display:flex; align-items:center; gap:12px; padding:14px 14px; text-align:left; min-height:60px}
+.num-n{font-size:21px; font-weight:800; min-width:56px}
+.num-tag{font-size:13px; font-weight:800; color:var(--muted)}
+.num.n-ok .num-face{background:var(--ok-soft)} .num.n-ok .num-tag{color:var(--ok)}
+.num.n-pb .num-face{background:var(--pb-soft)} .num.n-pb .num-tag{color:var(--pb)}
+.num-warn{width:64px; flex:none; font-size:22px; border-left:1px solid var(--line); background:var(--card-2)}
+.num.n-pb .num-warn{background:var(--pb); color:var(--pb-ink)}
+
+.num-detail{display:none; padding:0 12px 12px; border-top:1px dashed var(--line)}
+.num.n-pb .num-detail{display:block; padding-top:12px}
+.obj-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px}
+@media(min-width:460px){.obj-grid{grid-template-columns:repeat(3,1fr)}}
+.obj-btn{padding:13px 8px; border-radius:11px; border:2px solid var(--line); background:var(--card); font-weight:700; font-size:14px; min-height:48px}
+.obj-btn.on{background:var(--pb); border-color:var(--pb); color:var(--pb-ink)}
+.num-note{width:100%; margin-top:10px; padding:11px 13px; border:1px solid var(--line); border-radius:10px; background:var(--card-2); resize:vertical; min-height:44px}
+.num-note::placeholder{color:var(--muted)}
+
+.manual{display:flex; gap:8px; margin-top:4px}
+.manual-inp{flex:1; min-width:0; padding:12px 13px; border:1px dashed var(--line); border-radius:11px; background:var(--card-2); font-size:15px}
+.manual-inp::placeholder{color:var(--muted)}
+.manual-btn{width:56px; flex:none; border-radius:11px; border:1px dashed var(--accent); color:var(--accent); font-size:22px; font-weight:800; background:var(--card)}
+
+/* Bouton flottant compte rendu */
+.fab{
+  position:fixed; left:50%; transform:translateX(-50%); bottom:calc(16px + env(safe-area-inset-bottom));
+  z-index:25; background:var(--brand); color:var(--brand-ink); font-weight:800; font-size:15.5px;
+  padding:15px 26px; border-radius:99px; box-shadow:0 8px 24px rgba(15,107,58,.35); display:flex; gap:8px; align-items:center;
+}
+
+/* Compte rendu */
+.exports{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:14px}
+.exp{padding:13px 8px; border-radius:11px; border:1px solid var(--line); background:var(--card); font-weight:700; font-size:14px; box-shadow:var(--shadow); min-height:48px; display:flex; align-items:center; justify-content:center; gap:6px}
+.exp.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink); grid-column:1 / -1}
+.agent-field{margin-bottom:14px}
+.agent-field label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:6px}
+.agent-field input{width:100%; padding:12px 13px; border:1px solid var(--line); border-radius:11px; background:var(--card)}
+
+.doc{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px}
+.doc-head h2{font-size:18px; margin:0 0 3px}
+.doc-sub{font-size:12.5px; color:var(--muted); margin:0}
+.doc-meta{font-size:12px; color:var(--muted); margin:4px 0 0}
+.kpis{display:grid; grid-template-columns:repeat(2,1fr); gap:9px; margin:14px 0}
+@media(min-width:460px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card-2); border:1px solid var(--line); border-radius:11px; padding:10px; text-align:center}
+.kpi b{display:block; font-size:20px; font-weight:800}
+.kpi span{font-size:11px; color:var(--muted)}
+.kpi-pb b{color:var(--pb)}
+.doc-none{color:var(--ok); font-weight:800; padding:12px 0}
+.doc-h3{font-size:14px; margin:18px 0 8px}
+.doc-close{font-size:12px; color:var(--muted); margin-top:16px; border-top:1px solid var(--line); padding-top:12px}
+
+.tbl-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--line); border-radius:10px}
+table.rep{border-collapse:collapse; width:100%; font-size:13px}
+table.rep th{background:var(--brand); color:#fff; font-size:11px; text-transform:uppercase; letter-spacing:.03em; padding:9px; text-align:left}
+table.rep td{border-top:1px solid var(--line); padding:8px 9px; vertical-align:top}
+table.rep td.n{font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums}
+table.rep td.obj{color:var(--pb); font-weight:600}
+tr.grp-sec td{background:color-mix(in srgb,var(--sc) 16%,transparent); font-weight:800; color:var(--ink); border-left:4px solid var(--sc)}
+tr.grp-rue td{background:var(--card-2); font-weight:700; font-size:12.5px}
+
+.reset-line{margin-top:16px}
+.reset-btn{width:100%; padding:12px; border-radius:11px; border:1px solid var(--line); background:none; color:var(--muted); font-weight:600; font-size:14px}
+
+/* Toast */
+.toast{position:fixed; left:50%; bottom:calc(80px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(8px);
+  background:var(--ink); color:var(--ground); padding:11px 20px; border-radius:99px; font-weight:700; font-size:14px;
+  opacity:0; pointer-events:none; transition:.2s; z-index:60; white-space:nowrap; box-shadow:0 6px 20px rgba(0,0,0,.3)}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+/* Impression / PDF */
+@media print{
+  .top,.subbar,.fab,.exports,.agent-field,.reset-line,.toast{display:none !important}
+  body{background:#fff; color:#000}
+  main{padding:0; max-width:none}
+  .view{display:none !important}
+  #view-report{display:block !important}
+  .doc{border:0; box-shadow:none; padding:0}
+  table.rep th{background:#0F6B3A !important; color:#fff !important; -webkit-print-color-adjust:exact; print-color-adjust:exact}
+  tr.grp-sec td,tr.grp-rue td{-webkit-print-color-adjust:exact; print-color-adjust:exact}
+}
+</style>
 </head>
 <body>
 
@@ -31,7 +260,7 @@
 
 <main>
 
-  <!-- ═══ VUE 1 : SECTEURS ═══ -->
+  <!-- VUE 1 : SECTEURS -->
   <section id="view-sectors" class="view active" aria-label="Choix du secteur">
     <p class="hello">Match France / Maroc — dispositif préventif. Choisissez un secteur, puis une rue.</p>
     <div class="search-wrap">
@@ -41,7 +270,7 @@
     <div id="sectorGrid" class="sector-grid"></div>
   </section>
 
-  <!-- ═══ VUE 2 : RUES DU SECTEUR ═══ -->
+  <!-- VUE 2 : RUES DU SECTEUR -->
   <section id="view-streets" class="view" aria-label="Rues du secteur">
     <div class="subbar">
       <button class="back" id="backStreets" aria-label="Retour aux secteurs">‹</button>
@@ -54,7 +283,7 @@
     <div id="streetList" class="street-list"></div>
   </section>
 
-  <!-- ═══ VUE 3 : DÉTAIL D'UNE RUE ═══ -->
+  <!-- VUE 3 : DÉTAIL D'UNE RUE -->
   <section id="view-street" class="view" aria-label="Contrôle de la rue">
     <div class="subbar">
       <button class="back" id="backStreet" aria-label="Retour à la liste des rues">‹</button>
@@ -77,7 +306,7 @@
     <div id="numList" class="num-list"></div>
   </section>
 
-  <!-- ═══ VUE 4 : COMPTE RENDU ═══ -->
+  <!-- VUE 4 : COMPTE RENDU -->
   <section id="view-report" class="view" aria-label="Compte rendu">
     <div class="subbar">
       <button class="back" id="backReport" aria-label="Retour">‹</button>
@@ -112,6 +341,634 @@
 <button class="fab" id="goReport">📋 Compte rendu</button>
 <div class="toast" id="toast" role="status" aria-live="assertive"></div>
 
-<script type="module" src="js/app.js"></script>
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   Application de suivi de tournée — Brigade Verte Amiens.
+   Un seul fichier : constantes → état → données → compte rendu → interface.
+   Navigation : Secteur → Rue → Numéros. Objectif : rapidité terrain.
+   ══════════════════════════════════════════════════════════════════ */
+(function () {
+
+// ── Constantes ───────────────────────────────────────────────────────
+var SECTEURS = ["CENTRE", "NORD", "SUD", "EST", "OUEST"];
+var SECTOR_META = {
+  CENTRE: { label: "Centre", color: "#7c5cff", emoji: "🏛️" },
+  NORD:   { label: "Nord",   color: "#16a34a", emoji: "⬆️" },
+  SUD:    { label: "Sud",    color: "#f59e0b", emoji: "⬇️" },
+  EST:    { label: "Est",    color: "#ef4444", emoji: "➡️" },
+  OUEST:  { label: "Ouest",  color: "#2563eb", emoji: "⬅️" },
+};
+// Boutons rapides d'anomalie = catégories terrain demandées.
+var OBJETS = ["Bac OM", "Bac Jaune", "Conteneur Veolia", "Mobilier Commerce",
+  "Objet", "Encombrant", "Dépôt", "Autre"];
+var ADRESSE_API = "https://api-adresse.data.gouv.fr/search/";
+var AMIENS_CITYCODE = "80021";
+var KEY = "brigade-suivi-v1";
+
+// ── Petits utilitaires ───────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+function el(tag, cls, txt) {
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt;
+  return n;
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+  });
+}
+function norm(s) {
+  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+function numKey(v) {
+  var m = String(v).match(/\d+/);
+  return m ? parseInt(m[0], 10) : 1e9;
+}
+
+// ── État + persistance (hors ligne) ──────────────────────────────────
+function fresh() {
+  return { agent: "", date: new Date().toISOString().slice(0, 10),
+    startedAt: null, lastAt: null, streets: {} };
+}
+var state = fresh();
+function load() {
+  try {
+    var saved = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (saved && typeof saved === "object") { var f = fresh(); for (var k in f) if (!(k in saved)) saved[k] = f[k]; Object.assign(state, saved); }
+  } catch (e) { /* stockage indisponible : état par défaut */ }
+}
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+var saveTimer = null;
+function saveSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 250); }
+function touch() {
+  var iso = new Date().toISOString();
+  if (!state.startedAt) state.startedAt = iso;
+  state.lastAt = iso;
+}
+function resetAll() { var a = state.agent; state = fresh(); state.agent = a; save(); }
+function streetState(name) {
+  var d = state.streets[name];
+  if (!d) { d = { fetched: false, nums: [], note: "", firstAt: null, lastAt: null }; state.streets[name] = d; }
+  if (!Array.isArray(d.nums)) d.nums = [];
+  return d;
+}
+function touchStreet(d) {
+  var iso = new Date().toISOString();
+  if (!d.firstAt) d.firstAt = iso;
+  d.lastAt = iso; touch();
+}
+function numCounts(d) {
+  var ok = 0, pb = 0;
+  for (var i = 0; i < d.nums.length; i++) { if (d.nums[i].k === "ok") ok++; else if (d.nums[i].k === "pb") pb++; }
+  return { total: d.nums.length, ok: ok, pb: pb, seen: ok + pb };
+}
+function streetHasPb(d) { return d.nums.some(function (x) { return x.k === "pb"; }); }
+function streetIsDone(d) { var c = numCounts(d); return c.total > 0 && c.seen === c.total && c.pb === 0; }
+function streetTouched(d) { return !!(d.note && d.note.trim()) || d.nums.some(function (x) { return x.k; }); }
+
+// ── Données rues + secteurs + numéros officiels ──────────────────────
+var RUES = [];
+function loadStreets() {
+  return fetch("../data/streets.json").then(function (r) { return r.json(); })
+    .then(function (list) {
+      RUES = Array.isArray(list) ? list.filter(function (x) { return x && x.rue && x.secteur; }) : [];
+    })
+    .catch(function () { RUES = []; })
+    .then(function () { RUES.sort(function (a, b) { return a.rue.localeCompare(b.rue, "fr"); }); });
+}
+function streetsOfSector(sec) { return RUES.filter(function (r) { return r.secteur === sec; }); }
+function sectorCounts() {
+  var c = {}; SECTEURS.forEach(function (s) { c[s] = 0; });
+  RUES.forEach(function (r) { if (c[r.secteur] != null) c[r.secteur]++; });
+  return c;
+}
+function sectorOfStreet(name) {
+  for (var i = 0; i < RUES.length; i++) if (RUES[i].rue === name) return RUES[i].secteur;
+  return "CENTRE";
+}
+function searchStreets(query, limit) {
+  limit = limit || 40;
+  var q = norm(query);
+  if (!q) return [];
+  var terms = q.split(" ").filter(Boolean);
+  var scored = [];
+  for (var i = 0; i < RUES.length; i++) {
+    var hay = norm(RUES[i].rue), score = 0, ok = true;
+    for (var t = 0; t < terms.length; t++) {
+      var idx = hay.indexOf(terms[t]);
+      if (idx === -1) { ok = false; break; }
+      score += idx === 0 ? 3 : 1;
+    }
+    if (ok) scored.push({ r: RUES[i], score: score - hay.length * 0.001 });
+  }
+  scored.sort(function (a, b) { return b.score - a.score; });
+  return scored.slice(0, limit).map(function (x) { return x.r; });
+}
+function baseName(name) { return name.replace(/\(.*?\)/g, "").trim(); }
+function fetchHouseNumbers(name) {
+  var q = baseName(name), target = norm(q);
+  var url = ADRESSE_API + "?q=" + encodeURIComponent(q) + "&citycode=" + AMIENS_CITYCODE +
+    "&type=housenumber&autocomplete=0&limit=100";
+  return fetch(url).then(function (r) {
+    if (!r.ok) return null;
+    return r.json().then(function (j) {
+      var seen = {}, out = [];
+      (j.features || []).forEach(function (f) {
+        var p = f.properties || {};
+        if (!p.housenumber) return;
+        if (norm(p.street || p.name).indexOf(target) === -1) return;
+        var k = norm(p.housenumber);
+        if (seen[k]) return; seen[k] = 1;
+        out.push(String(p.housenumber));
+      });
+      out.sort(function (a, b) { return numKey(a) - numKey(b) || a.localeCompare(b, "fr"); });
+      return out;
+    });
+  }).catch(function () { return null; });
+}
+
+// ── Compte rendu (modèle + rendu + exports) ──────────────────────────
+function fmtDuration(ms) {
+  if (!ms || ms < 0) return "—";
+  var min = Math.round(ms / 60000), h = Math.floor(min / 60), m = min % 60;
+  return h ? (h + " h " + String(m).padStart(2, "0")) : (m + " min");
+}
+function dateLong() {
+  return new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+}
+function hm(iso) { return iso ? new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—"; }
+function nowHM() { return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
+
+function buildModel() {
+  var bySector = {}; SECTEURS.forEach(function (s) { bySector[s] = []; });
+  var rues = 0, ruesDone = 0, numsSeen = 0, numsPb = 0, notes = [];
+  Object.keys(state.streets).forEach(function (name) {
+    var d = state.streets[name];
+    if (!streetTouched(d)) return;
+    var sec = sectorOfStreet(name), c = numCounts(d);
+    rues++; if (streetIsDone(d)) ruesDone++;
+    numsSeen += c.seen; numsPb += c.pb;
+    var anomalies = d.nums.filter(function (x) { return x.k === "pb"; })
+      .map(function (x) { return { n: x.n, objs: x.objs.slice(), note: (x.note || "").trim() }; })
+      .sort(function (a, b) { return numKey(a.n) - numKey(b.n) || a.n.localeCompare(b.n, "fr"); });
+    if (d.note && d.note.trim()) notes.push({ rue: name, sec: sec, note: d.note.trim() });
+    bySector[sec].push({ rue: name, counts: c, anomalies: anomalies });
+  });
+  SECTEURS.forEach(function (s) { bySector[s].sort(function (a, b) { return a.rue.localeCompare(b.rue, "fr"); }); });
+  var started = state.startedAt ? new Date(state.startedAt).getTime() : 0;
+  var last = state.lastAt ? new Date(state.lastAt).getTime() : 0;
+  return { bySector: bySector, notes: notes,
+    stats: { rues: rues, ruesDone: ruesDone, numsSeen: numsSeen, numsPb: numsPb, duration: fmtDuration(last - started) },
+    startedAt: state.startedAt, lastAt: state.lastAt };
+}
+
+function renderReport(elm) {
+  var m = buildModel(), s = m.stats, h = "";
+  h += '<div class="doc-head"><h2>Compte rendu de tournée préventive</h2>' +
+    '<p class="doc-sub">Match France / Maroc (22 h 00) — dispositif classé à risque</p>' +
+    '<p class="doc-meta">' + esc(dateLong()) + (state.agent ? " · " + esc(state.agent) : "") + '</p></div>';
+  h += '<div class="kpis">' +
+    '<div class="kpi"><b>' + s.rues + '</b><span>rues contrôlées</span></div>' +
+    '<div class="kpi"><b>' + s.numsSeen + '</b><span>numéros contrôlés</span></div>' +
+    '<div class="kpi kpi-pb"><b>' + s.numsPb + '</b><span>anomalies</span></div>' +
+    '<div class="kpi"><b>' + esc(s.duration) + '</b><span>temps de tournée</span></div></div>';
+  h += '<p class="doc-meta">Début ' + hm(m.startedAt) + ' · dernier contrôle ' + hm(m.lastAt) + '</p>';
+  if (s.numsPb === 0) {
+    h += '<p class="doc-none">✓ Aucune anomalie constatée — rien à faire enlever sur la voie publique.</p>';
+  } else {
+    h += '<div class="tbl-wrap"><table class="rep"><thead><tr><th>N°</th><th>Objet à enlever</th><th>Précision</th></tr></thead><tbody>';
+    SECTEURS.forEach(function (sec) {
+      var streets = m.bySector[sec].filter(function (x) { return x.anomalies.length; });
+      if (!streets.length) return;
+      h += '<tr class="grp-sec" style="--sc:' + SECTOR_META[sec].color + '"><td colspan="3">' +
+        SECTOR_META[sec].emoji + ' Secteur ' + esc(SECTOR_META[sec].label) + '</td></tr>';
+      streets.forEach(function (st) {
+        h += '<tr class="grp-rue"><td colspan="3">' + esc(st.rue) + ' · ' + st.anomalies.length +
+          ' anomalie' + (st.anomalies.length > 1 ? "s" : "") + '</td></tr>';
+        st.anomalies.forEach(function (a) {
+          h += '<tr><td class="n">' + esc(a.n) + '</td><td class="obj">' +
+            esc(a.objs.join(", ") || "À enlever") + '</td><td>' + esc(a.note || "—") + '</td></tr>';
+        });
+      });
+    });
+    h += '</tbody></table></div>';
+  }
+  if (m.notes.length) {
+    h += '<h3 class="doc-h3">Observations générales</h3><div class="tbl-wrap"><table class="rep">' +
+      '<thead><tr><th>Rue</th><th>Observation</th></tr></thead><tbody>';
+    m.notes.sort(function (a, b) { return a.rue.localeCompare(b.rue, "fr"); });
+    m.notes.forEach(function (o) {
+      h += '<tr><td class="n" style="white-space:normal">' + esc(o.rue) + '</td><td>' + esc(o.note) + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  }
+  h += '<p class="doc-close">Compte rendu transmis au CSU et à l\'ensemble des chefs de service, ' +
+    'afin que les bacs et tout objet ou projectile susceptible de rester sur la voie publique ' +
+    'soient pris en charge dans les meilleurs délais.</p>';
+  elm.innerHTML = h;
+}
+
+function rowsForExport() {
+  var m = buildModel(), rows = [];
+  SECTEURS.forEach(function (sec) {
+    m.bySector[sec].forEach(function (st) {
+      st.anomalies.forEach(function (a) {
+        rows.push([SECTOR_META[sec].label, st.rue, a.n, a.objs.join(", ") || "À enlever", a.note]);
+      });
+    });
+  });
+  return { m: m, rows: rows };
+}
+function reportText() {
+  var m = buildModel(), s = m.stats, L = [];
+  L.push("COMPTE RENDU — TOURNÉE PRÉVENTIVE");
+  L.push("Match France / Maroc (22h00) — classé à risque");
+  L.push(dateLong() + (state.agent ? " · " + state.agent : ""));
+  L.push("");
+  L.push("Rues contrôlées : " + s.rues + " | Numéros : " + s.numsSeen + " | Anomalies : " + s.numsPb + " | Durée : " + s.duration);
+  L.push("");
+  if (s.numsPb === 0) {
+    L.push("Aucune anomalie constatée — rien à enlever sur la voie publique.");
+  } else {
+    L.push("ANOMALIES À PRENDRE EN CHARGE :");
+    SECTEURS.forEach(function (sec) {
+      var streets = m.bySector[sec].filter(function (x) { return x.anomalies.length; });
+      if (!streets.length) return;
+      L.push(""); L.push("— Secteur " + SECTOR_META[sec].label + " —");
+      streets.forEach(function (st) {
+        L.push("• " + st.rue + " :");
+        st.anomalies.forEach(function (a) {
+          var line = "    n° " + a.n + " — " + (a.objs.join(", ") || "à enlever");
+          if (a.note) line += " (" + a.note + ")";
+          L.push(line);
+        });
+      });
+    });
+  }
+  if (m.notes.length) {
+    L.push(""); L.push("OBSERVATIONS :");
+    m.notes.forEach(function (o) { L.push("• " + o.rue + " : " + o.note); });
+  }
+  L.push("");
+  L.push("Transmis au CSU et aux chefs de service pour prise en charge des bacs et objets restant sur la voie publique.");
+  return L.join("\n");
+}
+function download(filename, mime, content) {
+  var blob = new Blob([content], { type: mime });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+}
+function stamp() { return new Date().toISOString().slice(0, 10); }
+function exportCSV() {
+  var rows = rowsForExport().rows;
+  var head = ["Secteur", "Rue", "N°", "Objet", "Précision"];
+  var q = function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; };
+  var lines = [head].concat(rows).map(function (r) { return r.map(q).join(";"); });
+  download("compte-rendu-tournee-" + stamp() + ".csv", "text/csv;charset=utf-8", "﻿" + lines.join("\r\n"));
+}
+function exportXLS() {
+  var ex = rowsForExport(), s = ex.m.stats, rows = ex.rows;
+  var t = '<table border="1"><tr><th colspan="5">Compte rendu tournée — ' + esc(dateLong()) + '</th></tr>';
+  t += '<tr><td colspan="5">Rues : ' + s.rues + ' · Numéros : ' + s.numsSeen + ' · Anomalies : ' + s.numsPb + ' · Durée : ' + esc(s.duration) + '</td></tr>';
+  t += '<tr><th>Secteur</th><th>Rue</th><th>N°</th><th>Objet</th><th>Précision</th></tr>';
+  rows.forEach(function (r) { t += "<tr>" + r.map(function (c) { return "<td>" + esc(c) + "</td>"; }).join("") + "</tr>"; });
+  t += "</table>";
+  var html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body>' + t + "</body></html>";
+  download("compte-rendu-tournee-" + stamp() + ".xls", "application/vnd.ms-excel", html);
+}
+
+// ── Interface : navigation + rendu ───────────────────────────────────
+var currentSector = null, currentStreet = null;
+
+function showView(name) {
+  var views = document.querySelectorAll(".view");
+  for (var i = 0; i < views.length; i++) views[i].classList.toggle("active", views[i].id === "view-" + name);
+  window.scrollTo({ top: 0 });
+}
+function nav(view, data, push) {
+  data = data || {};
+  if (push !== false) history.pushState(Object.assign({ view: view }, data), "", "#" + view + (data.sector ? "/" + data.sector : ""));
+  applyRoute(view, data);
+}
+function applyRoute(view, data) {
+  if (view === "sectors") { renderSectors(); showView("sectors"); }
+  else if (view === "streets") { currentSector = data.sector; renderStreetList(); showView("streets"); }
+  else if (view === "street") { currentStreet = data.street; currentSector = data.sector || currentSector; renderStreet(); showView("street"); }
+  else if (view === "report") { renderReport($("reportDoc")); showView("report"); }
+  var fab = $("goReport"); if (fab) fab.hidden = view === "report";
+  updateHeader();
+}
+
+function globalStats() {
+  var rues = 0, nums = 0, pb = 0;
+  Object.keys(state.streets).forEach(function (n) {
+    var d = state.streets[n];
+    if (!streetTouched(d)) return;
+    var c = numCounts(d); rues++; nums += c.seen; pb += c.pb;
+  });
+  return { rues: rues, nums: nums, pb: pb };
+}
+function updateHeader() {
+  var s = globalStats();
+  $("hRues").textContent = s.rues;
+  $("hNums").textContent = s.nums;
+  $("hPb").textContent = s.pb;
+  $("saveDot").textContent = navigator.onLine ? "💾 Enregistré" : "📴 Hors ligne — enregistré";
+}
+
+function sectorProgress(sec) {
+  var streets = streetsOfSector(sec), done = 0, pb = 0;
+  streets.forEach(function (r) {
+    var d = state.streets[r.rue]; if (!d) return;
+    if (streetIsDone(d)) done++;
+    if (streetHasPb(d)) pb++;
+  });
+  return { total: streets.length, done: done, pb: pb };
+}
+function renderSectors() {
+  var wrap = $("sectorGrid"); wrap.textContent = "";
+  var counts = sectorCounts();
+  SECTEURS.forEach(function (sec) {
+    var meta = SECTOR_META[sec], p = sectorProgress(sec);
+    var card = el("button", "sector-card");
+    card.style.setProperty("--sc", meta.color);
+    var pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
+    card.innerHTML = '<span class="sc-emoji">' + meta.emoji + '</span><span class="sc-body">' +
+      '<span class="sc-name">Secteur ' + esc(meta.label) + '</span>' +
+      '<span class="sc-meta">' + counts[sec] + ' rues' + (p.pb ? ' · <b class="sc-pb">' + p.pb + ' ⚠</b>' : "") + '</span>' +
+      '<span class="sc-bar"><i style="width:' + pct + '%"></i></span></span>' +
+      '<span class="sc-go" aria-hidden="true">›</span>';
+    card.addEventListener("click", function () { nav("streets", { sector: sec }); });
+    wrap.appendChild(card);
+  });
+}
+
+function streetPill(d) {
+  if (!d || !streetTouched(d)) return { cls: "todo", txt: "À faire" };
+  if (streetIsDone(d)) return { cls: "done", txt: "RAS" };
+  var c = numCounts(d);
+  if (streetHasPb(d)) return { cls: "pb", txt: c.pb + " ⚠" };
+  return { cls: "wip", txt: c.total ? (c.seen + "/" + c.total) : "En cours" };
+}
+function renderStreetList(filter) {
+  filter = filter || "";
+  var meta = SECTOR_META[currentSector];
+  $("streetsTitle").textContent = "Secteur " + meta.label;
+  $("streetsTitle").style.setProperty("--sc", meta.color);
+  var listEl = $("streetList"); listEl.textContent = "";
+  var streets = streetsOfSector(currentSector);
+  var q = norm(filter);
+  if (q) streets = streets.filter(function (r) { return norm(r.rue).indexOf(q) !== -1; });
+  $("streetCount").textContent = streets.length + " rues";
+  if (!streets.length) { listEl.appendChild(el("p", "empty", "Aucune rue ne correspond.")); return; }
+  streets.forEach(function (r) {
+    var d = state.streets[r.rue], p = streetPill(d);
+    var row = el("button", "st-row");
+    row.innerHTML = '<span class="st-name">' + esc(r.rue) + '</span>' +
+      '<span class="pill ' + p.cls + '">' + esc(p.txt) + '</span>' +
+      '<span class="st-go" aria-hidden="true">›</span>';
+    row.addEventListener("click", function () { nav("street", { street: r.rue, sector: currentSector }); });
+    listEl.appendChild(row);
+  });
+}
+
+function renderStreet() {
+  var name = currentStreet, d = streetState(name);
+  $("streetName").textContent = name;
+  var meta = SECTOR_META[currentSector] || SECTOR_META.CENTRE;
+  $("streetSector").textContent = "Secteur " + meta.label;
+  $("streetSector").style.setProperty("--sc", meta.color);
+  var note = $("streetNote");
+  note.value = d.note || "";
+  note.oninput = function () { d.note = note.value; touchStreet(d); saveSoon(); };
+  var filter = $("numFilter");
+  filter.value = "";
+  filter.oninput = function () { renderNums(d, filter.value); };
+  $("bulkRas").onclick = function () {
+    if (streetIsDone(d)) { d.nums.forEach(function (x) { if (x.k === "ok") x.k = ""; }); }
+    else { d.nums.forEach(function (x) { if (x.k !== "pb") x.k = "ok"; }); touchStreet(d); }
+    save(); renderNums(d, filter.value); updateStreetHeader(d); updateHeader();
+  };
+  updateStreetHeader(d);
+  ensureNumbers(d).then(function () { renderNums(d, filter.value); });
+}
+function updateStreetHeader(d) {
+  var c = numCounts(d);
+  $("streetProg").textContent = c.total
+    ? (c.seen + "/" + c.total + " numéros" + (c.pb ? " · " + c.pb + " anomalie" + (c.pb > 1 ? "s" : "") : ""))
+    : "Chargement…";
+  $("bulkRas").classList.toggle("on", streetIsDone(d));
+}
+function ensureNumbers(d) {
+  if (d.fetched) return Promise.resolve();
+  $("numLoad").hidden = false;
+  return fetchHouseNumbers(currentStreet).then(function (got) {
+    $("numLoad").hidden = true;
+    d.fetched = true;
+    if (got && got.length) {
+      var have = {}; d.nums.forEach(function (x) { have[norm(x.n)] = 1; });
+      got.forEach(function (n) { if (!have[norm(n)]) d.nums.push({ n: n, k: "", objs: [], note: "" }); });
+      save();
+    }
+  });
+}
+function renderNums(d, filter) {
+  filter = filter || "";
+  var box = $("numList"); box.textContent = "";
+  d.nums.sort(function (a, b) { return numKey(a.n) - numKey(b.n) || a.n.localeCompare(b.n, "fr"); });
+  var q = norm(filter);
+  var shown = q ? d.nums.filter(function (x) { return norm(x.n).indexOf(q) !== -1; }) : d.nums;
+  if (!d.nums.length) {
+    var warn = el("div", "num-empty");
+    warn.innerHTML = navigator.onLine
+      ? "Aucun numéro trouvé pour cette rue.<br>Ajoutez-les ci-dessous."
+      : "Numéros indisponibles hors ligne.<br>Ils se chargeront au retour du réseau, ou ajoutez-les manuellement.";
+    box.appendChild(warn);
+  }
+  shown.forEach(function (rec) { box.appendChild(numRow(d, rec)); });
+  box.appendChild(manualAdder(d));
+}
+function numRow(d, rec) {
+  var wrap = el("div", "num");
+  var face = el("button", "num-face");
+  face.innerHTML = '<span class="num-n">' + esc(rec.n) + '</span><span class="num-tag"></span>';
+  var warn = el("button", "num-warn", "⚠");
+  warn.setAttribute("aria-label", "Signaler une anomalie au n° " + rec.n);
+  var top = el("div", "num-top"); top.appendChild(face); top.appendChild(warn);
+
+  var detail = el("div", "num-detail");
+  var objs = el("div", "obj-grid");
+  OBJETS.forEach(function (o) {
+    var b = el("button", "obj-btn", o);
+    b.addEventListener("click", function () {
+      var i = rec.objs.indexOf(o);
+      if (i >= 0) rec.objs.splice(i, 1); else rec.objs.push(o);
+      b.classList.toggle("on", i < 0); saveSoon();
+    });
+    objs.appendChild(b);
+  });
+  var noteInput = el("textarea", "num-note");
+  noteInput.placeholder = "Précision : devant garage, côté pair, sorti depuis plusieurs jours…";
+  noteInput.value = rec.note || "";
+  noteInput.oninput = function () { rec.note = noteInput.value; saveSoon(); };
+  detail.appendChild(objs); detail.appendChild(noteInput);
+  wrap.appendChild(top); wrap.appendChild(detail);
+
+  function paintObjs() {
+    var bs = objs.querySelectorAll(".obj-btn");
+    for (var i = 0; i < bs.length; i++) bs[i].classList.toggle("on", rec.objs.indexOf(bs[i].textContent) !== -1);
+  }
+  function paint() {
+    wrap.classList.toggle("n-ok", rec.k === "ok");
+    wrap.classList.toggle("n-pb", rec.k === "pb");
+    face.querySelector(".num-tag").textContent = rec.k === "ok" ? "RAS ✓" : rec.k === "pb" ? "Anomalie" : "";
+  }
+  face.addEventListener("click", function () {
+    rec.k = rec.k === "ok" ? "" : "ok";
+    if (rec.k === "ok") touchStreet(d);
+    save(); paint(); updateStreetHeader(d); updateHeader();
+  });
+  warn.addEventListener("click", function () {
+    rec.k = rec.k === "pb" ? "" : "pb";
+    if (rec.k === "pb") touchStreet(d);
+    save(); paint(); updateStreetHeader(d); updateHeader();
+    if (rec.k === "pb") setTimeout(function () { noteInput.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, 60);
+  });
+  paintObjs(); paint();
+  return wrap;
+}
+function manualAdder(d) {
+  var row = el("div", "manual");
+  var inp = el("input", "manual-inp");
+  inp.placeholder = "Ajouter un n° (ex. 12 bis)"; inp.autocomplete = "off";
+  var btn = el("button", "manual-btn", "＋");
+  function add() {
+    var v = inp.value.trim(); if (!v) return;
+    var exists = d.nums.some(function (x) { return norm(x.n) === norm(v); });
+    if (!exists) d.nums.push({ n: v, k: "", objs: [], note: "" });
+    inp.value = ""; save(); renderNums(d, $("numFilter").value); updateStreetHeader(d);
+  }
+  btn.addEventListener("click", add);
+  inp.addEventListener("keydown", function (e) { if (e.key === "Enter") add(); });
+  row.appendChild(inp); row.appendChild(btn);
+  return row;
+}
+
+function initGlobalSearch() {
+  var input = $("globalSearch"), box = $("globalSuggest");
+  input.addEventListener("input", function () {
+    box.textContent = "";
+    if (input.value.trim().length < 2) { box.hidden = true; return; }
+    var list = searchStreets(input.value, 30);
+    if (!list.length) { box.innerHTML = '<div class="sug-empty">Aucune rue trouvée.</div>'; box.hidden = false; return; }
+    list.forEach(function (r) {
+      var meta = SECTOR_META[r.secteur] || SECTOR_META.CENTRE;
+      var item = el("button", "sug-item");
+      item.innerHTML = '<span>' + esc(r.rue) + '</span><span class="pill" style="background:' + meta.color + ';color:#fff">' + esc(meta.label) + '</span>';
+      item.addEventListener("click", function () { input.value = ""; box.hidden = true; nav("street", { street: r.rue, sector: r.secteur }); });
+      box.appendChild(item);
+    });
+    box.hidden = false;
+  });
+  document.addEventListener("click", function (e) { if (!e.target.closest(".search-wrap")) box.hidden = true; });
+}
+
+function toast(msg) {
+  var t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(function () { t.classList.remove("show"); }, 1900);
+}
+function copyText(txt) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function () { toast("Compte rendu copié ✅"); }, function () { legacyCopy(txt); });
+  } else legacyCopy(txt);
+}
+function legacyCopy(txt) {
+  var ta = el("textarea"); ta.value = txt; document.body.appendChild(ta); ta.select();
+  try { document.execCommand("copy"); toast("Compte rendu copié ✅"); } catch (e) { toast("Copie impossible"); }
+  document.body.removeChild(ta);
+}
+function initReportActions() {
+  $("expCopy").onclick = function () { copyText(reportText()); };
+  $("expShare").onclick = function () {
+    var txt = reportText();
+    if (navigator.share) navigator.share({ title: "Compte rendu tournée", text: txt }).catch(function () {});
+    else copyText(txt);
+  };
+  $("expWhatsapp").onclick = function () { window.open("https://wa.me/?text=" + encodeURIComponent(reportText()), "_blank"); };
+  $("expSms").onclick = function () { window.location.href = "sms:?&body=" + encodeURIComponent(reportText()); };
+  $("expMail").onclick = function () {
+    var subject = "Compte rendu tournée préventive — " + new Date().toLocaleDateString("fr-FR");
+    window.location.href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(reportText());
+  };
+  $("expCsv").onclick = exportCSV;
+  $("expXls").onclick = exportXLS;
+  $("expPrint").onclick = function () { window.print(); };
+}
+
+function bindChrome() {
+  $("backStreets").onclick = function () { history.back(); };
+  $("backStreet").onclick = function () { history.back(); };
+  $("backReport").onclick = function () { history.back(); };
+  $("goReport").onclick = function () { nav("report", {}); };
+
+  var agent = $("agentInput");
+  agent.value = state.agent || "";
+  agent.oninput = function () { state.agent = agent.value; saveSoon(); };
+
+  $("resetBtn").onclick = function () {
+    if (!confirm("Effacer toute la tournée en cours ?")) return;
+    if (!confirm("Confirmer : cette action est définitive.")) return;
+    resetAll(); nav("sectors", {}, true); toast("Tournée réinitialisée");
+  };
+
+  $("streetFilter").oninput = function (e) { renderStreetList(e.target.value); };
+
+  window.addEventListener("online", function () {
+    updateHeader();
+    if (currentStreet && $("view-street").classList.contains("active")) {
+      var d = streetState(currentStreet);
+      if (!d.nums.length) { d.fetched = false; ensureNumbers(d).then(function () { renderNums(d, $("numFilter").value); }); }
+    }
+  });
+  window.addEventListener("offline", updateHeader);
+
+  // Clavier mobile : recentre le champ actif (délégation → champs dynamiques inclus).
+  document.addEventListener("focusin", function (e) {
+    if (e.target.matches && e.target.matches("input, textarea")) {
+      setTimeout(function () { e.target.scrollIntoView({ block: "center", behavior: "smooth" }); }, 300);
+    }
+  });
+}
+
+function initRouter() {
+  window.addEventListener("popstate", function (e) {
+    if (e.state && e.state.view) applyRoute(e.state.view, e.state);
+    else applyRoute("sectors", {});
+  });
+  history.replaceState({ view: "sectors" }, "", "#sectors");
+  applyRoute("sectors", {});
+}
+
+function main() {
+  load();
+  loadStreets().then(function () {
+    bindChrome();
+    initGlobalSearch();
+    initReportActions();
+    initRouter();
+    updateHeader();
+  });
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("../service-worker.js").catch(function () {});
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function () {});
+}
+main();
+
+})();
+</script>
 </body>
 </html>

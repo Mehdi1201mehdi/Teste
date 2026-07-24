@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Price Radar — Détecteur d'erreurs de prix</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <span class="brand-icon">📡</span>
+        <span class="brand-name">Price&nbsp;Radar</span>
+      </div>
+      <nav>
+        <a href="#/dashboard" data-route="dashboard">📊 Tableau de bord</a>
+        <a href="#/opportunites" data-route="opportunites">🔥 Opportunités</a>
+        <a href="#/veille-prix" data-route="veille-prix">📉 Veille prix</a>
+        <a href="#/baisses-du-jour" data-route="baisses-du-jour">🔥 Baisses du jour</a>
+        <a href="#/recherche" data-route="recherche">🔎 Recherche multi-sites</a>
+        <a href="#/comparateur" data-route="comparateur">⚖️ Comparateur (API)</a>
+        <a href="#/sources-api" data-route="sources-api">🧩 Sources API gratuites</a>
+        <a href="#/ajouter" data-route="ajouter">➕ Ajouter une surveillance</a>
+        <a href="#/produits" data-route="produits">📦 Produits surveillés</a>
+        <a href="#/alertes" data-route="alertes">🔔 Alertes <span class="pill" id="alert-badge" hidden></span></a>
+        <a href="#/proxies" data-route="proxies">🛡️ Proxies</a>
+        <a href="#/logs" data-route="logs">🧾 Logs scraping</a>
+        <a href="#/parametres" data-route="parametres">⚙️ Paramètres</a>
+      </nav>
+      <div class="sidebar-footer">Scraping respectueux · robots.txt · délais</div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <button class="burger" id="burger">☰</button>
+        <input type="search" id="global-search" placeholder="Recherche rapide d'un produit…">
+        <span class="topbar-date" id="topbar-date"></span>
+      </header>
+      <div id="view" class="view"></div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

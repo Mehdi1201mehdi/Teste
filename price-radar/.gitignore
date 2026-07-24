@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+price_radar.db
+.pytest_cache/
+test_disco.db

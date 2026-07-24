@@ -1,0 +1,164 @@
+/* ============ Price Radar — thème sombre moderne ============ */
+:root {
+  --bg: #0d1220;
+  --bg-2: #131a2c;
+  --bg-3: #1a2338;
+  --border: #263353;
+  --text: #e8edf7;
+  --muted: #8b98b8;
+  --accent: #4f8cff;
+  --green: #2fd882;
+  --orange: #ffab3d;
+  --red: #ff5d6c;
+  --violet: #b06cff;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg); color: var(--text); font-size: 15px;
+}
+a { color: var(--accent); text-decoration: none; }
+
+.layout { display: flex; min-height: 100vh; }
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 240px; flex-shrink: 0; background: var(--bg-2);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 20px 18px; font-size: 19px; font-weight: 700; }
+.brand-icon { font-size: 24px; }
+.sidebar nav { display: flex; flex-direction: column; padding: 8px; gap: 2px; flex: 1; }
+.sidebar nav a {
+  color: var(--muted); padding: 11px 14px; border-radius: 8px;
+  display: flex; align-items: center; gap: 8px; transition: .15s;
+}
+.sidebar nav a:hover { background: var(--bg-3); color: var(--text); }
+.sidebar nav a.active { background: var(--accent); color: #fff; }
+.sidebar-footer { padding: 14px 18px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--border); }
+
+/* ---------- Topbar ---------- */
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.topbar {
+  display: flex; align-items: center; gap: 14px; padding: 14px 24px;
+  border-bottom: 1px solid var(--border); background: var(--bg-2);
+  position: sticky; top: 0; z-index: 20;
+}
+.burger { display: none; background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; }
+#global-search {
+  flex: 1; max-width: 420px; background: var(--bg-3); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 14px; color: var(--text); font-size: 14px;
+}
+#global-search:focus { outline: none; border-color: var(--accent); }
+.topbar-date { margin-left: auto; color: var(--muted); font-size: 13px; }
+
+.view { padding: 24px; max-width: 1400px; width: 100%; }
+.view h1 { font-size: 22px; margin-bottom: 4px; }
+.view .subtitle { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+
+/* ---------- Cartes stats ---------- */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+.stat-card .label { color: var(--muted); font-size: 12.5px; text-transform: uppercase; letter-spacing: .5px; }
+.stat-card .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+
+/* ---------- Tableaux ---------- */
+.card { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 22px; }
+.card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 600; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; user-select: none; }
+th.sortable { cursor: pointer; }
+th.sortable:hover { color: var(--text); }
+tbody tr:hover { background: var(--bg-3); }
+tbody tr:last-child td { border-bottom: none; }
+td .product-cell { display: flex; align-items: center; gap: 10px; max-width: 320px; }
+td .product-cell img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; background: var(--bg-3); flex-shrink: 0; }
+td .product-cell .name { white-space: normal; line-height: 1.25; font-weight: 500; }
+td .product-cell .site { color: var(--muted); font-size: 12px; }
+.price-strike { color: var(--muted); text-decoration: line-through; font-size: 12.5px; }
+.gap-positive { color: var(--green); font-weight: 700; }
+
+/* ---------- Badges ---------- */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge.faible        { background: #2a3350; color: var(--muted); }
+.badge.moyen         { background: rgba(79,140,255,.16); color: var(--accent); }
+.badge.fort          { background: rgba(255,171,61,.16); color: var(--orange); }
+.badge.exceptionnel  { background: rgba(255,93,108,.18); color: var(--red); box-shadow: 0 0 12px rgba(255,93,108,.25); }
+.badge.risk-faible   { background: rgba(47,216,130,.14); color: var(--green); }
+.badge.risk-moyen    { background: rgba(255,171,61,.14); color: var(--orange); }
+.badge.risk-eleve    { background: rgba(255,93,108,.16); color: var(--red); }
+.badge.stock-in      { background: rgba(47,216,130,.14); color: var(--green); }
+.badge.stock-out     { background: rgba(255,93,108,.14); color: var(--red); }
+.badge.stock-unknown { background: #2a3350; color: var(--muted); }
+.score-bar { width: 70px; height: 7px; border-radius: 4px; background: var(--bg-3); position: relative; display: inline-block; vertical-align: middle; margin-right: 7px; }
+.score-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--violet)); }
+
+/* ---------- Filtres / formulaires ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; align-items: end; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 12px; color: var(--muted); }
+input, select, textarea {
+  background: var(--bg-3); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 9px 12px; font-size: 14px; font-family: inherit;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+.btn {
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: .15s;
+}
+.btn:hover { filter: brightness(1.12); }
+.btn.secondary { background: var(--bg-3); border: 1px solid var(--border); color: var(--text); }
+.btn.danger { background: rgba(255,93,108,.15); color: var(--red); border: 1px solid rgba(255,93,108,.3); }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.btn:disabled { opacity: .55; cursor: wait; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; padding: 18px; }
+.form-grid .full { grid-column: 1 / -1; }
+.form-actions { padding: 0 18px 18px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ---------- Alertes ---------- */
+.alert-item { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; }
+.alert-item.unread { background: rgba(79,140,255,.05); border-left: 3px solid var(--accent); }
+.alert-item pre { white-space: pre-wrap; font-family: inherit; color: var(--muted); font-size: 13px; margin-top: 6px; }
+.alert-item .title { font-weight: 600; }
+.alert-channels { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+.pill { background: var(--red); color: #fff; font-size: 11px; border-radius: 10px; padding: 1px 7px; margin-left: auto; }
+
+/* ---------- Détail produit ---------- */
+.detail-head { display: flex; gap: 20px; padding: 18px; flex-wrap: wrap; }
+.detail-head img { width: 130px; height: 130px; object-fit: cover; border-radius: var(--radius); background: var(--bg-3); }
+.detail-head .info { flex: 1; min-width: 240px; }
+.detail-head .price-now { font-size: 30px; font-weight: 800; margin: 8px 0; }
+.chart-box { padding: 18px; height: 320px; }
+.hist-stats { display: flex; gap: 22px; flex-wrap: wrap; padding: 0 18px 18px; color: var(--muted); font-size: 13.5px; }
+.hist-stats b { color: var(--text); font-size: 16px; display: block; }
+
+/* ---------- Divers ---------- */
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+.toast {
+  position: fixed; bottom: 24px; right: 24px; background: var(--bg-3);
+  border: 1px solid var(--border); border-left: 4px solid var(--green);
+  padding: 14px 20px; border-radius: 10px; z-index: 100; max-width: 380px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+.toast.error { border-left-color: var(--red); }
+.muted { color: var(--muted); }
+.preview-box { padding: 18px; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed; z-index: 50; transform: translateX(-100%); transition: .25s;
+    height: 100vh;
+  }
+  .sidebar.open { transform: translateX(0); box-shadow: 0 0 60px rgba(0,0,0,.6); }
+  .burger { display: block; }
+  .view { padding: 14px; }
+  .topbar { padding: 12px 14px; }
+  .topbar-date { display: none; }
+}

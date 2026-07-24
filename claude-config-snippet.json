@@ -1,0 +1,13 @@
+{
+  "_comment": "Extrait de configuration pour enregistrer le serveur MCP CodeScene dans Claude Code. Ce dépôt le fournit déjà via .mcp.json (scope projet). Pour l'activer globalement, ajoute ce bloc dans ~/.claude.json (clé mcpServers) ou lance : claude mcp add codescene -- npx -y @codescene/codehealth-mcp",
+  "mcpServers": {
+    "codescene": {
+      "command": "npx",
+      "args": ["-y", "@codescene/codehealth-mcp"],
+      "env": {
+        "CS_ENABLED_TOOLS": "code_health_review,code_health_score,pre_commit_code_health_safeguard,analyze_change_set",
+        "_CS_ACCESS_TOKEN_note": "REQUIS (verifie) : tous les outils repondent 'No access token configured' sans jeton. Recupere un jeton GRATUIT (https://github.com/codescene-oss/codescene-mcp-server/blob/main/docs/getting-a-personal-access-token.md), puis expose-le en variable d'environnement CS_ACCESS_TOKEN (ne le commite JAMAIS). Ne mets pas la valeur ici dans un fichier versionne."
+      }
+    }
+  }
+}

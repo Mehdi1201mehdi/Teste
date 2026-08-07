@@ -97,12 +97,7 @@ function bind() {
   // Double confirmation : sur le terrain, un pouce qui glisse ne doit pas
   // effacer la saisie en cours.
   $("resetCurrent").onclick = () => {
-    if (
-      confirm("Effacer la saisie en cours ?") &&
-      confirm("Confirme : tout effacer ? Cette action est définitive.")
-    ) {
-      resetCurrent();
-    }
+    if (confirm("Effacer la saisie en cours ?")) resetCurrent();
   };
   $("duplicateLast").onclick = duplicateLastAddress;
 
@@ -262,18 +257,6 @@ function bind() {
     });
   });
 
-  // Dissuasion contre l'inspection du code : bloque le clic droit et les
-  // raccourcis d'outils de développement. Décourage les curieux ; un
-  // développeur déterminé peut toujours contourner (limite du web).
-  document.addEventListener("contextmenu", (e) => e.preventDefault());
-  document.addEventListener("keydown", (e) => {
-    const k = (e.key || "").toUpperCase();
-    const devtools =
-      e.key === "F12" ||
-      ((e.ctrlKey || e.metaKey) && e.shiftKey && ["I", "J", "C"].includes(k)) ||
-      ((e.ctrlKey || e.metaKey) && k === "U");
-    if (devtools) e.preventDefault();
-  });
 }
 
 function registerServiceWorker() {

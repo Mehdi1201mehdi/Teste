@@ -1,55 +1,96 @@
 /* ==========================================================================
-   Brigade Verte Amiens V3 PRO — Design tokens
-   Palette : Vert Brigade Verte / Blanc / Gris clair — style Material 3 / Linear / Notion
+   Brigade Verte Amiens — Design tokens
+   Refonte institutionnelle : Marianne (police de l'État), palette sobre,
+   grille 8 px, rayons 16 px, ombres subtiles. Clair uniquement (plein soleil).
    ========================================================================== */
+
+/* — Police officielle Marianne (auto-hébergée, hors-ligne) — */
+@font-face {
+  font-family: "Marianne";
+  src: url("../assets/fonts/Marianne-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Marianne";
+  src: url("../assets/fonts/Marianne-Medium.woff2") format("woff2");
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Marianne";
+  src: url("../assets/fonts/Marianne-Bold.woff2") format("woff2");
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
+  /* Police */
+  --font: "Marianne", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
   /* Surfaces */
-  --bg: #edf7f1;
-  --bg2: #dfeee6;
+  --bg: #f4f7f5;
+  --bg2: #eaf7f0;
   --card: #ffffff;
-  --soft: #f5faf7;
-  --line: #d8e6dc;
+  --soft: #eaf7f0;
+  --line: #dbe6de;
 
-  /* Text */
-  --ink: #102117;
-  --muted: #637469;
+  /* Texte */
+  --ink: #17201b;
+  --muted: #607067;
 
-  /* Brand */
-  --green: #0f7a43;
-  --green2: #0a5d34;
-  --green-rgb: 15, 122, 67;
+  /* Marque */
+  --green: #087a4b;
+  --green2: #075c3a;
+  --green-rgb: 8, 122, 75;
 
-  /* Status */
-  --orange: #f59e0b;
-  --red: #dc2626;
-  --blue: #2563eb;
+  /* États */
+  --orange: #b76a00;
+  --red: #c9362b;
+  --blue: #1d4ed8;
 
   /* Secteurs (identiques à l'API secteur existante) */
-  --centre: #8b5cf6;
-  --ouest: #2563eb;
-  --nord: #16a34a;
-  --est: #ef4444;
-  --sud: #f59e0b;
+  --centre: #7c3aed;
+  --ouest: #1d4ed8;
+  --nord: #15803d;
+  --est: #dc2626;
+  --sud: #b45309;
 
-  /* Elevation & shape */
-  --shadow-sm: 0 6px 18px rgba(15, 93, 52, 0.07);
-  --shadow: 0 18px 48px rgba(15, 93, 52, 0.12);
-  --shadow-lg: 0 24px 64px rgba(15, 93, 52, 0.18);
-  --radius-sm: 14px;
-  --radius: 24px;
-  --radius-lg: 28px;
+  /* Élévation & forme — ombres subtiles, rayons resserrés */
+  --shadow-sm: 0 1px 2px rgba(23, 32, 27, 0.06);
+  --shadow: 0 2px 8px rgba(23, 32, 27, 0.08);
+  --shadow-lg: 0 10px 28px rgba(23, 32, 27, 0.14);
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 20px;
 
-  /* Sizing */
+  /* Espacement — grille 8 px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Dimensions */
   --tap: 48px;
-  --content-max: 1100px;
+  --content-max: 1120px;
 
-  /* Motion */
+  /* Focus (WCAG 2.4.11 / 2.4.7) */
+  --focus-ring: 0 0 0 3px rgba(29, 78, 216, 0.45);
+
+  /* Mouvement — animations courtes 150-250 ms */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-fast: 120ms;
+  --dur-fast: 150ms;
   --dur: 200ms;
-  --dur-slow: 320ms;
+  --dur-slow: 250ms;
 
-  /* Typography scale (fluid, mobile-first) */
+  /* Échelle typographique (fluide, mobile-first) */
   --fs-xs: clamp(0.6875rem, 0.66rem + 0.15vw, 0.75rem);
   --fs-sm: clamp(0.75rem, 0.72rem + 0.2vw, 0.8125rem);
   --fs-base: clamp(0.9375rem, 0.9rem + 0.2vw, 1rem);

@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v3.6.3";
+const VERSION = "v3.7.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 
@@ -35,6 +35,9 @@ const SHELL_ASSETS = [
   "./assets/logo/logo.svg",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
+  "./assets/fonts/Marianne-Regular.woff2",
+  "./assets/fonts/Marianne-Medium.woff2",
+  "./assets/fonts/Marianne-Bold.woff2",
   "./suivi/",
   "./suivi/index.html",
 ];

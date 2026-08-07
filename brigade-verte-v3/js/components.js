@@ -1,6 +1,7 @@
 // Générateurs de balisage réutilisables (listes de suggestions, pastilles, cartes BP).
 
 import { esc } from "./utils.js";
+import { icon } from "./icons.js";
 
 /**
  * Affiche une liste de suggestions dans un menu déroulant tactile.
@@ -59,9 +60,9 @@ export function bpCardHtml(bp, i, adresseText, bpLine) {
       <div class="bpText"><b>${esc(adresseText(bp))}</b><small>${esc(bp.secteur)} · ${esc(bpLine(bp))}</small></div>
     </div>
     <div class="bpBtns">
-      <button class="mini" type="button" data-action="edit" data-i="${i}">✏ Modifier</button>
-      <button class="mini" type="button" data-action="duplicate" data-i="${i}">⧉ Dupliquer</button>
-      <button class="mini" type="button" data-action="delete" data-i="${i}">🗑 Suppr.</button>
+      <button class="mini" type="button" data-action="edit" data-i="${i}">${icon("pencil")}Modifier</button>
+      <button class="mini" type="button" data-action="duplicate" data-i="${i}">${icon("copy")}Dupliquer</button>
+      <button class="mini" type="button" data-action="delete" data-i="${i}">${icon("trash-2")}Supprimer</button>
     </div>
   </div>`;
 }

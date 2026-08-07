@@ -226,11 +226,11 @@ export function duplicateLastAddress() {
 export function renderBps() {
   ["listBadge", "listBadgeMobile"].forEach((id) => {
     const e = $(id);
-    if (e) e.textContent = state.bps.length + " BP";
+    if (e) e.textContent = state.bps.length;
   });
   const html = state.bps.length
     ? state.bps.map((bp, i) => bpCardHtml(bp, i, adresseText, bpLine)).join("")
-    : `<div class="none">Aucune BP pour l'instant.</div>`;
+    : `<div class="none">Aucun signalement pour l'instant.<br><small>« BP » = Bon de Passage : un dépôt constaté lors de la tournée.</small></div>`;
   const handlers = { edit: editBp, duplicate: duplicateBp, delete: delBp };
   const listEl = $("bpList");
   const listMobileEl = $("bpListMobile");

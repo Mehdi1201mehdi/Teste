@@ -9,25 +9,6 @@ import { renderSummary } from "./bp.js";
 
 let DECHETS_LIST = [];
 
-// Pictogrammes pour les déchets les plus fréquents ; 🗑️ par défaut sinon.
-const DICON = {
-  "Sac OM": "🟢",
-  Matelas: "🛏️",
-  Sommier: "🛏️",
-  Canapé: "🛋️",
-  Cartons: "📦",
-  Gravats: "🧱",
-  Pneu: "🛞",
-  Palette: "🪵",
-  Ferraille: "🔩",
-  Téléviseur: "📺",
-  Réfrigérateur: "❄️",
-  "Lave-linge": "🧺",
-  Batterie: "🔋",
-  "Déchets verts": "🌿",
-  Vélo: "🚲",
-};
-
 export async function loadWaste() {
   try {
     const r = await fetch("data/waste.json");
@@ -51,7 +32,7 @@ export function showWaste(query) {
     return;
   }
   const entries = list.map((d) => ({
-    html: `<span aria-hidden="true">${DICON[d] || "🗑️"}</span><span class="sugName">${d}</span>`,
+    html: `<span class="sugName">${d}</span>`,
     onClick: () => {
       $("wasteInput").value = d;
       hideSuggestions(box);

@@ -35,7 +35,7 @@ function renderAll() {
 function applyGpsSetting() {
   $("locateBtn").hidden = !state.gps;
   const btn = $("gpsToggle");
-  btn.textContent = state.gps ? "📍 GPS : activé ✅" : "📍 GPS : désactivé ❌";
+  btn.textContent = state.gps ? "GPS : activé" : "GPS : désactivé";
   btn.setAttribute("aria-pressed", String(state.gps));
 }
 

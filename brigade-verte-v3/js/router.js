@@ -8,7 +8,7 @@ import { state, save } from "./storage.js";
 import { toast } from "./ui.js";
 
 const TOTAL = 5;
-const LABELS = { 1: "Adresse", 2: "Précisions", 3: "Déchets", 4: "Vérification", 5: "Texte" };
+const LABELS = { 1: "Adresse", 2: "Précisions", 3: "Déchets", 4: "Vérification", 5: "Message" };
 
 function addressOk() {
   return !!state.current.rue && !!state.current.secteur;
@@ -36,14 +36,20 @@ function blockedMessage(n) {
 export function renderStatus() {
   const label = $("stepLabel");
   const fill = $("progressFill");
-  if (label) label.textContent = `Étape ${state.step}/${TOTAL} · ${LABELS[state.step]}`;
+  if (label) label.textContent = `${LABELS[state.step]} — étape ${state.step} sur ${TOTAL}`;
   if (fill) fill.style.width = (state.step / TOTAL) * 100 + "%";
+  const n = state.bps.length;
   const badge = $("bpBadge");
-  if (badge) badge.textContent = state.bps.length + " BP";
+  if (badge) badge.textContent = n + " signalement" + (n > 1 ? "s" : "");
   const next1 = $("next1");
   if (next1) next1.disabled = !addressOk();
   const next3 = $("next3");
   if (next3) next3.disabled = !wastesOk();
+  // Explication de ce qui manque tant qu'un bouton "Continuer" est bloqué.
+  const hint1 = $("next1Hint");
+  if (hint1) hint1.textContent = addressOk() ? "" : "Choisissez d'abord une rue et un secteur pour continuer.";
+  const hint3 = $("next3Hint");
+  if (hint3) hint3.textContent = wastesOk() ? "" : "Ajoutez au moins un déchet pour continuer.";
   const dup = $("duplicateLast");
   if (dup) dup.hidden = state.bps.length === 0;
 }

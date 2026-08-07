@@ -35,13 +35,13 @@ export async function locateNearestStreets() {
   try {
     const status = await navigator.permissions?.query?.({ name: "geolocation" });
     if (status?.state === "denied") {
-      toast("Localisation bloquée pour ce site — réactive-la dans les réglages du navigateur (icône 🔒 à côté de l'adresse)");
+      toast("Localisation bloquée pour ce site — réactivez-la dans les réglages du navigateur (cadenas à côté de l'adresse).");
       return;
     }
   } catch (e) {
     /* API permissions absente (vieux Safari) : on tente directement */
   }
-  toast("📡 Recherche de ta position…");
+  toast("Recherche de votre position…");
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
@@ -60,7 +60,7 @@ export async function locateNearestStreets() {
       }));
       showSuggestions($("streetSuggest"), entries, "Aucune rue trouvée près d'ici.");
       $("streetInput").setAttribute("aria-expanded", "true");
-      toast("Touche ta rue 👇");
+      toast("Touchez votre rue dans la liste.");
     },
     (err) => {
       if (err.code === err.PERMISSION_DENIED) {

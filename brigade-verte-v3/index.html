@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#087a4b">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="Outil terrain de la Brigade Verte d'Amiens : saisie rapide des Bons de Passage (adresse, secteur, déchets) et génération du mail de signalement.">
+<meta name="description" content="Outil terrain de la Brigade Verte d'Amiens : saisie rapide des signalements de dépôts sauvages (adresse, secteur, déchets) et génération du message à envoyer.">
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.webmanifest">
@@ -33,6 +33,26 @@
 </head>
 <body>
 <a class="skip-link" href="#main">Aller au contenu</a>
+
+<!-- Sprite d'icônes (Lucide, ISC) — référencé via <use href="#i-…"> -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
+  <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></symbol>
+  <symbol id="i-clipboard-check" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
+  <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+  <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></symbol>
+</svg>
+
 <div class="app">
 
   <header class="top">
@@ -41,13 +61,13 @@
         <div class="logo"><img src="assets/logo/logo.svg" alt="" width="26" height="26"></div>
         <div><h1>Brigade Verte</h1><p>Amiens</p></div>
       </div>
-      <div class="save" id="saveStatus" role="status" aria-live="polite">Sauvegarde</div>
+      <div class="save" id="saveStatus" role="status" aria-live="polite">Sauvegarde automatique</div>
     </div>
 
-    <div class="offlineBanner" id="offlineBanner" role="status">📴 Hors connexion — les saisies restent enregistrées.</div>
+    <div class="offlineBanner" id="offlineBanner" role="status">Hors connexion — les saisies restent enregistrées sur l'appareil.</div>
 
     <div class="progress" aria-hidden="false">
-      <div class="progressTop"><span id="stepLabel" role="status" aria-live="polite">Étape 1/5 · Adresse</span><span id="bpBadge" class="bpBadge">0 BP</span></div>
+      <div class="progressTop"><span id="stepLabel" role="status" aria-live="polite">Étape 1 sur 5 · Adresse</span><span id="bpBadge" class="bpBadge">0 signalement</span></div>
       <div class="progressBar"><div id="progressFill"></div></div>
     </div>
   </header>
@@ -58,69 +78,70 @@
       <!-- ÉTAPE 1 : ADRESSE -->
       <section id="view1" class="view active" aria-labelledby="view1title">
         <div class="card">
-          <h2 id="view1title" class="stepTitle">📍 Où est le dépôt ?</h2>
+          <h2 id="view1title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"></use></svg>Où est le dépôt ?</h2>
 
           <label for="streetInput">Rue</label>
           <div class="search">
-            <input id="streetInput" autocomplete="off" spellcheck="false" placeholder="Tape le nom de la rue…" aria-expanded="false" aria-autocomplete="list" role="combobox">
+            <input id="streetInput" autocomplete="off" spellcheck="false" placeholder="Tapez le nom de la rue…" aria-expanded="false" aria-autocomplete="list" role="combobox">
             <div id="streetSuggest" class="suggest" role="listbox"></div>
           </div>
-          <button class="btn btnGhost full" id="locateBtn" type="button" style="margin-top:10px">📍 Ma position — rues les plus proches</button>
+          <button class="btn btnGhost full" id="locateBtn" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg>Utiliser ma position</button>
 
           <label for="numeroRue">Numéro (facultatif)</label>
           <input id="numeroRue" inputmode="numeric" placeholder="ex : 152">
 
           <div id="chosenBox" class="chosen">
             <div class="chosenTop">
-              <div class="pin" aria-hidden="true">📍</div>
+              <div class="pin" aria-hidden="true"><svg class="icon"><use href="#i-map-pin"></use></svg></div>
               <div style="flex:1"><b id="chosenRue">Rue choisie</b><div class="sectorLine"><span id="chosenSector" class="sector">Secteur ?</span></div></div>
             </div>
             <div id="sectors" class="sectorLine" role="group" aria-label="Choix manuel du secteur"></div>
-            <button class="btn btnGhost full" id="changeStreet" type="button" style="margin-top:10px">✏ Modifier la sélection</button>
+            <button class="btn btnGhost full" id="changeStreet" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>Modifier la sélection</button>
           </div>
 
           <details class="moreOpts">
             <summary>Autres options</summary>
-            <label for="date">Date de l'îlotage</label>
+            <label for="date">Date de la tournée</label>
             <input type="date" id="date">
-            <button class="btn btnGhost full" id="gpsToggle" type="button" style="margin-top:10px" aria-pressed="true">📍 GPS : activé ✅</button>
-            <button class="btn btnGhost full" id="exportBps" type="button" style="margin-top:10px">💾 Sauvegarder mes BP dans un fichier</button>
-            <button class="btn btnGhost full" id="importBps" type="button" style="margin-top:10px">📂 Recharger des BP depuis un fichier</button>
+            <button class="btn btnGhost full" id="gpsToggle" type="button" style="margin-top:10px" aria-pressed="true">GPS : activé</button>
+            <button class="btn btnGhost full" id="exportBps" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>Sauvegarder mes signalements dans un fichier</button>
+            <button class="btn btnGhost full" id="importBps" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>Recharger des signalements depuis un fichier</button>
             <input type="file" id="importFile" accept=".json,application/json" hidden>
-            <button class="btn btnGhost full" id="resetCurrent" type="button" style="margin-top:10px">🗑 Tout effacer</button>
+            <button class="btn btnGhost full" id="resetCurrent" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"></use></svg>Effacer la saisie en cours</button>
           </details>
 
           <div class="actions">
-            <button class="btn btnGhost full" id="duplicateLast" type="button" hidden>⧉ Même adresse que la dernière BP</button>
-            <button class="btn btnPrimary btnBig full" id="next1" data-next="2" type="button" disabled>Suivant ➜</button>
+            <button class="btn btnGhost full" id="duplicateLast" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"></use></svg>Reprendre la dernière adresse</button>
+            <button class="btn btnPrimary btnBig full" id="next1" data-next="2" type="button" aria-describedby="next1Hint" disabled>Continuer<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
           </div>
+          <p class="btn-hint" id="next1Hint" role="status" aria-live="polite"></p>
         </div>
       </section>
 
       <!-- ÉTAPE 2 : PRÉCISIONS -->
       <section id="view2" class="view" aria-labelledby="view2title">
         <div class="card">
-          <h2 id="view2title" class="stepTitle">🎯 Où exactement ?</h2>
-          <p class="hint">Facultatif. Touche pour choisir, retouche pour enlever.</p>
+          <h2 id="view2title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-target"></use></svg>Où exactement ?</h2>
+          <p class="hint">Facultatif — vous pouvez passer cette étape. Touchez pour choisir, retouchez pour enlever.</p>
 
           <div class="quick" role="group" aria-label="Précisions">
-            <button class="qbtn" type="button" data-key="angle" aria-pressed="false"><span class="ic" aria-hidden="true">📍</span><span>Angle</span></button>
-            <button class="qbtn" type="button" data-key="face" aria-pressed="false"><span class="ic" aria-hidden="true">🏠</span><span>En face du n°</span></button>
-            <button class="qbtn" type="button" data-key="devant" aria-pressed="false"><span class="ic" aria-hidden="true">🚪</span><span>Devant le n°</span></button>
-            <button class="qbtn" type="button" data-key="entre" aria-pressed="false"><span class="ic" aria-hidden="true">↔️</span><span>Entre deux maisons</span></button>
-            <button class="qbtn" type="button" data-key="trottoir" aria-pressed="false"><span class="ic" aria-hidden="true">🚧</span><span>Trottoir</span></button>
-            <button class="qbtn" type="button" data-key="chaussee" aria-pressed="false"><span class="ic" aria-hidden="true">🛣️</span><span>Chaussée</span></button>
-            <button class="qbtn" type="button" data-key="pav" aria-pressed="false"><span class="ic" aria-hidden="true">🚏</span><span>PAV</span></button>
+            <button class="qbtn" type="button" data-key="angle" aria-pressed="false"><span>À l'angle</span></button>
+            <button class="qbtn" type="button" data-key="face" aria-pressed="false"><span>En face du n°</span></button>
+            <button class="qbtn" type="button" data-key="devant" aria-pressed="false"><span>Devant le n°</span></button>
+            <button class="qbtn" type="button" data-key="entre" aria-pressed="false"><span>Entre deux maisons</span></button>
+            <button class="qbtn" type="button" data-key="trottoir" aria-pressed="false"><span>Sur le trottoir</span></button>
+            <button class="qbtn" type="button" data-key="chaussee" aria-pressed="false"><span>Sur la chaussée</span></button>
+            <button class="qbtn" type="button" data-key="pav" aria-pressed="false"><span>Au pied du point d'apport (PAV)</span></button>
           </div>
 
-          <label for="precCustom">✏️ Autre précision (tape librement)</label>
+          <label for="precCustom">Autre précision (texte libre)</label>
           <input id="precCustom" autocomplete="off" placeholder="ex : près du portail bleu…">
 
           <div id="precPreview" class="sumItem" aria-live="polite" style="margin-top:12px">Aucune précision sélectionnée.</div>
 
           <div class="actions">
-            <button class="btn btnGhost" data-next="1" type="button">⬅ Retour</button>
-            <button class="btn btnPrimary btnBig" data-next="3" type="button">Suivant ➜</button>
+            <button class="btn btnGhost" data-next="1" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg>Retour</button>
+            <button class="btn btnPrimary btnBig" data-next="3" type="button">Continuer<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
           </div>
         </div>
       </section>
@@ -128,33 +149,34 @@
       <!-- ÉTAPE 3 : DÉCHETS -->
       <section id="view3" class="view" aria-labelledby="view3title">
         <div class="card">
-          <h2 id="view3title" class="stepTitle">🗑 Quels déchets ?</h2>
-          <p class="hint">Tape quelques lettres puis touche le déchet.</p>
+          <h2 id="view3title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"></use></svg>Quels déchets ?</h2>
+          <p class="hint">Tapez quelques lettres puis touchez le déchet.</p>
 
           <div class="search dechetSearch">
             <input id="wasteInput" autocomplete="off" spellcheck="false" placeholder="ex : sac, mat, grav…" aria-expanded="false" aria-autocomplete="list" role="combobox">
             <div id="wasteSuggest" class="suggest" role="listbox"></div>
           </div>
-          <button class="btn btnGhost full" id="addWaste" type="button" style="margin-top:10px">➕ Ajouter ce que j'ai tapé</button>
+          <button class="btn btnGhost full" id="addWaste" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Ajouter ce que j'ai tapé</button>
 
           <label id="wasteChipsLabel">Déchets ajoutés</label>
           <div id="wasteChips" class="chips" role="group" aria-labelledby="wasteChipsLabel"></div>
 
           <div class="actions">
-            <button class="btn btnGhost" data-next="2" type="button">⬅ Retour</button>
-            <button class="btn btnPrimary btnBig" id="next3" data-next="4" type="button" disabled>Suivant ➜</button>
+            <button class="btn btnGhost" data-next="2" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg>Retour</button>
+            <button class="btn btnPrimary btnBig" id="next3" data-next="4" type="button" aria-describedby="next3Hint" disabled>Continuer<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
           </div>
+          <p class="btn-hint" id="next3Hint" role="status" aria-live="polite"></p>
         </div>
       </section>
 
       <!-- ÉTAPE 4 : VÉRIFICATION -->
       <section id="view4" class="view" aria-labelledby="view4title">
         <div class="card">
-          <h2 id="view4title" class="stepTitle">📋 C'est bien ça ?</h2>
+          <h2 id="view4title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-clipboard-check"></use></svg>C'est bien ça ?</h2>
           <div id="summary" class="summary"></div>
           <div class="actions">
-            <button class="btn btnGhost" data-next="1" type="button">✏ Modifier</button>
-            <button class="btn btnPrimary btnBig" id="addBp" type="button">✅ Ajouter la BP</button>
+            <button class="btn btnGhost" data-next="1" type="button"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>Modifier</button>
+            <button class="btn btnPrimary btnBig" id="addBp" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Ajouter ce signalement</button>
           </div>
         </div>
       </section>
@@ -162,20 +184,20 @@
       <!-- ÉTAPE 5 : TEXTE FINAL -->
       <section id="view5" class="view" aria-labelledby="view5title">
         <div class="card">
-          <h2 id="view5title" class="stepTitle">📧 Texte à envoyer</h2>
+          <h2 id="view5title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Message à envoyer</h2>
           <div id="mail" class="mail" aria-live="polite" spellcheck="false"></div>
           <div class="mailTools">
-            <button class="mini" id="editMail" type="button">✏ Modifier le texte</button>
-            <button class="mini" id="resetMail" type="button">🗑 Supprimer / rétablir</button>
+            <button class="mini" id="editMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>Modifier le texte</button>
+            <button class="mini" id="resetMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"></use></svg>Rétablir le texte</button>
           </div>
           <div class="actions">
-            <button class="btn btnPrimary btnBig full" id="copyMail" type="button">📋 Copier le texte</button>
-            <button class="btn btnGhost full" id="openMail" type="button">📧 Ouvrir dans Outlook</button>
-            <button class="btn btnGhost full" data-next="1" type="button">➕ Nouvelle BP</button>
+            <button class="btn btnPrimary btnBig full" id="copyMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg>Copier le texte</button>
+            <button class="btn btnGhost full" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Ouvrir dans Outlook</button>
+            <button class="btn btnGhost full" data-next="1" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Nouveau signalement</button>
           </div>
         </div>
         <div class="card mobileOnly">
-          <div class="cardTitle"><h2>📌 BP saisies</h2><span id="listBadgeMobile" class="pill" style="background:var(--green)">0</span></div>
+          <div class="cardTitle"><h2><svg class="icon" aria-hidden="true"><use href="#i-list"></use></svg>Signalements enregistrés</h2><span id="listBadgeMobile" class="pill" style="background:var(--green)">0</span></div>
           <div id="bpListMobile"></div>
         </div>
       </section>
@@ -184,11 +206,11 @@
 
     <aside class="rightDesk">
       <div class="card">
-        <div class="cardTitle"><h2>📌 BP saisies</h2><span id="listBadge" class="pill" style="background:var(--green)">0</span></div>
+        <div class="cardTitle"><h2><svg class="icon" aria-hidden="true"><use href="#i-list"></use></svg>Signalements enregistrés</h2><span id="listBadge" class="pill" style="background:var(--green)">0</span></div>
         <div id="bpList"></div>
       </div>
       <div class="card">
-        <div class="cardTitle"><h2>📧 Aperçu mail</h2></div>
+        <div class="cardTitle"><h2><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Aperçu du message</h2></div>
         <div id="mailSide" class="mail" aria-live="polite"></div>
       </div>
     </aside>
@@ -198,8 +220,8 @@
 <div id="toast" class="toast" role="status" aria-live="assertive"></div>
 
 <div id="successCheck" class="successCheck" aria-hidden="true">
-  <svg viewBox="0 0 52 52" role="img" aria-label="BP ajoutée">
-    <circle cx="26" cy="26" r="25" fill="#0f7a43"/>
+  <svg viewBox="0 0 52 52" role="img" aria-label="Signalement ajouté">
+    <circle cx="26" cy="26" r="25" fill="#087a4b"/>
     <path fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M14 27l8 8 16-16"/>
   </svg>
 </div>

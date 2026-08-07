@@ -682,3 +682,54 @@ abbr[title] {
   text-decoration-style: dotted;
   cursor: help;
 }
+
+/* ==========================================================================
+   Refonte étapes 3-4 — action du toast, bandeau de mise à jour
+   ========================================================================== */
+/* Bouton d'action dans un toast (ex. « Annuler » une suppression) */
+.toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.toastAction {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: transparent;
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 900;
+  font-size: 14px;
+  min-height: 36px;
+  flex: 0 0 auto;
+}
+.toastAction:active {
+  transform: scale(0.96);
+}
+
+/* Bandeau « nouvelle version disponible » */
+.updateBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(var(--green-rgb), 0.1);
+  border: 1px solid rgba(var(--green-rgb), 0.35);
+  color: var(--green2);
+  border-radius: 14px;
+  padding: 8px 8px 8px 14px;
+  font-size: var(--fs-sm);
+  font-weight: 800;
+  margin-top: 10px;
+}
+.updateBar[hidden] {
+  display: none;
+}
+.updateBar .mini {
+  background: var(--green);
+  color: #fff;
+  border-color: transparent;
+  min-height: 40px;
+  padding: 0 16px;
+  flex: 0 0 auto;
+}

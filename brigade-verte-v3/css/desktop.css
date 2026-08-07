@@ -55,3 +55,21 @@
     box-shadow: var(--shadow-sm);
   }
 }
+
+/* ==========================================================================
+   Refonte étape 3 — densité : colonne droite masquée tant qu'elle est vide
+   ========================================================================== */
+@media (min-width: 901px) {
+  /* Aucun signalement : une seule colonne, formulaire centré et lisible. */
+  main.grid.no-bps {
+    grid-template-columns: 1fr;
+  }
+  main.grid.no-bps .rightDesk {
+    display: none;
+  }
+  main.grid.no-bps > section:first-child {
+    max-width: 720px;
+    margin-inline: auto;
+    width: 100%;
+  }
+}

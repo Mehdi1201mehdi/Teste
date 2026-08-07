@@ -101,9 +101,9 @@ function bind() {
   };
   $("duplicateLast").onclick = duplicateLastAddress;
 
-  // 💾 Export de secours : toutes les BP dans un fichier JSON téléchargé.
+  // Export de secours : tous les signalements dans un fichier JSON téléchargé.
   $("exportBps").onclick = () => {
-    if (!state.bps.length) return toast("Aucune BP à sauvegarder");
+    if (!state.bps.length) return toast("Aucun signalement à sauvegarder");
     const data = JSON.stringify(
       { app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps },
       null,
@@ -115,10 +115,11 @@ function bind() {
     a.download = `brigade-verte-bp-${state.date || new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
-    toast(state.bps.length + " BP sauvegardées 💾");
+    const n = state.bps.length;
+    toast(n + " signalement" + (n > 1 ? "s" : "") + " sauvegardé" + (n > 1 ? "s" : ""));
   };
 
-  // 📂 Import : recharge les BP depuis un fichier exporté.
+  // Import : recharge les signalements depuis un fichier exporté (validé strictement).
   $("importBps").onclick = () => $("importFile").click();
   $("importFile").onchange = async () => {
     const file = $("importFile").files[0];
@@ -126,19 +127,29 @@ function bind() {
     if (!file) return;
     try {
       const json = JSON.parse(await file.text());
-      const bps = Array.isArray(json) ? json : json.bps;
-      if (!Array.isArray(bps) || !bps.every((b) => b && b.rue && b.secteur)) {
-        return toast("Fichier non reconnu");
-      }
-      if (state.bps.length && !confirm(`Remplacer les ${state.bps.length} BP actuelles par les ${bps.length} BP du fichier ?`)) {
+      const raw = Array.isArray(json) ? json : json && json.bps;
+      if (!Array.isArray(raw)) return toast("Fichier non reconnu");
+      // Nettoyage/normalisation : on ne garde que des entrées valides et typées.
+      const clean = raw
+        .filter((b) => b && typeof b === "object" && b.rue && b.secteur)
+        .map((b) => ({
+          rue: String(b.rue),
+          numero: b.numero != null ? String(b.numero) : "",
+          secteur: String(b.secteur),
+          wastes: Array.isArray(b.wastes) ? b.wastes.map(String) : [],
+          precisions: Array.isArray(b.precisions) ? b.precisions.map(String) : [],
+        }));
+      if (!clean.length) return toast("Aucun signalement valide dans le fichier");
+      if (state.bps.length && !confirm(`Remplacer les ${state.bps.length} signalement(s) actuels par les ${clean.length} du fichier ?`)) {
         return;
       }
-      state.bps = bps;
+      state.bps = clean;
       state.mailCustom = "";
       renderBps();
       generateMail();
       save();
-      toast(bps.length + " BP rechargées 📂");
+      const n = clean.length;
+      toast(n + " signalement" + (n > 1 ? "s" : "") + " rechargé" + (n > 1 ? "s" : ""));
     } catch (e) {
       toast("Fichier illisible");
     }
@@ -147,7 +158,7 @@ function bind() {
   $("copyMail").onclick = async () => {
     try {
       await navigator.clipboard.writeText($("mail").textContent);
-      toast("Texte copié ✅");
+      toast("Texte copié");
     } catch (e) {
       toast("Copie impossible");
     }
@@ -165,9 +176,9 @@ function bind() {
     if (params.length > 1800) {
       try {
         await navigator.clipboard.writeText(body);
-        toast("Texte trop long pour le mail direct — copié à la place 📋");
+        toast("Texte trop long pour le mail direct — copié à la place.");
       } catch (e) {
-        toast("Texte trop long — utilise 📋 Copier");
+        toast("Texte trop long — utilisez « Copier le texte ».");
       }
       return;
     }
@@ -193,16 +204,16 @@ function bind() {
     const editing = mailEl.getAttribute("contenteditable") === "true";
     if (editing) {
       mailEl.setAttribute("contenteditable", "false");
-      btn.textContent = "✏ Modifier le texte";
+      btn.textContent = "Modifier le texte";
       btn.classList.remove("on");
       const txt = mailEl.innerText.trim();
       state.mailCustom = txt;
       generateMail();
       save();
-      toast("Texte enregistré ✅");
+      toast("Texte enregistré");
     } else {
       mailEl.setAttribute("contenteditable", "true");
-      btn.textContent = "✔ Terminer";
+      btn.textContent = "Terminer";
       btn.classList.add("on");
       mailEl.focus();
       toast("Tape directement dans le texte");
@@ -217,7 +228,7 @@ function bind() {
     state.mailCustom = "";
     const mailEl = $("mail");
     mailEl.setAttribute("contenteditable", "false");
-    $("editMail").textContent = "✏ Modifier le texte";
+    $("editMail").textContent = "Modifier le texte";
     $("editMail").classList.remove("on");
     generateMail();
     save();
@@ -265,11 +276,20 @@ function registerServiceWorker() {
   // une fois automatiquement pour que HTML et JavaScript restent synchronisés.
   const hadController = !!navigator.serviceWorker.controller;
   let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!hadController || reloaded) return;
+  const doReload = () => {
     reloaded = true;
     window.location.reload();
+  };
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController || reloaded) return;
+    // Nouvelle version installée : on la signale via un bandeau plutôt que de
+    // recharger brutalement, pour ne jamais interrompre une saisie en cours.
+    const bar = document.getElementById("updateBanner");
+    if (bar) bar.hidden = false;
+    else doReload();
   });
+  const reloadBtn = document.getElementById("updateReload");
+  if (reloadBtn) reloadBtn.onclick = doReload;
   const register = () => {
     navigator.serviceWorker.register("service-worker.js").catch(() => {});
   };

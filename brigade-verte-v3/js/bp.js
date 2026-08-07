@@ -196,13 +196,26 @@ export function duplicateBp(i) {
 }
 
 export function delBp(i) {
-  if (confirm("Supprimer cette BP ?")) {
-    state.bps.splice(i, 1);
-    state.mailCustom = "";
-    renderBps();
-    generateMail();
-    save();
-  }
+  // Suppression non intrusive : on retire tout de suite et on propose d'annuler
+  // via un toast (soft-delete), au lieu d'une fenêtre de confirmation bloquante.
+  const removed = state.bps[i];
+  if (!removed) return;
+  state.bps.splice(i, 1);
+  state.mailCustom = "";
+  renderBps();
+  generateMail();
+  save();
+  toast("Signalement supprimé", {
+    label: "Annuler",
+    onClick: () => {
+      state.bps.splice(Math.min(i, state.bps.length), 0, removed);
+      state.mailCustom = "";
+      renderBps();
+      generateMail();
+      save();
+      toast("Suppression annulée");
+    },
+  });
 }
 
 export function duplicateLastAddress() {
@@ -238,4 +251,7 @@ export function renderBps() {
   listMobileEl.innerHTML = html;
   bindBpActions(listEl, handlers);
   bindBpActions(listMobileEl, handlers);
+  // Densité desktop : masque la colonne droite tant qu'aucun signalement n'existe.
+  const mainEl = $("main");
+  if (mainEl) mainEl.classList.toggle("no-bps", state.bps.length === 0);
 }

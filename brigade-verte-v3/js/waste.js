@@ -8,6 +8,7 @@ import { toast } from "./ui.js";
 import { renderSummary } from "./bp.js";
 
 let DECHETS_LIST = [];
+let wasteLoadFailed = false;
 
 export async function loadWaste() {
   try {
@@ -16,8 +17,10 @@ export async function loadWaste() {
     DECHETS_LIST = [...new Set(Object.values(categories).flat())].sort((a, b) =>
       a.localeCompare(b, "fr"),
     );
+    wasteLoadFailed = false;
   } catch (e) {
     DECHETS_LIST = [];
+    wasteLoadFailed = true;
   }
 }
 
@@ -27,7 +30,10 @@ export function showWaste(query) {
   const nq = query.trim();
   const list = nq ? fuzzySearch(DECHETS_LIST, nq, (d) => d, 12) : DECHETS_LIST.slice(0, 12);
   if (!list.length) {
-    showSuggestions(box, [], "Aucun résultat. Appuie sur Ajouter pour reprendre le texte tapé.");
+    const emptyMsg = wasteLoadFailed
+      ? "Liste des déchets indisponible. Saisissez le déchet à la main puis touchez « Ajouter »."
+      : "Aucun résultat. Touchez « Ajouter » pour reprendre le texte tapé.";
+    showSuggestions(box, [], emptyMsg);
     input.setAttribute("aria-expanded", "true");
     return;
   }

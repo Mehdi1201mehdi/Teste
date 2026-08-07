@@ -9,13 +9,16 @@ import { COLOR, resolveSector } from "./sectors.js";
 import { setSector } from "./bp.js";
 
 let RUES = [];
+let loadFailed = false;
 
 export async function loadStreets() {
   try {
     const r = await fetch("data/streets.json");
     RUES = await r.json();
+    loadFailed = false;
   } catch (e) {
     RUES = [];
+    loadFailed = true;
   }
 }
 
@@ -40,7 +43,10 @@ export function showRueSuggest(query) {
     return;
   }
   const list = fuzzySearch(RUES, query, (r) => r.rue, 12);
-  showSuggestions(box, list.map(suggestEntry), "Aucune rue trouvée.");
+  const emptyMsg = loadFailed
+    ? "Impossible de charger la liste des rues. Vérifiez la connexion, puis rouvrez l'application."
+    : "Aucune rue trouvée. Vérifiez l'orthographe.";
+  showSuggestions(box, list.map(suggestEntry), emptyMsg);
   input.setAttribute("aria-expanded", "true");
 }
 

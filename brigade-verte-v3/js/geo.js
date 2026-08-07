@@ -41,9 +41,24 @@ export async function locateNearestStreets() {
   } catch (e) {
     /* API permissions absente (vieux Safari) : on tente directement */
   }
+  const btn = $("locateBtn");
+  const original = btn ? btn.innerHTML : "";
+  const setLoading = (on) => {
+    if (!btn) return;
+    btn.disabled = on;
+    if (on) {
+      btn.setAttribute("aria-busy", "true");
+      btn.textContent = "Localisation en cours…";
+    } else {
+      btn.removeAttribute("aria-busy");
+      btn.innerHTML = original;
+    }
+  };
+  setLoading(true);
   toast("Recherche de votre position…");
   navigator.geolocation.getCurrentPosition(
     (pos) => {
+      setLoading(false);
       const { latitude, longitude } = pos.coords;
       const streets = getStreets().filter((r) => r.lat && r.lon);
       if (!streets.length) {
@@ -63,6 +78,7 @@ export async function locateNearestStreets() {
       toast("Touchez votre rue dans la liste.");
     },
     (err) => {
+      setLoading(false);
       if (err.code === err.PERMISSION_DENIED) {
         toast("GPS refusé — autorise la localisation dans les réglages du téléphone");
       } else if (err.code === err.POSITION_UNAVAILABLE) {

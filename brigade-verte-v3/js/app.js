@@ -1,7 +1,7 @@
 // Point d'entrée : charge les données, restaure l'état, branche les événements,
 // et démarre le rendu. Chaque module reste responsable de son propre domaine.
 
-import { $ } from "./utils.js";
+import { $, todayISO } from "./utils.js";
 import { state, load, save } from "./storage.js";
 import { toast, initOfflineBanner } from "./ui.js";
 import { go, initRouter, renderStatus } from "./router.js";
@@ -42,7 +42,9 @@ function applyGpsSetting() {
 function bind() {
   initSectors();
 
-  $("date").value = state.date || new Date().toISOString().slice(0, 10);
+  // La date se règle automatiquement sur le jour courant à chaque ouverture.
+  $("date").value = todayISO();
+  state.date = $("date").value;
   $("date").onchange = () => {
     generateMail();
     save();
@@ -112,7 +114,7 @@ function bind() {
     const blob = new Blob([data], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `brigade-verte-bp-${state.date || new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `brigade-verte-bp-${state.date || todayISO()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
     const n = state.bps.length;

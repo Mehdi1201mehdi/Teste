@@ -26,3 +26,9 @@ export function esc(s) {
 export function nowHM() {
   return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
+
+/** Date du jour au format AAAA-MM-JJ en heure LOCALE (évite le décalage UTC le soir). */
+export function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}

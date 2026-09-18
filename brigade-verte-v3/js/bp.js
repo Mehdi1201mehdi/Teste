@@ -218,6 +218,33 @@ export function delBp(i) {
   });
 }
 
+/**
+ * Fin de tournée : supprime définitivement tous les signalements enregistrés
+ * (contrairement à resetCurrent, qui ne touche que la saisie en cours).
+ * Double confirmation avec rappel d'envoi, comme les autres actions
+ * destructives de l'appli.
+ */
+export function clearAllBps() {
+  const n = state.bps.length;
+  if (!n) return toast("Aucun signalement à effacer — déjà vide");
+  if (
+    !confirm(
+      `Tu as ${n} signalement${n > 1 ? "s" : ""} enregistré${n > 1 ? "s" : ""}.\n\nAs-tu bien envoyé ou sauvegardé le message ?\n\nContinuer effacera TOUT définitivement.`,
+    )
+  ) {
+    return;
+  }
+  if (!confirm(`Dernière confirmation : supprimer définitivement ${n} signalement${n > 1 ? "s" : ""} ?`)) return;
+  state.bps = [];
+  state.mailCustom = "";
+  state.editing = null;
+  renderBps();
+  generateMail();
+  save();
+  toast("Tournée terminée — tout est remis à zéro");
+  go(1);
+}
+
 export function duplicateLastAddress() {
   const last = state.bps[state.bps.length - 1];
   if (!last) return toast("Aucune BP précédente");

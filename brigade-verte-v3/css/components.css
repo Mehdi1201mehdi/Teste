@@ -733,3 +733,19 @@ abbr[title] {
   padding: 0 16px;
   flex: 0 0 auto;
 }
+
+/* ==========================================================================
+   Fin de tournée — supprime tous les signalements enregistrés
+   Zone volontairement séparée du reste des actions (rappel + action rouge)
+   pour ne jamais être confondue avec les boutons d'usage courant.
+   ========================================================================== */
+.endShift {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+
+.endShift .hint {
+  text-align: center;
+  margin: 0 0 10px;
+}

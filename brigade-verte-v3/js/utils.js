@@ -32,3 +32,18 @@ export function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+/**
+ * Détecte la plateforme pour adapter l'ouverture du message : sur mobile
+ * (iPhone, Android — quelle que soit la marque), on tente l'appli Outlook
+ * via son lien direct ; sur PC (Windows, Mac, Linux), on passe directement
+ * par l'appli mail par défaut du système, plus fiable qu'un lien d'appli
+ * qui n'existe pas sur ces plateformes.
+ */
+export function detectPlatform() {
+  const ua = navigator.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (isIOS) return "ios";
+  if (/Android/.test(ua)) return "android";
+  return "desktop";
+}

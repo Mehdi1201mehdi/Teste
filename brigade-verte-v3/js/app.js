@@ -1,7 +1,7 @@
 // Point d'entrée : charge les données, restaure l'état, branche les événements,
 // et démarre le rendu. Chaque module reste responsable de son propre domaine.
 
-import { $, todayISO } from "./utils.js";
+import { $, todayISO, detectPlatform } from "./utils.js";
 import { state, load, save } from "./storage.js";
 import { toast, initOfflineBanner } from "./ui.js";
 import { go, initRouter, renderStatus } from "./router.js";
@@ -16,6 +16,7 @@ import {
   resetCurrent,
   addBp,
   duplicateLastAddress,
+  clearAllBps,
   renderBps,
 } from "./bp.js";
 import { generateMail } from "./mail.js";
@@ -103,6 +104,10 @@ function bind() {
   };
   $("duplicateLast").onclick = duplicateLastAddress;
 
+  // Fin de tournée : supprime tous les signalements (différent de "Effacer la
+  // saisie en cours", qui ne touche que la saisie non validée).
+  $("clearAllBps").onclick = clearAllBps;
+
   // Export de secours : tous les signalements dans un fichier JSON téléchargé.
   $("exportBps").onclick = () => {
     if (!state.bps.length) return toast("Aucun signalement à sauvegarder");
@@ -166,25 +171,42 @@ function bind() {
     }
   };
 
-  // 📧 Ouvre Outlook avec l'objet et le texte pré-remplis.
-  // 1. Tente l'application Outlook (schéma ms-outlook://, mobile et PC).
-  // 2. Si Outlook ne s'ouvre pas en ~1,4 s, bascule sur mailto: (appli par défaut).
-  // 3. Si le texte est trop long pour une URL, il est copié à la place.
-  $("openMail").onclick = async () => {
+  // 📧 Ouvre Outlook avec l'objet et le texte pré-remplis, quel que soit
+  // l'appareil :
+  // - iPhone / Android (toutes marques) : tente d'abord l'appli Outlook via
+  //   son lien direct ms-outlook://compose ; si elle ne s'ouvre pas en
+  //   ~1,4 s (non installée), bascule sur l'appli mail par défaut du
+  //   téléphone (mailto:).
+  // - Windows / Mac / Linux : le lien d'appli mobile n'existe pas sur PC et
+  //   ferait perdre 1,4 s pour rien — on va directement à l'appli mail par
+  //   défaut du système (nouvel Outlook, Outlook classique ou autre).
+  // - Texte trop long pour tenir dans une URL : copié dans le presse-papier.
+  const mailParams = () => {
     const body = $("mail").textContent;
     const [a, m, j] = ($("date").value || "").split("-");
     const subject = a ? `Dépôts sauvages — îlotage du ${j}/${m}/${a}` : "Dépôts sauvages";
-    const params = `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    return { body, params: `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
+  };
+  const copyTooLong = async (body, reason) => {
+    try {
+      await navigator.clipboard.writeText(body);
+      toast(`${reason} — copié à la place.`);
+    } catch (e) {
+      toast(`${reason} — utilisez « Copier le texte ».`);
+    }
+  };
+
+  $("openMail").onclick = async () => {
+    const { body, params } = mailParams();
     if (params.length > 1800) {
-      try {
-        await navigator.clipboard.writeText(body);
-        toast("Texte trop long pour le mail direct — copié à la place.");
-      } catch (e) {
-        toast("Texte trop long — utilisez « Copier le texte ».");
-      }
+      await copyTooLong(body, "Texte trop long pour le mail direct");
       return;
     }
-    // Si Outlook s'ouvre, la page passe en arrière-plan et le repli est annulé.
+    if (detectPlatform() === "desktop") {
+      window.location.href = `mailto:?${params}`;
+      return;
+    }
+    // Sur mobile : si Outlook s'ouvre, la page passe en arrière-plan et le repli est annulé.
     const fallback = setTimeout(() => {
       window.location.href = `mailto:?${params}`;
     }, 1400);
@@ -196,6 +218,19 @@ function bind() {
     };
     document.addEventListener("visibilitychange", cancelFallback);
     window.location.href = `ms-outlook://compose?${params}`;
+  };
+
+  // 🌐 Repli universel : ouvre un brouillon dans Outlook sur le web, sans
+  // dépendre d'une appli installée ni d'un client mail par défaut réglé sur
+  // l'appareil — utile sur un PC partagé (mairie, service technique) où rien
+  // n'est configuré.
+  $("openMailWeb").onclick = async () => {
+    const { body, params } = mailParams();
+    if (params.length > 1800) {
+      await copyTooLong(body, "Texte trop long pour Outlook Web");
+      return;
+    }
+    window.open(`https://outlook.office.com/mail/deeplink/compose?${params}`, "_blank", "noopener");
   };
 
   // ✏ Modification manuelle du texte de la BP : un clic ouvre l'édition,

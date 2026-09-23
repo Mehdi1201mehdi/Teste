@@ -115,7 +115,7 @@ export function ticketHtml(bp, o) {
     <div class="ticketStub"><small>BP</small><b>${o.num}</b></div>
     <div class="ticketBody">
       <div class="ticketAddr">${esc(o.address)}</div>
-      <div class="ticketMeta"><span class="sectorChip">${esc(bp.secteur || "Secteur ?")}</span>${precs ? `<span>${esc(precs)}</span>` : ""}</div>
+      <div class="ticketMeta"><span class="sectorChip">${esc(bp.secteur || "Secteur ?")}</span>${o.quartier ? `<span>${esc(o.quartier)}</span>` : ""}${precs ? `<span>${esc(precs)}</span>` : ""}</div>
       ${wastes ? `<div class="ticketWaste">${wastes}</div>` : ""}
       ${actions}
     </div>

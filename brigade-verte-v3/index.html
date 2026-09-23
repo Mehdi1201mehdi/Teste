@@ -24,6 +24,7 @@
 <title>Brigade Verte · Amiens</title>
 
 <!-- Ordre : tokens → socle → structure → composants → territoire → mouvement -->
+<link rel="stylesheet" href="css/vendor/leaflet.css">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/layout.css">
@@ -99,7 +100,7 @@
 
     <!-- ═══ Territoire : carte de la tournée ═══ -->
     <section class="territory" id="territory" aria-label="Carte de la tournée">
-      <div class="map" id="map" role="img" aria-label="Carte des rues d'Amiens et des dépôts relevés"></div>
+      <div class="map" id="map" aria-label="Carte d'Amiens : quartiers, rues et dépôts relevés"></div>
 
       <div class="mapHud" id="mapHud">
         <div class="hudCount"><b id="hudCount">0</b><span id="hudCountLabel">dépôt relevé</span></div>
@@ -114,7 +115,7 @@
       <p class="mapHint" id="mapHint">Touchez la carte pour choisir une rue</p>
 
       <div class="mapPick" id="mapPick" role="dialog" aria-label="Rues proches du point touché" hidden>
-        <div class="mapPickHead"><span>Rues les plus proches</span><button type="button" class="iconBtn" id="mapPickClose" aria-label="Fermer"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button></div>
+        <div class="mapPickHead"><span id="mapPickTitle">Rues les plus proches</span><button type="button" class="iconBtn" id="mapPickClose" aria-label="Fermer"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button></div>
         <div class="mapPickList" id="mapPickList" role="listbox"></div>
       </div>
     </section>
@@ -158,6 +159,7 @@
                 <span class="placePin" aria-hidden="true"><svg class="icon"><use href="#i-map-pin"></use></svg></span>
                 <div class="placeText">
                   <b id="placeStreet">—</b>
+                  <span class="placeQuartier" id="placeQuartier" hidden></span>
                   <button type="button" class="sectorTag" id="sectorTag" aria-expanded="false" aria-controls="sectorPicker">
                     <span class="sectorSwatch" aria-hidden="true"></span><span id="sectorTagText">Secteur ?</span><svg class="icon" aria-hidden="true"><use href="#i-chevron"></use></svg>
                   </button>
@@ -244,6 +246,7 @@
             <p class="eyebrow">Rapport de tournée</p>
             <h2 class="viewTitle" id="reportTitle">Îlotage du —</h2>
             <div class="reportStats" id="reportStats"></div>
+            <div class="reportQuartiers" id="reportQuartiers" hidden></div>
           </header>
 
           <div class="reportEmpty" id="reportEmpty" hidden>
@@ -342,6 +345,7 @@
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
+<script defer src="js/vendor/leaflet.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

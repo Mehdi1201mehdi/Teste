@@ -3,20 +3,26 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v4.0.0";
+const VERSION = "v4.1.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
+// Tuiles du Plan IGN : cache persistant entre versions, borné (~700 tuiles ≈ 20 Mo).
+// Les rues déjà vues restent affichées hors connexion.
+const TILE_CACHE = "brigade-verte-tiles-ign";
+const TILE_MAX = 700;
 
 const SHELL_ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
+  "./css/vendor/leaflet.css",
   "./css/tokens.css",
   "./css/base.css",
   "./css/layout.css",
   "./css/components.css",
   "./css/map.css",
   "./css/animations.css",
+  "./js/vendor/leaflet.js",
   "./js/app.js",
   "./js/api.js",
   "./js/bp.js",
@@ -45,7 +51,7 @@ const SHELL_ASSETS = [
   "./suivi/index.html",
 ];
 
-const DATA_ASSETS = ["./data/streets.json", "./data/waste.json"];
+const DATA_ASSETS = ["./data/streets.json", "./data/waste.json", "./data/quartiers.geojson", "./data/secteurs.geojson"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -65,7 +71,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key !== SHELL_CACHE && key !== DATA_CACHE)
+          .filter((key) => key !== SHELL_CACHE && key !== DATA_CACHE && key !== TILE_CACHE)
           .map((key) => caches.delete(key)),
       );
       await self.clients.claim();
@@ -99,9 +105,34 @@ async function cacheFirst(request, cacheName) {
   return response;
 }
 
+async function tileCacheFirst(request) {
+  const cache = await caches.open(TILE_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  try {
+    const response = await fetch(request);
+    // Uniquement des réponses CORS lisibles (jamais d'opaques : elles gonflent le quota).
+    if (response.ok && response.type === "cors") {
+      await cache.put(request, response.clone());
+      const keys = await cache.keys();
+      if (keys.length > TILE_MAX) {
+        await Promise.all(keys.slice(0, keys.length - TILE_MAX).map((k) => cache.delete(k)));
+      }
+    }
+    return response;
+  } catch (e) {
+    return cached || Response.error();
+  }
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  if (request.method === "GET" && url.hostname === "data.geopf.fr" && url.searchParams.get("REQUEST") === "GetTile") {
+    event.respondWith(tileCacheFirst(request));
+    return;
+  }
 
   if (request.method !== "GET" || url.origin !== self.location.origin) {
     return; // API externes et requêtes non-GET : réseau direct, sans interception.

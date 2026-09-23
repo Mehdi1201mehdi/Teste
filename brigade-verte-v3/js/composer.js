@@ -72,6 +72,9 @@ function renderPlace() {
   $("streetClear").hidden = !$("streetInput").value;
   if (!c.rue) return;
   $("placeStreet").textContent = c.rue.rue;
+  const quartier = map.quartierOfStreet(c.rue.rue);
+  $("placeQuartier").hidden = !quartier;
+  $("placeQuartier").textContent = quartier ? "Quartier " + quartier : "";
   const tag = $("sectorTag");
   tag.setAttribute("style", secStyle(c.secteur));
   $("sectorTagText").innerHTML = c.secteur
@@ -220,7 +223,7 @@ function renderPreview() {
     $("linePreview").textContent = "—";
     return;
   }
-  $("ticketPreview").innerHTML = ticketHtml(bp, { num, address: adresseText(bp), preview: true });
+  $("ticketPreview").innerHTML = ticketHtml(bp, { num, address: adresseText(bp), quartier: map.quartierOfStreet(bp.rue), preview: true });
   $("linePreview").textContent = mailLine(bp);
 }
 

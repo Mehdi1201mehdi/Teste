@@ -1,47 +1,115 @@
-// Territoire : carte d'Amiens tracée à partir de data/streets.json.
-// · Une rue = un point lumineux, teinté par secteur (5 tracés SVG seulement :
-//   rendu instantané, même sur un vieux téléphone).
-// · Les dépôts relevés sont des balises numérotées en HTML, de taille constante.
-// · Toucher la carte propose les rues les plus proches (sans jamais choisir
-//   à la place de l'agent) ; glisser déplace, pincer ou molette zoome.
-// Aucune tuile ni service externe : fonctionne hors connexion.
+// Territoire : vraie carte d'Amiens.
+// · Fond : Plan IGN (Géoplateforme, gratuit, sans clé), adouci aux couleurs de l'app.
+// · Quartiers : les 27 quartiers officiels d'Amiens Métropole (data/quartiers.geojson),
+//   teintés par secteur Brigade Verte, avec leur nom ; limites de secteur en pointillé.
+// · Dépôts : balises orange numérotées ; rue choisie : mire ; agent : point GPS.
+// · Hors connexion : si le fond IGN ne charge pas, les 1 437 rues embarquées
+//   s'affichent en points — la carte reste utilisable sans réseau.
+// Toucher la carte propose les rues les plus proches (jamais de choix imposé).
+// Moteur : Leaflet 1.9 (embarqué dans js/vendor), gestes natifs iOS / Android / souris.
 
-import { SECTEURS, TITRE } from "./sectors.js";
 import { esc } from "./utils.js";
 
-const NS = "http://www.w3.org/2000/svg";
-const K = 111320; // mètres par degré de latitude
+const L = window.L;
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-let host, svg, overlay, markers, labelsEl;
+// Couleurs de secteur sur fond clair (identiques à tokens.css)
+const SEC = { CENTRE: "#6b4fc8", OUEST: "#2563a8", NORD: "#2e7d4f", EST: "#b8412f", SUD: "#9a6210" };
+const SEC_NONE = "#6b7280";
+
+const IGN_URL =
+  "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0" +
+  "&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&FORMAT=image/png" +
+  "&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
+
+let host, map;
 let streets = [];
 let byName = new Map();
-let lat0 = 49.9, lon0 = 2.29, cosLat = Math.cos((lat0 * Math.PI) / 180);
-let world = { minX: 0, minY: 0, maxX: 1, maxY: 1 };
-let view = { x: 0, y: 0, w: 1, h: 1 };
-let size = { w: 1, h: 1 };
+let quartiers = []; // [{ nom, secteur, layer, rings }]
+let quartierLayer, labelLayer, dotLayer, markerLayer;
 let onPick = () => {};
 let pinClick = () => {};
-let anim = 0;
 let targetStreet = null;
-let mePoint = null;
-let probePoint = null;
+let targetMarker = null;
+let meMarker = null;
+let probeMarker = null;
 let pinsData = [];
-let newPinIndex = -1;
-let editingIndex = null;
+let pinMarkers = [];
+let hotQuartier = null;
+let tileErrors = 0;
+let tilesOk = false;
 
-/* ───────────── Projection ───────────── */
-const project = (lon, lat) => [(lon - lon0) * cosLat * K, (lat0 - lat) * K];
-const unproject = (x, y) => [x / (cosLat * K) + lon0, lat0 - y / K];
-const toScreen = (x, y) => [((x - view.x) / view.w) * size.w, ((y - view.y) / view.h) * size.h];
-const toWorld = (sx, sy) => [view.x + (sx / size.w) * view.w, view.y + (sy / size.h) * view.h];
-
-function el(name, attrs = {}, parent) {
-  const n = document.createElementNS(NS, name);
-  for (const k in attrs) n.setAttribute(k, attrs[k]);
-  if (parent) parent.appendChild(n);
-  return n;
+/* ───────────── Géométrie ───────────── */
+function pointInRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0],
+      yi = ring[i][1],
+      xj = ring[j][0],
+      yj = ring[j][1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
 }
+
+/** Point dans un (Multi)Polygon GeoJSON [lon, lat]. */
+export function pointInGeometry(lon, lat, geom) {
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  return polys.some((poly) => pointInRing(lon, lat, poly[0]) && !poly.slice(1).some((h) => pointInRing(lon, lat, h)));
+}
+
+/** Point d'étiquette : centre de l'anneau principal, ramené dans le polygone si besoin. */
+function labelPoint(geom) {
+  const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+  let best = polys[0][0];
+  let bestArea = 0;
+  polys.forEach((p) => {
+    const r = p[0];
+    let a = 0;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) a += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]);
+    if (Math.abs(a) > bestArea) {
+      bestArea = Math.abs(a);
+      best = r;
+    }
+  });
+  let cx = 0;
+  let cy = 0;
+  best.forEach(([x, y]) => {
+    cx += x;
+    cy += y;
+  });
+  cx /= best.length;
+  cy /= best.length;
+  if (pointInRing(cx, cy, best)) return [cy, cx];
+  // Repli : balayage horizontal au niveau du centre, milieu du plus long segment intérieur.
+  const xs = [];
+  for (let i = 0, j = best.length - 1; i < best.length; j = i++) {
+    const [xi, yi] = best[i];
+    const [xj, yj] = best[j];
+    if (yi > cy !== yj > cy) xs.push(xi + ((cy - yi) * (xj - xi)) / (yj - yi));
+  }
+  xs.sort((a, b) => a - b);
+  let mid = cx;
+  let span = 0;
+  for (let k = 0; k + 1 < xs.length; k += 2) {
+    if (xs[k + 1] - xs[k] > span) {
+      span = xs[k + 1] - xs[k];
+      mid = (xs[k] + xs[k + 1]) / 2;
+    }
+  }
+  return [cy, mid];
+}
+
+function distM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const r = Math.PI / 180;
+  const dLat = (lat2 - lat1) * r;
+  const dLon = (lon2 - lon1) * r;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+const firstSector = (s) => String(s || "").split(",")[0].trim().toUpperCase();
 
 /* ───────────── Initialisation ───────────── */
 export function initMap(container, data, opts = {}) {
@@ -50,276 +118,276 @@ export function initMap(container, data, opts = {}) {
   pinClick = opts.onPinClick || pinClick;
   streets = (data || []).filter((r) => typeof r.lat === "number" && typeof r.lon === "number");
   byName = new Map(streets.map((r) => [r.rue, r]));
-  if (!streets.length) {
+  if (!L) {
     host.innerHTML = "";
     return;
   }
 
-  const lats = streets.map((r) => r.lat);
-  const lons = streets.map((r) => r.lon);
-  lat0 = (Math.min(...lats) + Math.max(...lats)) / 2;
-  lon0 = (Math.min(...lons) + Math.max(...lons)) / 2;
-  cosLat = Math.cos((lat0 * Math.PI) / 180);
-  streets.forEach((r) => {
-    const [x, y] = project(r.lon, r.lat);
-    r._x = x;
-    r._y = y;
+  map = L.map(host, {
+    zoomControl: false,
+    attributionControl: true,
+    minZoom: 11,
+    maxZoom: 19,
+    zoomSnap: 0.25,
+    zoomDelta: 0.5,
+    wheelPxPerZoomLevel: 90,
+    bounceAtZoomLimits: false,
+    maxBounds: L.latLngBounds([49.8, 2.12], [50.0, 2.46]),
+    maxBoundsViscosity: 0.8,
+    fadeAnimation: !reduceMotion(),
+    zoomAnimation: !reduceMotion(),
+    markerZoomAnimation: !reduceMotion(),
   });
-  const xs = streets.map((r) => r._x);
-  const ys = streets.map((r) => r._y);
-  world = { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+  map.attributionControl.setPrefix(false);
 
-  host.innerHTML = "";
-  svg = el("svg", { "aria-hidden": "true", focusable: "false", preserveAspectRatio: "none" }, host);
-
-  // Graticule tous les 500 m, légèrement débordant
-  const grid = el("g", { class: "grid" }, svg);
-  const step = 500;
-  const gx0 = Math.floor((world.minX - 3000) / step) * step;
-  const gy0 = Math.floor((world.minY - 3000) / step) * step;
-  for (let x = gx0; x <= world.maxX + 3000; x += step) el("line", { x1: x, x2: x, y1: gy0, y2: world.maxY + 3000 }, grid);
-  for (let y = gy0; y <= world.maxY + 3000; y += step) el("line", { y1: y, y2: y, x1: gx0, x2: world.maxX + 3000 }, grid);
-
-  // Rues : un tracé par secteur, chaque point = segment de longueur nulle à bout rond
-  const g = el("g", { class: "streets" }, svg);
-  [...SECTEURS, null].forEach((s) => {
-    const d = streets
-      .filter((r) => (r.secteur || null) === s)
-      .map((r) => `M${r._x.toFixed(1)} ${r._y.toFixed(1)}h0`)
-      .join("");
-    if (!d) return;
-    el("path", {
-      d,
-      class: `street s-${s || "none"}`,
-      fill: "none",
-      stroke: "currentColor",
-      "stroke-linecap": "round",
-      "stroke-width": "4",
-      "vector-effect": "non-scaling-stroke",
-    }, g);
+  // Fond IGN
+  const tiles = L.tileLayer(IGN_URL, {
+    maxZoom: 19,
+    maxNativeZoom: 19,
+    crossOrigin: "anonymous",
+    className: "ignTiles",
+    attribution: "© IGN – Géoplateforme · Quartiers © Amiens Métropole",
+    keepBuffer: 3,
   });
+  tiles.on("tileload", () => {
+    if (tilesOk) return;
+    tilesOk = true;
+    host.classList.add("has-tiles");
+    host.classList.remove("no-tiles");
+    syncDots();
+  });
+  tiles.on("tileerror", () => {
+    tileErrors++;
+    if (!tilesOk && tileErrors > 3) {
+      host.classList.add("no-tiles");
+      syncDots();
+    }
+  });
+  tiles.addTo(map);
+  if (!navigator.onLine) host.classList.add("no-tiles");
 
-  overlay = document.createElement("div");
-  overlay.className = "pins";
-  host.appendChild(overlay);
-  labelsEl = document.createElement("div");
-  labelsEl.className = "mapLabels";
-  overlay.appendChild(labelsEl);
-  markers = document.createElement("div");
-  markers.className = "markers";
-  overlay.appendChild(markers);
+  // Rues en points (visibles seulement si le fond ne charge pas — voir map.css)
+  const renderer = L.canvas({ padding: 0.3 });
+  dotLayer = L.layerGroup(
+    streets.map((r) =>
+      L.circleMarker([r.lat, r.lon], {
+        renderer,
+        radius: 2.4,
+        stroke: false,
+        fillColor: SEC[r.secteur] || SEC_NONE,
+        fillOpacity: 0.75,
+        interactive: false,
+        className: "streetDot",
+      }),
+    ),
+  );
+  dotLayer.addTo(map);
+  syncDots();
 
-  buildSectorLabels();
-  bindGestures();
-  new ResizeObserver(() => resize()).observe(host);
-  resize(true);
+  quartierLayer = L.layerGroup().addTo(map);
+  labelLayer = L.layerGroup().addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+
+  map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
+  map.on("click", onMapClick);
+  map.on("zoomend", syncLabels);
+
+  new ResizeObserver(() => map.invalidateSize({ pan: false })).observe(host);
+  window.addEventListener("online", syncDots);
+  window.addEventListener("offline", syncDots);
 }
 
-function buildSectorLabels() {
-  labelsEl.innerHTML = SECTEURS.map((s) => {
-    const list = streets.filter((r) => r.secteur === s);
-    if (!list.length) return "";
-    const cx = list.reduce((a, r) => a + r._x, 0) / list.length;
-    const cy = list.reduce((a, r) => a + r._y, 0) / list.length;
-    return `<span class="sectorLabel s-${s}" data-x="${cx}" data-y="${cy}">${esc(TITRE[s].replace("Secteur ", ""))}</span>`;
-  }).join("");
+function syncDots() {
+  if (!host) return;
+  if (!navigator.onLine && !tilesOk) host.classList.add("no-tiles");
+  const show = host.classList.contains("no-tiles");
+  if (!dotLayer) return;
+  if (show && !map.hasLayer(dotLayer)) dotLayer.addTo(map);
+  if (!show && map.hasLayer(dotLayer)) map.removeLayer(dotLayer);
+}
+
+function cityBounds() {
+  if (quartiers.length) return L.featureGroup(quartiers.map((q) => q.layer)).getBounds();
+  if (streets.length) return L.latLngBounds(streets.map((r) => [r.lat, r.lon]));
+  return L.latLngBounds([49.85, 2.23], [49.95, 2.35]);
+}
+
+/** Charge les 27 quartiers officiels et les limites de secteurs (embarqués). */
+export async function loadAreas() {
+  if (!map) return;
+  try {
+    const [q, s] = await Promise.all([
+      fetch("data/quartiers.geojson").then((r) => r.json()),
+      fetch("data/secteurs.geojson").then((r) => r.json()),
+    ]);
+    // Limites de secteur : trait pointillé plus marqué
+    L.geoJSON(s, {
+      interactive: false,
+      style: () => ({ className: "sectorEdge", fill: false, color: "#111915", weight: 2, opacity: 0.45, dashArray: "6 5" }),
+    }).addTo(quartierLayer);
+
+    quartiers = q.features.map((f) => {
+      const sec = firstSector(f.properties.secteur);
+      const color = SEC[sec] || SEC_NONE;
+      const layer = L.geoJSON(f, {
+        interactive: false,
+        style: () => ({ className: "quartier", color, weight: 1.5, opacity: 0.7, fillColor: color, fillOpacity: 0.09 }),
+      });
+      layer.addTo(quartierLayer);
+      const [lat, lon] = labelPoint(f.geometry);
+      const label = L.marker([lat, lon], {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: "quartierLabel",
+          html: `<span style="--sec:${color}">${esc(f.properties.nom.replace(/\//g, " / "))}</span>`,
+          iconSize: null,
+        }),
+      });
+      label.addTo(labelLayer);
+      return { nom: f.properties.nom, secteur: sec, secteurs: f.properties.secteur, geom: f.geometry, layer, label, color };
+    });
+    syncLabels();
+    if (!pinsData.length && !targetStreet) map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
+  } catch (e) {
+    /* données absentes : la carte fonctionne sans les quartiers */
+  }
+}
+
+function syncLabels() {
+  if (!map) return;
+  const z = map.getZoom();
+  host.dataset.zoom = z >= 15 ? "near" : z >= 12.5 ? "mid" : "far";
+}
+
+/** Quartier officiel contenant un point (ou null). */
+export function quartierAt(lat, lon) {
+  const q = quartiers.find((x) => pointInGeometry(lon, lat, x.geom));
+  return q ? q.nom : null;
+}
+
+/** Quartier d'une rue (par son point de référence). */
+export function quartierOfStreet(name) {
+  const r = byName.get(name);
+  return r ? quartierAt(r.lat, r.lon) : null;
+}
+
+export const quartiersReady = () => quartiers.length > 0;
+
+function highlightQuartier(nom) {
+  hotQuartier = nom;
+  quartiers.forEach((q) => {
+    const on = q.nom === nom;
+    q.layer.setStyle({ fillOpacity: on ? 0.24 : 0.09, weight: on ? 3 : 1.5, opacity: on ? 1 : 0.7 });
+    q.label.getElement()?.classList.toggle("is-hot", on);
+  });
 }
 
 /* ───────────── Vue ───────────── */
-function fitView(pad = 0.08) {
-  const ww = world.maxX - world.minX;
-  const wh = world.maxY - world.minY;
-  const aspect = size.w / size.h;
-  let w = ww * (1 + pad * 2);
-  let h = wh * (1 + pad * 2);
-  if (w / h > aspect) h = w / aspect;
-  else w = h * aspect;
-  // Léger décalage vers le bas : le compteur occupe le coin supérieur gauche.
-  return { x: (world.minX + world.maxX) / 2 - w / 2 - w * 0.03, y: (world.minY + world.maxY) / 2 - h / 2 - h * 0.05, w, h };
-}
-
-function resize(first) {
-  const r = host.getBoundingClientRect();
-  if (r.width < 2 || r.height < 2) return;
-  const prev = { ...size };
-  size = { w: r.width, h: r.height };
-  if (first || !prev.w || prev.w < 2) {
-    view = fitView();
-  } else {
-    // conserve le centre et l'échelle horizontale
-    const cx = view.x + view.w / 2;
-    const cy = view.y + view.h / 2;
-    const scale = view.w / prev.w;
-    view = { w: size.w * scale, h: size.h * scale, x: 0, y: 0 };
-    view.x = cx - view.w / 2;
-    view.y = cy - view.h / 2;
-  }
-  apply();
-}
-
-function clampView(v) {
-  const fit = fitView(0.3);
-  const minW = 260; // zoom max ≈ 260 m de large
-  const w = Math.min(Math.max(v.w, minW), fit.w * 1.4);
-  const h = (w * size.h) / size.w;
-  const cx = Math.min(Math.max(v.x + v.w / 2, world.minX - 1500), world.maxX + 1500);
-  const cy = Math.min(Math.max(v.y + v.h / 2, world.minY - 1500), world.maxY + 1500);
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
-}
-
-function apply() {
-  if (!svg) return;
-  svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
-  // Densité des points : plus gros quand on zoome
-  const mPerPx = view.w / size.w;
-  const dot = mPerPx > 22 ? 3 : mPerPx > 10 ? 4 : mPerPx > 4 ? 6 : 8;
-  svg.style.setProperty("--dot", dot);
-  svg.querySelectorAll(".street").forEach((p) => p.setAttribute("stroke-width", dot));
-  placeOverlay();
-}
-
-function animateTo(target, dur = 420) {
-  cancelAnimationFrame(anim);
-  target = clampView(target);
-  if (reduceMotion()) {
-    view = target;
-    apply();
-    return;
-  }
-  const from = { ...view };
-  const t0 = performance.now();
-  const ease = (t) => 1 - Math.pow(1 - t, 3);
-  const step = (now) => {
-    const t = Math.min(1, (now - t0) / dur);
-    const e = ease(t);
-    view = {
-      x: from.x + (target.x - from.x) * e,
-      y: from.y + (target.y - from.y) * e,
-      w: from.w + (target.w - from.w) * e,
-      h: from.h + (target.h - from.h) * e,
-    };
-    apply();
-    if (t < 1) anim = requestAnimationFrame(step);
-  };
-  anim = requestAnimationFrame(step);
+function flyTo(lat, lon, zoom) {
+  if (!map) return;
+  const z = Math.max(map.getZoom(), zoom);
+  if (reduceMotion()) map.setView([lat, lon], z, { animate: false });
+  else map.flyTo([lat, lon], z, { duration: 0.6, easeLinearity: 0.3 });
 }
 
 export function fit() {
-  if (!svg) return;
-  animateTo(fitView());
+  if (!map) return;
+  highlightQuartier(null);
+  map.flyToBounds(cityBounds(), { padding: [16, 16], duration: reduceMotion() ? 0 : 0.6 });
 }
 
-/** Cadre la vue sur les dépôts de la tournée (ou toute la ville s'il n'y en a pas). */
+/** Cadre la tournée : toutes les balises visibles. */
 export function fitPins() {
-  if (!svg) return;
+  if (!map) return;
   const pts = pinsData.map((p) => byName.get(p.rue)).filter(Boolean);
-  if (!pts.length) return animateTo(fitView());
-  const xs = pts.map((r) => r._x);
-  const ys = pts.map((r) => r._y);
-  const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-  const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  const aspect = size.w / size.h;
-  let w = Math.max(Math.max(...xs) - Math.min(...xs), 1600) * 1.5;
-  let h = Math.max(Math.max(...ys) - Math.min(...ys), 1600 / aspect) * 1.5;
-  if (w / h > aspect) h = w / aspect;
-  else w = h * aspect;
-  animateTo({ x: cx - w / 2, y: cy - h / 2, w, h });
+  if (!pts.length) return fit();
+  const b = L.latLngBounds(pts.map((r) => [r.lat, r.lon]));
+  map.flyToBounds(b.pad(0.25), { padding: [40, 40], maxZoom: 16, duration: reduceMotion() ? 0 : 0.6 });
 }
 
-/** Centre la carte sur un point (mètres), avec une largeur de vue donnée. */
-function flyToWorld(x, y, width = 1600) {
-  const w = width;
-  const h = (w * size.h) / size.w;
-  animateTo({ x: x - w / 2, y: y - h / 2, w, h });
-}
-
-/* ───────────── Superposition HTML (balises, mire, étiquettes) ───────────── */
-function placeOverlay() {
-  if (!overlay) return;
-  const zoomed = view.w / size.w < 14;
-  labelsEl.querySelectorAll(".sectorLabel").forEach((n) => {
-    const [sx, sy] = toScreen(+n.dataset.x, +n.dataset.y);
-    n.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -50%)`;
-    n.classList.toggle("is-faded", zoomed);
+/* ───────────── Marqueurs ───────────── */
+function pinIcon(i, cls) {
+  return L.divIcon({
+    className: `marker pin ${cls}`,
+    html: `<svg viewBox="0 0 30 36" aria-hidden="true"><path class="body" d="M15 35s-12-11-12-20a12 12 0 0 1 24 0c0 9-12 20-12 20Z"/></svg><span>${i + 1}</span>`,
+    iconSize: [30, 36],
+    iconAnchor: [15, 35],
   });
-  markers.querySelectorAll("[data-wx]").forEach((n) => {
-    const [sx, sy] = toScreen(+n.dataset.wx, +n.dataset.wy);
-    const off = n.dataset.off ? n.dataset.off.split(",").map(Number) : [0, 0];
-    n.style.transform = `translate(${sx + off[0]}px, ${sy + off[1]}px)`;
-    const out = sx < -40 || sy < -40 || sx > size.w + 40 || sy > size.h + 60;
-    n.style.visibility = out ? "hidden" : "";
-  });
-}
-
-function renderMarkers() {
-  if (!markers) return;
-  const html = [];
-  if (probePoint) {
-    html.push(`<div class="marker probe" data-wx="${probePoint[0]}" data-wy="${probePoint[1]}"><i></i></div>`);
-  }
-  if (mePoint) {
-    html.push(`<div class="marker me" data-wx="${mePoint[0]}" data-wy="${mePoint[1]}"><i class="halo"></i><i class="dot"></i></div>`);
-  }
-  // Balises des dépôts (décalées en éventail si plusieurs dans la même rue)
-  const seen = new Map();
-  pinsData.forEach((p, i) => {
-    const r = byName.get(p.rue);
-    if (!r) return;
-    const k = seen.get(p.rue) || 0;
-    seen.set(p.rue, k + 1);
-    const ang = k * 2.4;
-    const rad = k ? 10 + k * 4 : 0;
-    const off = `${Math.round(Math.cos(ang) * rad)},${Math.round(Math.sin(ang) * rad)}`;
-    const cls = ["pin", i === newPinIndex ? "is-new" : "", i === editingIndex ? "is-editing" : ""].join(" ");
-    html.push(
-      `<button type="button" class="marker ${cls}" data-i="${i}" data-wx="${r._x}" data-wy="${r._y}" data-off="${off}" tabindex="-1" aria-hidden="true" title="${esc(p.label)}"><svg viewBox="0 0 30 36"><path class="body" d="M15 35s-12-11-12-20a12 12 0 0 1 24 0c0 9-12 20-12 20Z"/></svg><span>${i + 1}</span></button>`,
-    );
-  });
-  if (targetStreet) {
-    html.push(
-      `<div class="marker target" data-wx="${targetStreet._x}" data-wy="${targetStreet._y}"><i class="ring"></i><i class="ring r2"></i><i class="core"></i><i class="h"></i><i class="v"></i><b class="targetName">${esc(targetStreet.rue)}</b></div>`,
-    );
-  }
-  markers.innerHTML = html.join("");
-  markers.querySelectorAll(".pin").forEach((b) => {
-    b.addEventListener("pointerdown", (e) => e.stopPropagation());
-    b.onclick = (e) => {
-      e.stopPropagation();
-      pinClick(+b.dataset.i);
-    };
-  });
-  newPinIndex = -1;
-  placeOverlay();
 }
 
 /** Balises des dépôts : [{ rue, label }] dans l'ordre des BP. */
 export function setPins(list, { fresh = -1, editing = null } = {}) {
   pinsData = list || [];
-  newPinIndex = fresh;
-  editingIndex = editing;
-  renderMarkers();
+  if (!map) return;
+  pinMarkers.forEach((m) => markerLayer.removeLayer(m));
+  const seen = new Map();
+  pinMarkers = [];
+  pinsData.forEach((p, i) => {
+    const r = byName.get(p.rue);
+    if (!r) return;
+    // Plusieurs dépôts dans la même rue : éventail de quelques mètres
+    const k = seen.get(p.rue) || 0;
+    seen.set(p.rue, k + 1);
+    const ang = k * 2.4;
+    const off = k ? 0.00012 + k * 0.00004 : 0;
+    const cls = [i === fresh ? "is-new" : "", i === editing ? "is-editing" : ""].join(" ");
+    const m = L.marker([r.lat + Math.sin(ang) * off, r.lon + Math.cos(ang) * off * 1.5], {
+      icon: pinIcon(i, cls),
+      title: p.label,
+      keyboard: false,
+      riseOnHover: true,
+      zIndexOffset: 500 + i,
+    });
+    m.on("click", (e) => {
+      L.DomEvent.stopPropagation(e);
+      pinClick(i);
+    });
+    m.addTo(markerLayer);
+    pinMarkers.push(m);
+  });
 }
 
 /** Rue choisie : mire + vol vers elle. */
 export function setTarget(name, { fly = true } = {}) {
   targetStreet = name ? byName.get(name) || null : null;
-  probePoint = null;
-  renderMarkers();
-  if (targetStreet && fly) flyToWorld(targetStreet._x, targetStreet._y, 2200);
+  if (!map) return;
+  if (targetMarker) markerLayer.removeLayer(targetMarker);
+  targetMarker = null;
+  clearProbe();
+  if (!targetStreet) return;
+  targetMarker = L.marker([targetStreet.lat, targetStreet.lon], {
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 1000,
+    icon: L.divIcon({
+      className: "marker target",
+      html: `<i class="ring"></i><i class="ring r2"></i><i class="core"></i><b class="targetName">${esc(targetStreet.rue)}</b>`,
+      iconSize: [0, 0],
+    }),
+  }).addTo(markerLayer);
+  highlightQuartier(quartierAt(targetStreet.lat, targetStreet.lon));
+  if (fly) flyTo(targetStreet.lat, targetStreet.lon, 16);
 }
 
 export function setMe(lat, lon, { fly = true } = {}) {
-  if (!svg) return;
-  mePoint = project(lon, lat);
-  renderMarkers();
-  if (fly) flyToWorld(mePoint[0], mePoint[1], 1200);
+  if (!map) return;
+  if (meMarker) markerLayer.removeLayer(meMarker);
+  meMarker = L.marker([lat, lon], {
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: 900,
+    icon: L.divIcon({ className: "marker me", html: '<i class="halo"></i><i class="dot"></i>', iconSize: [0, 0] }),
+  }).addTo(markerLayer);
+  if (fly) flyTo(lat, lon, 16.5);
 }
 
-/** Estompe les autres secteurs (survol d'un secteur dans le rapport, choix manuel…). */
+/** Estompe les autres secteurs (survol d'un groupe dans le rapport, choix manuel…). */
 export function focusSector(s) {
-  if (!host) return;
-  if (s) host.dataset.focusSector = s;
-  else delete host.dataset.focusSector;
+  quartiers.forEach((q) => {
+    const on = !s || q.secteurs.toUpperCase().includes(s);
+    q.layer.setStyle({ fillOpacity: s ? (on ? 0.2 : 0.03) : q.nom === hotQuartier ? 0.24 : 0.09, opacity: on ? 0.8 : 0.25 });
+  });
 }
 
 export function streetByName(name) {
@@ -328,112 +396,32 @@ export function streetByName(name) {
 
 /** Les n rues les plus proches d'un point, avec la distance en mètres. */
 export function nearestStreets(lat, lon, n = 5) {
-  const [x, y] = project(lon, lat);
   return streets
-    .map((r) => ({ r, d: Math.hypot(r._x - x, r._y - y) }))
+    .map((r) => ({ r, d: distM(lat, lon, r.lat, r.lon) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, n);
 }
 
 export function clearProbe() {
-  if (!probePoint) return;
-  probePoint = null;
-  renderMarkers();
+  if (probeMarker && map) markerLayer.removeLayer(probeMarker);
+  probeMarker = null;
 }
 
-/* ───────────── Gestes : glisser, pincer, molette, toucher ───────────── */
-function bindGestures() {
-  const pts = new Map();
-  let start = null;
-  let pinch = null;
-
-  host.addEventListener("pointerdown", (e) => {
-    if (e.button !== undefined && e.button !== 0) return;
-    host.setPointerCapture?.(e.pointerId);
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    cancelAnimationFrame(anim);
-    if (pts.size === 1) {
-      start = { x: e.clientX, y: e.clientY, t: performance.now(), view: { ...view }, moved: false };
-    } else if (pts.size === 2) {
-      const [a, b] = [...pts.values()];
-      pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), view: { ...view }, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
-      if (start) start.moved = true;
-    }
-  });
-
-  host.addEventListener("pointermove", (e) => {
-    if (!pts.has(e.pointerId)) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    const rect = host.getBoundingClientRect();
-    if (pts.size >= 2 && pinch) {
-      const [a, b] = [...pts.values()];
-      const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
-      const k = pinch.d / d;
-      const [wx, wy] = [
-        pinch.view.x + ((pinch.cx - rect.left) / size.w) * pinch.view.w,
-        pinch.view.y + ((pinch.cy - rect.top) / size.h) * pinch.view.h,
-      ];
-      const w = pinch.view.w * k;
-      const h = pinch.view.h * k;
-      view = clampView({ x: wx - ((pinch.cx - rect.left) / size.w) * w, y: wy - ((pinch.cy - rect.top) / size.h) * h, w, h });
-      apply();
-    } else if (start) {
-      const dx = e.clientX - start.x;
-      const dy = e.clientY - start.y;
-      if (!start.moved && Math.hypot(dx, dy) > 6) {
-        start.moved = true;
-        host.classList.add("is-dragging");
-      }
-      if (start.moved) {
-        view = clampView({
-          ...start.view,
-          x: start.view.x - (dx / size.w) * start.view.w,
-          y: start.view.y - (dy / size.h) * start.view.h,
-        });
-        apply();
-      }
-    }
-  });
-
-  const end = (e) => {
-    if (!pts.has(e.pointerId)) return;
-    pts.delete(e.pointerId);
-    if (pts.size < 2) pinch = null;
-    if (pts.size === 0) {
-      host.classList.remove("is-dragging");
-      if (start && !start.moved && performance.now() - start.t < 500 && e.type === "pointerup") {
-        const rect = host.getBoundingClientRect();
-        tap(e.clientX - rect.left, e.clientY - rect.top);
-      }
-      start = null;
-    }
-  };
-  host.addEventListener("pointerup", end);
-  host.addEventListener("pointercancel", end);
-
-  host.addEventListener(
-    "wheel",
-    (e) => {
-      e.preventDefault();
-      cancelAnimationFrame(anim);
-      const rect = host.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const [wx, wy] = toWorld(sx, sy);
-      const k = Math.exp(e.deltaY * 0.0015);
-      const w = view.w * k;
-      const h = view.h * k;
-      view = clampView({ x: wx - (sx / size.w) * w, y: wy - (sy / size.h) * h, w, h });
-      apply();
-    },
-    { passive: false },
-  );
+function onMapClick(e) {
+  const { lat, lng } = e.latlng;
+  clearProbe();
+  probeMarker = L.marker([lat, lng], {
+    interactive: false,
+    keyboard: false,
+    icon: L.divIcon({ className: "marker probe", html: "<i></i>", iconSize: [0, 0] }),
+  }).addTo(markerLayer);
+  const quartier = quartierAt(lat, lng);
+  highlightQuartier(quartier);
+  onPick({ lat, lon: lng, quartier, list: nearestStreets(lat, lng, 5) });
 }
 
-function tap(sx, sy) {
-  const [x, y] = toWorld(sx, sy);
-  const [lon, lat] = unproject(x, y);
-  probePoint = [x, y];
-  renderMarkers();
-  onPick({ lat, lon, list: nearestStreets(lat, lon, 5) });
+/** Utilitaire de test / accessibilité : simule un toucher au centre de la vue. */
+export function pickCenter() {
+  if (!map) return;
+  onMapClick({ latlng: map.getCenter() });
 }

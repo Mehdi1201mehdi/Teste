@@ -2,7 +2,7 @@
 // Chaque module garde son domaine : composer (saisie), report (rapport),
 // map (territoire), router (navigation), storage (persistance).
 
-import { $, todayISO, stampDate, plural } from "./utils.js";
+import { $, esc, todayISO, stampDate, plural } from "./utils.js";
 import { state, load, save } from "./storage.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
@@ -141,8 +141,11 @@ function bindSettings() {
 }
 
 /* ─── Carte : toucher → rues proches ─── */
-function onMapPick({ list }) {
+function onMapPick({ list, quartier }) {
   const box = $("mapPick");
+  $("mapPickTitle").innerHTML = quartier
+    ? `Quartier <b>${esc(quartier)}</b> · rues proches`
+    : "Rues les plus proches";
   const listEl = $("mapPickList");
   if (!list.length) return;
   const narrow = window.matchMedia("(max-width: 1023px)").matches;
@@ -228,6 +231,14 @@ async function main() {
         setTimeout(() => t?.classList.remove("is-editing"), 1400);
       });
     },
+  });
+
+  // Quartiers officiels : chargés après la carte, puis tout est recalculé
+  // (quartier de la rue choisie, répartition par quartier du rapport).
+  map.loadAreas().then(() => {
+    changed();
+    if (state.current.rue) map.setTarget(state.current.rue.rue, { fly: false });
+    else if (state.bps.length) map.fitPins();
   });
 
   initComposer({ changed });

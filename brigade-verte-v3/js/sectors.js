@@ -1,7 +1,7 @@
 // Secteurs de la Brigade Verte : couleurs, titres, et résolution géographique
 // (point-in-polygon sur les contours WFS) avec repli sur le secteur de la rue.
 
-import { fetchSectorContours, geocodeAddress } from "./api.js";
+import { geocodeAddress } from "./api.js";
 
 export const SECTEURS = ["CENTRE", "OUEST", "NORD", "EST", "SUD"];
 
@@ -30,8 +30,14 @@ export const TITRE = {
 
 let secteursGeo = null;
 
+/** Contours officiels des 5 secteurs (Amiens Métropole), embarqués : hors ligne. */
 export async function loadSectorContours() {
-  secteursGeo = await fetchSectorContours();
+  try {
+    const r = await fetch("data/secteurs.geojson");
+    secteursGeo = r.ok ? await r.json() : null;
+  } catch (e) {
+    secteursGeo = null;
+  }
 }
 
 function pointInRing(pt, ring) {
@@ -50,36 +56,23 @@ function pointInRing(pt, ring) {
 
 function pointInPoly(pt, geom) {
   const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
-  for (const poly of polys) {
-    if (pointInRing(pt, poly[0])) {
-      let hole = false;
-      for (let k = 1; k < poly.length; k++) if (pointInRing(pt, poly[k])) hole = true;
-      if (!hole) return true;
-    }
-  }
-  return false;
+  return polys.some((poly) => pointInRing(pt, poly[0]) && !poly.slice(1).some((h) => pointInRing(pt, h)));
 }
 
-function propSector(p) {
-  const v = Object.values(p || {})
-    .map((x) => String(x || "").toUpperCase())
-    .join(" ");
-  for (const s of SECTEURS) if (v.includes(s)) return s;
-  return null;
-}
-
-function secteurDuPoint(lon, lat) {
-  if (secteursGeo) {
-    for (const f of secteursGeo.features || []) {
-      if (pointInPoly([lon, lat], f.geometry)) return propSector(f.properties) || null;
+/** Secteur contenant un point [lon, lat] — propriété « secteur » explicite. */
+export function secteurDuPoint(lon, lat) {
+  for (const f of secteursGeo?.features || []) {
+    if (pointInPoly([lon, lat], f.geometry)) {
+      const s = String(f.properties?.secteur || "").toUpperCase();
+      return SECTEURS.includes(s) ? s : null;
     }
   }
   return null;
 }
 
 /**
- * Détermine le secteur d'une adresse : géocodage + point-in-polygon si en ligne,
- * sinon repli immédiat sur le secteur déjà associé à la rue (mode hors ligne).
+ * Secteur réel d'une adresse : géocodage du numéro (en ligne) puis contour
+ * officiel ; sinon secteur de référence de la rue (hors ligne / sans numéro).
  */
 export async function resolveSector(rue, numero) {
   if (!rue) return null;
@@ -87,7 +80,7 @@ export async function resolveSector(rue, numero) {
   const coords = await geocodeAddress(numero, rue.rue);
   if (coords) {
     const [lon, lat] = coords;
-    const sec = secteurDuPoint(lon, lat) || rue.secteur;
+    const sec = secteurDuPoint(lon, lat);
     if (sec) return sec;
   }
   return rue.secteur || null;

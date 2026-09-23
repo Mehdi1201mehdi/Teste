@@ -39,6 +39,18 @@ export function renderReport() {
        </div>`
     : "";
 
+  // Répartition par quartier officiel
+  const qCounts = new Map();
+  state.bps.forEach((b) => {
+    const q = map.quartierOfStreet(b.rue) || "Hors quartier";
+    qCounts.set(q, (qCounts.get(q) || 0) + 1);
+  });
+  const qList = [...qCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr"));
+  $("reportQuartiers").hidden = !n || !map.quartiersReady();
+  $("reportQuartiers").innerHTML = `<span class="label">Par quartier</span><ul>${qList
+    .map(([q, k]) => `<li><span>${esc(q)}</span><b class="mono">${k}</b></li>`)
+    .join("")}</ul>`;
+
   // Document
   const mailEl = $("mail");
   if (mailEl.getAttribute("contenteditable") !== "true") mailEl.textContent = mailText();
@@ -51,7 +63,7 @@ export function renderReport() {
     const items = state.bps.map((bp, i) => ({ bp, i })).filter(({ bp }) => bp.secteur === s);
     if (!items.length) return "";
     return `<div class="ticketGroup" data-sector="${s}"><div class="ticketGroupHead" style="${secStyle(s)}"><span class="sectorChip">${esc(TITRE[s])}</span><span>${items.length}</span></div>${items
-      .map(({ bp, i }) => ticketHtml(bp, { num: i + 1, index: i, address: adresseText(bp), actions: true, editing: state.editing === i }))
+      .map(({ bp, i }) => ticketHtml(bp, { num: i + 1, index: i, address: adresseText(bp), quartier: map.quartierOfStreet(bp.rue), actions: true, editing: state.editing === i }))
       .join("")}</div>`;
   }).join("");
   const list = $("bpList");

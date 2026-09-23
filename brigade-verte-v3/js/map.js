@@ -191,6 +191,7 @@ export function initMap(container, data, opts = {}) {
   map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
   map.on("click", onMapClick);
   map.on("zoomend", syncLabels);
+  map.on("resize", syncLabels);
 
   new ResizeObserver(() => map.invalidateSize({ pan: false })).observe(host);
   window.addEventListener("online", syncDots);
@@ -245,7 +246,9 @@ export async function loadAreas() {
         }),
       });
       label.addTo(labelLayer);
-      return { nom: f.properties.nom, secteur: sec, secteurs: f.properties.secteur, geom: f.geometry, layer, label, color };
+      const b = layer.getBounds();
+      const area = (b.getNorth() - b.getSouth()) * (b.getEast() - b.getWest());
+      return { nom: f.properties.nom, secteur: sec, secteurs: f.properties.secteur, geom: f.geometry, layer, label, color, area };
     });
     syncLabels();
     if (!pinsData.length && !targetStreet) map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
@@ -258,6 +261,22 @@ function syncLabels() {
   if (!map) return;
   const z = map.getZoom();
   host.dataset.zoom = z >= 15 ? "near" : z >= 12.5 ? "mid" : "far";
+  // Anti-chevauchement : les grands quartiers d'abord, un nom qui en recouvre
+  // un autre est masqué (il réapparaît en zoomant). Le quartier actif gagne toujours.
+  const shown = [];
+  const pad = 4;
+  [...quartiers]
+    .sort((a, b) => (b.nom === hotQuartier) - (a.nom === hotQuartier) || b.area - a.area)
+    .forEach((q) => {
+      const el = q.label.getElement()?.firstElementChild;
+      if (!el) return;
+      el.classList.remove("is-hidden");
+      const r = el.getBoundingClientRect();
+      if (!r.width) return;
+      const hit = shown.some((o) => r.left < o.right + pad && r.right > o.left - pad && r.top < o.bottom + pad && r.bottom > o.top - pad);
+      if (hit) el.classList.add("is-hidden");
+      else shown.push(r);
+    });
 }
 
 /** Quartier officiel contenant un point (ou null). */
@@ -281,6 +300,7 @@ function highlightQuartier(nom) {
     q.layer.setStyle({ fillOpacity: on ? 0.24 : 0.09, weight: on ? 3 : 1.5, opacity: on ? 1 : 0.7 });
     q.label.getElement()?.classList.toggle("is-hot", on);
   });
+  requestAnimationFrame(syncLabels);
 }
 
 /* ───────────── Vue ───────────── */

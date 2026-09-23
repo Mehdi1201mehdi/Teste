@@ -251,6 +251,8 @@ export async function loadAreas() {
       return { nom: f.properties.nom, secteur: sec, secteurs: f.properties.secteur, geom: f.geometry, layer, label, color, area };
     });
     syncLabels();
+    // Les largeurs changent quand la police mono arrive : on remesure une fois chargée
+    document.fonts?.ready.then(() => requestAnimationFrame(syncLabels));
     if (!pinsData.length && !targetStreet) map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
   } catch (e) {
     /* données absentes : la carte fonctionne sans les quartiers */

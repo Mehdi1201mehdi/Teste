@@ -1,132 +1,100 @@
-// Point d'entrée : charge les données, restaure l'état, branche les événements,
-// et démarre le rendu. Chaque module reste responsable de son propre domaine.
+// Point d'entrée : charge les données, restaure la tournée, relie les vues.
+// Chaque module garde son domaine : composer (saisie), report (rapport),
+// map (territoire), router (navigation), storage (persistance).
 
-import { $, todayISO, detectPlatform } from "./utils.js";
+import { $, todayISO, stampDate, plural } from "./utils.js";
 import { state, load, save } from "./storage.js";
-import { toast, initOfflineBanner } from "./ui.js";
-import { go, initRouter, renderStatus } from "./router.js";
-import { loadStreets, showRueSuggest, updateSectorByAddress } from "./streets.js";
-import { loadWaste, showWaste, addWaste, renderWastes } from "./waste.js";
-import {
-  initSectors,
-  setSector,
-  togglePrecision,
-  refreshPrecisions,
-  renderSummary,
-  resetCurrent,
-  addBp,
-  duplicateLastAddress,
-  clearAllBps,
-  renderBps,
-} from "./bp.js";
-import { generateMail } from "./mail.js";
+import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, replay } from "./ui.js";
+import { go, initRouter, onRoute } from "./router.js";
+import { loadStreets, streetEntry } from "./streets.js";
+import { loadWaste } from "./waste.js";
+import { adresseText } from "./bp.js";
 import { loadSectorContours } from "./sectors.js";
-import { locateNearestStreets } from "./geo.js";
+import { initComposer, renderAllComposer, renderComposer, chooseRue, editBp, resetCurrent } from "./composer.js";
+import { initReport, renderReport, sectorCounts, sectorBarHtml } from "./report.js";
+import { showSuggestions } from "./components.js";
+import { fmtDist } from "./geo.js";
+import * as map from "./map.js";
 
-function renderAll() {
-  renderBps();
-  renderWastes();
-  refreshPrecisions();
-  renderSummary();
-  generateMail();
-  renderStatus();
+/* ─── Rendu transversal : compteurs, carte, rapport ─── */
+function renderTour({ fresh = -1 } = {}) {
+  const n = state.bps.length;
+  const nav = $("navCount");
+  nav.textContent = n;
+  nav.toggleAttribute("data-zero", n === 0);
+  nav.closest(".vsBtn").setAttribute("aria-label", `Rapport de tournée — ${plural(n, "dépôt")}`);
+  $("hudCount").textContent = n;
+  $("hudCountLabel").textContent = n > 1 ? "dépôts relevés" : "dépôt relevé";
+  $("hudSectors").innerHTML = sectorBarHtml(sectorCounts());
+  $("tourDate").textContent = stampDate(state.date);
+  $("tourDate").setAttribute("datetime", state.date || "");
+  map.setPins(
+    state.bps.map((bp, i) => ({ rue: bp.rue, label: `n°${i + 1} · ${adresseText(bp)}` })),
+    { fresh, editing: state.editing },
+  );
+  renderReport();
 }
 
-/** Montre ou cache le bouton "Ma position" selon le réglage GPS. */
-function applyGpsSetting() {
-  $("locateBtn").hidden = !state.gps;
-  const btn = $("gpsToggle");
-  btn.textContent = state.gps ? "GPS : activé" : "GPS : désactivé";
-  btn.setAttribute("aria-pressed", String(state.gps));
+function changed(opts = {}) {
+  renderTour(opts);
+  renderAllComposer();
 }
 
-function bind() {
-  initSectors();
-
-  // La date se règle automatiquement sur le jour courant à chaque ouverture.
-  $("date").value = todayISO();
-  state.date = $("date").value;
-  $("date").onchange = () => {
-    generateMail();
+/* ─── Réglages de tournée ─── */
+function bindSettings() {
+  const dlg = $("settingsDlg");
+  closeOnBackdrop(dlg);
+  $("openSettings").onclick = () => {
+    $("date").value = state.date;
+    $("saveStatus").textContent = state.lastSaved ? `Enregistré sur l'appareil à ${state.lastSaved}` : "Enregistré sur l'appareil";
+    dlg.showModal();
+  };
+  $("date").addEventListener("change", (e) => {
+    state.date = e.target.value || todayISO();
+    renderTour();
     save();
-  };
-
-  $("streetInput").oninput = (e) => {
-    showRueSuggest(e.target.value);
-    save();
-  };
-  $("streetInput").onfocus = (e) => {
-    if (e.target.value) showRueSuggest(e.target.value);
-  };
-
-  // 📍 GPS : bouton "Ma position" + option activé/désactivé (Autres options).
-  $("locateBtn").onclick = locateNearestStreets;
-  $("gpsToggle").onclick = () => {
-    state.gps = !state.gps;
-    applyGpsSetting();
-    save();
-    toast(state.gps ? "GPS activé" : "GPS désactivé");
-  };
-
-  $("numeroRue").oninput = () => {
-    state.current.numero = $("numeroRue").value.trim();
-    refreshPrecisions();
-    clearTimeout(window._numT);
-    window._numT = setTimeout(updateSectorByAddress, 450);
-    save();
-  };
-
-  document.querySelectorAll(".qbtn").forEach((b) => {
-    b.onclick = () => togglePrecision(b.dataset.key);
   });
+  const gps = $("gpsToggle");
+  const applyGps = () => {
+    gps.setAttribute("aria-checked", String(state.gps));
+    $("locateBtn").hidden = !state.gps;
+    $("mapLocate").hidden = !state.gps;
+  };
+  gps.onclick = () => {
+    state.gps = !state.gps;
+    applyGps();
+    save();
+    toast(state.gps ? "Localisation GPS activée." : "Localisation GPS désactivée.");
+  };
+  applyGps();
 
-  // Précision libre : l'aperçu et le récapitulatif se mettent à jour en direct.
-  $("precCustom").oninput = () => {
-    state.current.precisionCustom = $("precCustom").value;
-    refreshPrecisions();
+  $("resetCurrent").onclick = async () => {
+    dlg.close();
+    const ok = await confirmDialog({
+      title: "Effacer la saisie en cours ?",
+      text: "Rue, précisions et déchets non enregistrés seront effacés. Les bons déjà enregistrés sont conservés.",
+      ok: "Effacer la saisie",
+    });
+    if (!ok) return;
+    resetCurrent();
+    renderTour();
+    go("terrain", 1);
   };
 
-  $("wasteInput").oninput = (e) => showWaste(e.target.value);
-  $("wasteInput").onfocus = (e) => showWaste(e.target.value);
-  $("wasteInput").onkeydown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addWaste();
-    }
-  };
-  $("addWaste").onclick = addWaste;
-
-  $("addBp").onclick = addBp;
-  // Double confirmation : sur le terrain, un pouce qui glisse ne doit pas
-  // effacer la saisie en cours.
-  $("resetCurrent").onclick = () => {
-    if (confirm("Effacer la saisie en cours ?")) resetCurrent();
-  };
-  $("duplicateLast").onclick = duplicateLastAddress;
-
-  // Fin de tournée : supprime tous les signalements (différent de "Effacer la
-  // saisie en cours", qui ne touche que la saisie non validée).
-  $("clearAllBps").onclick = clearAllBps;
-
-  // Export de secours : tous les signalements dans un fichier JSON téléchargé.
+  // Export de secours : tous les bons dans un fichier JSON.
   $("exportBps").onclick = () => {
-    if (!state.bps.length) return toast("Aucun signalement à sauvegarder");
-    const data = JSON.stringify(
-      { app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps },
-      null,
-      2,
-    );
+    if (!state.bps.length) return toast("Aucun signalement à sauvegarder.");
+    const data = JSON.stringify({ app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps }, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `brigade-verte-bp-${state.date || todayISO()}.json`;
     a.click();
-    URL.revokeObjectURL(a.href);
-    const n = state.bps.length;
-    toast(n + " signalement" + (n > 1 ? "s" : "") + " sauvegardé" + (n > 1 ? "s" : ""));
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast(`${plural(state.bps.length, "signalement")} exporté${state.bps.length > 1 ? "s" : ""}.`);
   };
 
-  // Import : recharge les signalements depuis un fichier exporté (validé strictement).
+  // Import : validé et normalisé strictement.
   $("importBps").onclick = () => $("importFile").click();
   $("importFile").onchange = async () => {
     const file = $("importFile").files[0];
@@ -135,8 +103,7 @@ function bind() {
     try {
       const json = JSON.parse(await file.text());
       const raw = Array.isArray(json) ? json : json && json.bps;
-      if (!Array.isArray(raw)) return toast("Fichier non reconnu");
-      // Nettoyage/normalisation : on ne garde que des entrées valides et typées.
+      if (!Array.isArray(raw)) return toast("Fichier non reconnu.", null, "warn");
       const clean = raw
         .filter((b) => b && typeof b === "object" && b.rue && b.secteur)
         .map((b) => ({
@@ -146,171 +113,86 @@ function bind() {
           wastes: Array.isArray(b.wastes) ? b.wastes.map(String) : [],
           precisions: Array.isArray(b.precisions) ? b.precisions.map(String) : [],
         }));
-      if (!clean.length) return toast("Aucun signalement valide dans le fichier");
-      if (state.bps.length && !confirm(`Remplacer les ${state.bps.length} signalement(s) actuels par les ${clean.length} du fichier ?`)) {
-        return;
+      if (!clean.length) return toast("Aucun signalement valide dans le fichier.", null, "warn");
+      if (state.bps.length) {
+        dlg.close();
+        const ok = await confirmDialog({
+          title: "Remplacer la tournée ?",
+          text: `Les ${state.bps.length} signalements actuels seront remplacés par les ${clean.length} du fichier.`,
+          ok: "Remplacer",
+        });
+        if (!ok) return;
       }
       state.bps = clean;
       state.mailCustom = "";
-      renderBps();
-      generateMail();
+      state.editing = null;
+      changed();
       save();
-      const n = clean.length;
-      toast(n + " signalement" + (n > 1 ? "s" : "") + " rechargé" + (n > 1 ? "s" : ""));
+      dlg.open && dlg.close();
+      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}.`);
     } catch (e) {
-      toast("Fichier illisible");
+      toast("Fichier illisible.", null, "warn");
     }
   };
 
-  $("copyMail").onclick = async () => {
-    try {
-      await navigator.clipboard.writeText($("mail").textContent);
-      toast("Texte copié");
-    } catch (e) {
-      toast("Copie impossible");
-    }
-  };
-
-  // 📧 Ouvre Outlook avec l'objet et le texte pré-remplis, quel que soit
-  // l'appareil :
-  // - iPhone / Android (toutes marques) : tente d'abord l'appli Outlook via
-  //   son lien direct ms-outlook://compose ; si elle ne s'ouvre pas en
-  //   ~1,4 s (non installée), bascule sur l'appli mail par défaut du
-  //   téléphone (mailto:).
-  // - Windows / Mac / Linux : le lien d'appli mobile n'existe pas sur PC et
-  //   ferait perdre 1,4 s pour rien — on va directement à l'appli mail par
-  //   défaut du système (nouvel Outlook, Outlook classique ou autre).
-  // - Texte trop long pour tenir dans une URL : copié dans le presse-papier.
-  const mailParams = () => {
-    const body = $("mail").textContent;
-    const [a, m, j] = ($("date").value || "").split("-");
-    const subject = a ? `Dépôts sauvages — îlotage du ${j}/${m}/${a}` : "Dépôts sauvages";
-    return { body, params: `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` };
-  };
-  const copyTooLong = async (body, reason) => {
-    try {
-      await navigator.clipboard.writeText(body);
-      toast(`${reason} — copié à la place.`);
-    } catch (e) {
-      toast(`${reason} — utilisez « Copier le texte ».`);
-    }
-  };
-
-  $("openMail").onclick = async () => {
-    const { body, params } = mailParams();
-    if (params.length > 1800) {
-      await copyTooLong(body, "Texte trop long pour le mail direct");
-      return;
-    }
-    if (detectPlatform() === "desktop") {
-      window.location.href = `mailto:?${params}`;
-      return;
-    }
-    // Sur mobile : si Outlook s'ouvre, la page passe en arrière-plan et le repli est annulé.
-    const fallback = setTimeout(() => {
-      window.location.href = `mailto:?${params}`;
-    }, 1400);
-    const cancelFallback = () => {
-      if (document.visibilityState === "hidden") {
-        clearTimeout(fallback);
-        document.removeEventListener("visibilitychange", cancelFallback);
-      }
-    };
-    document.addEventListener("visibilitychange", cancelFallback);
-    window.location.href = `ms-outlook://compose?${params}`;
-  };
-
-  // 🌐 Repli universel : ouvre un brouillon dans Outlook sur le web, sans
-  // dépendre d'une appli installée ni d'un client mail par défaut réglé sur
-  // l'appareil — utile sur un PC partagé (mairie, service technique) où rien
-  // n'est configuré.
-  $("openMailWeb").onclick = async () => {
-    const { body, params } = mailParams();
-    if (params.length > 1800) {
-      await copyTooLong(body, "Texte trop long pour Outlook Web");
-      return;
-    }
-    window.open(`https://outlook.office.com/mail/deeplink/compose?${params}`, "_blank", "noopener");
-  };
-
-  // ✏ Modification manuelle du texte de la BP : un clic ouvre l'édition,
-  // un second la termine et enregistre. Le texte modifié survit au rechargement.
-  $("editMail").onclick = () => {
-    const mailEl = $("mail");
-    const btn = $("editMail");
-    const editing = mailEl.getAttribute("contenteditable") === "true";
-    if (editing) {
-      mailEl.setAttribute("contenteditable", "false");
-      btn.textContent = "Modifier le texte";
-      btn.classList.remove("on");
-      const txt = mailEl.innerText.trim();
-      state.mailCustom = txt;
-      generateMail();
-      save();
-      toast("Texte enregistré");
-    } else {
-      mailEl.setAttribute("contenteditable", "true");
-      btn.textContent = "Terminer";
-      btn.classList.add("on");
-      mailEl.focus();
-      toast("Tape directement dans le texte");
-    }
-  };
-
-  // 🗑 Supprime les modifications manuelles et rétablit le texte automatique.
-  $("resetMail").onclick = () => {
-    if (state.mailCustom && !confirm("Supprimer tes modifications et rétablir le texte automatique ?")) {
-      return;
-    }
-    state.mailCustom = "";
-    const mailEl = $("mail");
-    mailEl.setAttribute("contenteditable", "false");
-    $("editMail").textContent = "Modifier le texte";
-    $("editMail").classList.remove("on");
-    generateMail();
-    save();
-    toast("Texte automatique rétabli");
-  };
-
-  // ✏ Modifier la sélection de rue déjà validée : on garde le numéro,
-  // les précisions et les déchets — seule la rue est à rechoisir.
-  $("changeStreet").onclick = () => {
-    state.current.rue = null;
-    setSector(null);
-    $("chosenBox").classList.remove("show");
-    const input = $("streetInput");
-    input.focus();
-    input.select();
-    save();
-    toast("Choisis la nouvelle rue");
-  };
-
-  document.querySelectorAll("[data-next]").forEach((b) => {
-    b.onclick = () => go(+b.dataset.next);
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!e.target.closest(".search")) {
-      document.querySelectorAll(".suggest").forEach((x) => x.classList.remove("show"));
-    }
-  });
-
-  // Clavier mobile : une fois le clavier ouvert (≈300 ms), recentre le champ
-  // actif pour qu'il reste visible au-dessus du clavier, sur Android et iOS.
-  document.querySelectorAll("input, .mail").forEach((el) => {
-    el.addEventListener("focus", () => {
-      setTimeout(() => {
-        el.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 300);
-    });
-  });
-
+  document.addEventListener("bv:quota", () =>
+    toast("Stockage plein : exportez vos signalements (Réglages) pour ne rien perdre.", null, "warn"),
+  );
 }
 
+/* ─── Carte : toucher → rues proches ─── */
+function onMapPick({ list }) {
+  const box = $("mapPick");
+  const listEl = $("mapPickList");
+  if (!list.length) return;
+  const narrow = window.matchMedia("(max-width: 1023px)").matches;
+  const entries = list.slice(0, narrow ? 3 : 5).map(({ r, d }) =>
+    streetEntry(r, "", (rue) => {
+      box.hidden = true;
+      if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
+      chooseRue(rue, { fly: true });
+    }, fmtDist(d)),
+  );
+  showSuggestions(listEl, entries, "");
+  listEl.classList.remove("suggest");
+  box.hidden = false;
+  listEl.querySelector(".sug")?.focus({ preventScroll: true });
+}
+
+function bindShell() {
+  document.querySelectorAll("[data-view-target]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const view = b.dataset.viewTarget;
+      if (view === "terrain" && b.dataset.new && state.editing == null) go("terrain", 1);
+      else go(view, view === "terrain" ? state.stage : state.stage);
+    });
+  });
+  $("mapFit").onclick = () => map.fit();
+  document.querySelector(".brand").addEventListener("click", (e) => {
+    e.preventDefault();
+    go("terrain", state.stage);
+  });
+  $("mapPickClose").onclick = () => {
+    $("mapPick").hidden = true;
+    map.clearProbe();
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("mapPick").hidden) {
+      $("mapPick").hidden = true;
+      map.clearProbe();
+    }
+  });
+  onRoute((view) => {
+    renderTour();
+    // Rapport : la carte cadre toute la tournée. Terrain : elle revient sur la rue choisie.
+    if (view === "rapport") map.fitPins();
+    else if (state.current.rue) map.setTarget(state.current.rue.rue);
+  });
+}
+
+/* ─── Service worker : mise à jour sans jamais couper une saisie ─── */
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
-  // Quand une nouvelle version de l'appli est installée, la page se recharge
-  // une fois automatiquement pour que HTML et JavaScript restent synchronisés.
   const hadController = !!navigator.serviceWorker.controller;
   let reloaded = false;
   const doReload = () => {
@@ -319,49 +201,52 @@ function registerServiceWorker() {
   };
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadController || reloaded) return;
-    // Nouvelle version installée : on la signale via un bandeau plutôt que de
-    // recharger brutalement, pour ne jamais interrompre une saisie en cours.
-    const bar = document.getElementById("updateBanner");
-    if (bar) bar.hidden = false;
-    else doReload();
+    $("updateBanner").hidden = false;
   });
-  const reloadBtn = document.getElementById("updateReload");
-  if (reloadBtn) reloadBtn.onclick = doReload;
-  const register = () => {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
-  };
-  if (document.readyState === "complete") {
-    register();
-  } else {
-    window.addEventListener("load", register);
-  }
+  $("updateReload").onclick = doReload;
+  const register = () => navigator.serviceWorker.register("service-worker.js").catch(() => {});
+  if (document.readyState === "complete") register();
+  else window.addEventListener("load", register);
 }
 
 async function main() {
   registerServiceWorker();
-  // Demande au navigateur de protéger le stockage local contre le nettoyage
-  // automatique (Android/iOS sous pression mémoire).
   navigator.storage?.persist?.().catch(() => {});
   load();
-  await Promise.all([loadStreets(), loadWaste()]);
-  bind();
-  initRouter();
+  // La date se règle sur le jour courant à chaque ouverture (heure locale).
+  state.date = todayISO();
+
+  const [streets] = await Promise.all([loadStreets(), loadWaste()]);
+  map.initMap($("map"), streets, {
+    onPick: onMapPick,
+    onPinClick: (i) => {
+      go("rapport");
+      requestAnimationFrame(() => {
+        const t = document.querySelector(`#bpList [data-i="${i}"]`)?.closest(".ticket");
+        t?.scrollIntoView({ block: "center", behavior: "smooth" });
+        replay(t, "is-editing");
+        setTimeout(() => t?.classList.remove("is-editing"), 1400);
+      });
+    },
+  });
+
+  initComposer({ changed });
+  initReport({ changed, edit: editBp });
+  bindSettings();
+  bindShell();
   initOfflineBanner();
 
-  if (state.current.rue) {
-    $("streetInput").value = state.current.rue.rue;
-    $("chosenBox").classList.add("show");
-    $("chosenRue").textContent = state.current.rue.rue;
-  }
-  $("numeroRue").value = state.current.numero || "";
-  $("precCustom").value = state.current.precisionCustom || "";
-  if (typeof state.gps !== "boolean") state.gps = true;
-  applyGpsSetting();
-  setSector(state.current.secteur || state.current.rue?.secteur || null);
+  // Restaure la saisie en cours
+  const c = state.current;
+  $("streetInput").value = c.rue?.rue || "";
+  $("numeroRue").value = c.numero || "";
+  $("precCustom").value = c.precisionCustom || "";
+  if (c.rue) map.setTarget(c.rue.rue, { fly: false });
 
-  renderAll();
-  go(Math.min(state.step || 1, 5));
-
+  initRouter();
+  changed();
+  if (!c.rue && state.bps.length) map.fitPins();
+  renderComposer();
   save();
   loadSectorContours();
 }

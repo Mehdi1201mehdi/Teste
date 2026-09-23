@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#087a4b">
+<meta name="theme-color" content="#0f1c17">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex, nofollow">
-<meta name="description" content="Outil terrain de la Brigade Verte d'Amiens : saisie rapide des signalements de dépôts sauvages (adresse, secteur, déchets) et génération du message à envoyer.">
+<meta name="description" content="Brigade Verte d'Amiens : relevé des dépôts sauvages pendant la tournée, carte du territoire, rapport prêt à envoyer.">
 
-<!-- PWA -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="application-name" content="Brigade Verte Amiens">
 <meta name="mobile-web-app-capable" content="yes">
@@ -19,223 +18,329 @@
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<link rel="preload" href="assets/fonts/InstrumentSans-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/BricolageGrotesque-var.woff2" as="font" type="font/woff2" crossorigin>
 
-<title>Brigade Verte Amiens</title>
+<title>Brigade Verte · Amiens</title>
 
-<!-- CSS modulaire : ordre = tokens -> reset -> structure -> composants -> responsive -> animations -->
-<link rel="stylesheet" href="css/variables.css">
+<!-- Ordre : tokens → socle → structure → composants → territoire → mouvement -->
+<link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/layout.css">
 <link rel="stylesheet" href="css/components.css">
-<link rel="stylesheet" href="css/mobile.css">
-<link rel="stylesheet" href="css/desktop.css">
+<link rel="stylesheet" href="css/map.css">
 <link rel="stylesheet" href="css/animations.css">
 </head>
 <body>
-<a class="skip-link" href="#main">Aller au contenu</a>
+<a class="skip-link" href="#panel">Aller à la saisie</a>
 
-<!-- Sprite d'icônes (Lucide, ISC) — référencé via <use href="#i-…"> -->
+<!-- Icônes : jeu unique Lucide (ISC), trait 2 px — référencées via <use href="#i-…"> -->
 <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
   <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
-  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></symbol>
-  <symbol id="i-trash-2" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></symbol>
-  <symbol id="i-clipboard-check" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
-  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
-  <symbol id="i-locate" viewBox="0 0 24 24"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="i-locate" viewBox="0 0 24 24"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
   <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></symbol>
   <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
-  <symbol id="i-rotate-ccw" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
-  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
   <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></symbol>
-  <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.1 4.9 9.9 3.1a2 2 0 0 0-1.7 0L3.6 5.2A1 1 0 0 0 3 6.1v13.3a1 1 0 0 0 1.4.9l3.8-1.9a2 2 0 0 1 1.7 0l4.2 2.1a2 2 0 0 0 1.7 0l4.6-2.3a1 1 0 0 0 .6-.9V4.6a1 1 0 0 0-1.4-.9l-3.8 1.9a2 2 0 0 1-1.7 0Z"/><path d="M15 5.8v15"/><path d="M9 3.2v15"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></symbol>
+  <symbol id="i-corner" viewBox="0 0 24 24"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
 </svg>
 
-<div class="app">
+<div class="app" id="app" data-view="terrain" data-stage="1">
 
-  <header class="top">
-    <div class="brand">
-      <div style="display:flex;gap:10px;align-items:center">
-        <div class="logo"><img src="assets/logo/logo.svg" alt="" width="26" height="26"></div>
-        <div><h1>Brigade Verte</h1><p>Amiens</p></div>
-      </div>
-      <div class="save" id="saveStatus" role="status" aria-live="polite">Sauvegarde automatique</div>
-    </div>
+  <!-- ═══ Barre d'application ═══ -->
+  <header class="appbar">
+    <h1 class="visually-hidden">Brigade Verte Amiens — relevé des dépôts sauvages</h1>
+    <a class="brand" href="#terrain" aria-label="Brigade Verte — accueil de la tournée">
+      <svg class="brandMark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0b5d3b"/><path d="M16 6.5c5.2.5 8.4 4.3 8.4 8.8 0 5.5-4.5 9.5-8.4 10.4-3.9-.9-8.4-4.9-8.4-10.4 0-4.5 3.2-8.3 8.4-8.8Z" fill="#fcfbf8"/><path d="M16 8.2c-1 4.9-1 11.7 0 16.4" stroke="#0b5d3b" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".6"/><circle cx="24.6" cy="7.4" r="3.4" fill="#c4420c" stroke="#0b5d3b" stroke-width="1.6"/></svg>
+      <span class="wordmark" aria-hidden="true"><b>Brigade Verte</b><span>Amiens</span></span>
+    </a>
 
-    <div class="offlineBanner" id="offlineBanner" role="status">Hors connexion — les saisies restent enregistrées sur l'appareil.</div>
+    <nav class="viewSwitch" aria-label="Vues">
+      <button type="button" class="vsBtn" data-view-target="terrain" aria-current="page" aria-label="Terrain : saisie et carte"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Terrain</span></button>
+      <button type="button" class="vsBtn" data-view-target="rapport" aria-label="Rapport de tournée"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span>Rapport</span><span class="count" id="navCount">0</span></button>
+    </nav>
 
-    <div class="updateBar" id="updateBanner" role="status" hidden>
-      <span>Une nouvelle version est disponible.</span>
-      <button class="mini" id="updateReload" type="button">Actualiser</button>
-    </div>
-
-    <div class="progress" aria-hidden="false">
-      <div class="progressTop"><span id="stepLabel" role="status" aria-live="polite">Étape 1 sur 5 · Adresse</span><span id="bpBadge" class="bpBadge">0 signalement</span></div>
-      <div class="progressBar"><div id="progressFill"></div></div>
-    </div>
+    <button type="button" class="stamp" id="openSettings" aria-haspopup="dialog">
+      <span class="stampLabel">Tournée</span>
+      <time id="tourDate" class="stampDate">—</time>
+      <svg class="icon" aria-hidden="true"><use href="#i-sliders"></use></svg>
+      <span class="visually-hidden">— réglages de la tournée</span>
+    </button>
   </header>
 
-  <main class="grid" id="main">
-    <section>
+  <div class="banner banner--offline" id="offlineBanner" role="status" hidden>
+    <svg class="icon" aria-hidden="true"><use href="#i-wifi-off"></use></svg>
+    Hors connexion — tout reste enregistré sur l'appareil. Secteur déduit de la rue.
+  </div>
+  <div class="banner banner--update" id="updateBanner" role="status" hidden>
+    <span>Nouvelle version prête.</span>
+    <button class="linkBtn" id="updateReload" type="button">Actualiser</button>
+  </div>
 
-      <!-- ÉTAPE 1 : ADRESSE -->
-      <section id="view1" class="view active" aria-labelledby="view1title">
-        <div class="card">
-          <h2 id="view1title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"></use></svg>Où est le dépôt ?</h2>
+  <main class="stage" id="main">
 
-          <label for="streetInput">Rue</label>
-          <div class="search">
-            <input id="streetInput" autocomplete="off" spellcheck="false" placeholder="Tapez le nom de la rue…" aria-expanded="false" aria-autocomplete="list" role="combobox">
-            <div id="streetSuggest" class="suggest" role="listbox"></div>
-          </div>
-          <button class="btn btnGhost full" id="locateBtn" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg>Utiliser ma position</button>
+    <!-- ═══ Territoire : carte de la tournée ═══ -->
+    <section class="territory" id="territory" aria-label="Carte de la tournée">
+      <div class="map" id="map" role="img" aria-label="Carte des rues d'Amiens et des dépôts relevés"></div>
 
-          <label for="numeroRue">Numéro (facultatif)</label>
-          <input id="numeroRue" inputmode="numeric" placeholder="ex : 152">
+      <div class="mapHud" id="mapHud">
+        <div class="hudCount"><b id="hudCount">0</b><span id="hudCountLabel">dépôt relevé</span></div>
+        <div class="sectorBar" id="hudSectors" aria-hidden="true"></div>
+      </div>
 
-          <div id="chosenBox" class="chosen">
-            <div class="chosenTop">
-              <div class="pin" aria-hidden="true"><svg class="icon"><use href="#i-map-pin"></use></svg></div>
-              <div style="flex:1"><b id="chosenRue">Rue choisie</b><div class="sectorLine"><span id="chosenSector" class="sector">Secteur ?</span></div></div>
-            </div>
-            <div id="sectors" class="sectorLine" role="group" aria-label="Choix manuel du secteur"></div>
-            <button class="btn btnGhost full" id="changeStreet" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>Modifier la sélection</button>
-          </div>
+      <div class="mapTools">
+        <button type="button" class="mapBtn" id="mapLocate" title="Me localiser" aria-label="Me localiser et proposer les rues proches"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg></button>
+        <button type="button" class="mapBtn" id="mapFit" title="Recentrer" aria-label="Recentrer la carte"><svg class="icon" aria-hidden="true"><use href="#i-scan"></use></svg></button>
+      </div>
 
-          <details class="moreOpts">
-            <summary>Autres options</summary>
-            <label for="date">Date de la tournée</label>
-            <input type="date" id="date">
-            <button class="btn btnGhost full" id="gpsToggle" type="button" style="margin-top:10px" aria-pressed="true">GPS : activé</button>
-            <button class="btn btnGhost full" id="exportBps" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>Sauvegarder mes signalements dans un fichier</button>
-            <button class="btn btnGhost full" id="importBps" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg>Recharger des signalements depuis un fichier</button>
-            <input type="file" id="importFile" accept=".json,application/json" hidden>
-            <button class="btn btnGhost full" id="resetCurrent" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"></use></svg>Effacer la saisie en cours</button>
-          </details>
+      <p class="mapHint" id="mapHint">Touchez la carte pour choisir une rue</p>
 
-          <div class="actions">
-            <button class="btn btnGhost full" id="duplicateLast" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"></use></svg>Reprendre la dernière adresse</button>
-            <button class="btn btnPrimary btnBig full" id="next1" data-next="2" type="button" aria-describedby="next1Hint" disabled>Continuer<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
-          </div>
-          <p class="btn-hint" id="next1Hint" role="status" aria-live="polite"></p>
-        </div>
-      </section>
-
-      <!-- ÉTAPE 2 : PRÉCISIONS -->
-      <section id="view2" class="view" aria-labelledby="view2title">
-        <div class="card">
-          <h2 id="view2title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-target"></use></svg>Où exactement ?</h2>
-          <p class="hint">Facultatif — vous pouvez passer cette étape. Touchez pour choisir, retouchez pour enlever.</p>
-
-          <div class="quick" role="group" aria-label="Précisions">
-            <button class="qbtn" type="button" data-key="angle" aria-pressed="false"><span>À l'angle</span></button>
-            <button class="qbtn" type="button" data-key="face" aria-pressed="false"><span>En face du n°</span></button>
-            <button class="qbtn" type="button" data-key="devant" aria-pressed="false"><span>Devant le n°</span></button>
-            <button class="qbtn" type="button" data-key="entre" aria-pressed="false"><span>Entre deux maisons</span></button>
-            <button class="qbtn" type="button" data-key="trottoir" aria-pressed="false"><span>Sur le trottoir</span></button>
-            <button class="qbtn" type="button" data-key="chaussee" aria-pressed="false"><span>Sur la chaussée</span></button>
-            <button class="qbtn" type="button" data-key="pav" aria-pressed="false"><span>Au pied du point d'apport (PAV)</span></button>
-          </div>
-
-          <label for="precCustom">Autre précision (texte libre)</label>
-          <input id="precCustom" autocomplete="off" placeholder="ex : près du portail bleu…">
-
-          <div id="precPreview" class="sumItem" aria-live="polite" style="margin-top:12px">Aucune précision sélectionnée.</div>
-
-          <div class="actions">
-            <button class="btn btnGhost" data-next="1" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg>Retour</button>
-            <button class="btn btnPrimary btnBig" data-next="3" type="button">Continuer<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ÉTAPE 3 : DÉCHETS -->
-      <section id="view3" class="view" aria-labelledby="view3title">
-        <div class="card">
-          <h2 id="view3title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"></use></svg>Quels déchets ?</h2>
-          <p class="hint">Tapez quelques lettres puis touchez le déchet.</p>
-
-          <div class="search dechetSearch">
-            <input id="wasteInput" autocomplete="off" spellcheck="false" placeholder="ex : sac, mat, grav…" aria-expanded="false" aria-autocomplete="list" role="combobox">
-            <div id="wasteSuggest" class="suggest" role="listbox"></div>
-          </div>
-          <button class="btn btnGhost full" id="addWaste" type="button" style="margin-top:10px"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Ajouter ce que j'ai tapé</button>
-
-          <label id="wasteChipsLabel">Déchets ajoutés</label>
-          <div id="wasteChips" class="chips" role="group" aria-labelledby="wasteChipsLabel"></div>
-
-          <div class="actions">
-            <button class="btn btnGhost" data-next="2" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg>Retour</button>
-            <button class="btn btnPrimary btnBig" id="next3" data-next="4" type="button" aria-describedby="next3Hint" disabled>Continuer<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
-          </div>
-          <p class="btn-hint" id="next3Hint" role="status" aria-live="polite"></p>
-        </div>
-      </section>
-
-      <!-- ÉTAPE 4 : VÉRIFICATION -->
-      <section id="view4" class="view" aria-labelledby="view4title">
-        <div class="card">
-          <h2 id="view4title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-clipboard-check"></use></svg>C'est bien ça ?</h2>
-          <div id="summary" class="summary"></div>
-          <div class="actions">
-            <button class="btn btnGhost" data-next="1" type="button"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>Modifier</button>
-            <button class="btn btnPrimary btnBig" id="addBp" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Ajouter ce signalement</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ÉTAPE 5 : TEXTE FINAL -->
-      <section id="view5" class="view" aria-labelledby="view5title">
-        <div class="card">
-          <h2 id="view5title" class="stepTitle"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Message à envoyer</h2>
-          <div id="mail" class="mail" aria-live="polite" spellcheck="false"></div>
-          <div class="mailTools">
-            <button class="mini" id="editMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg>Modifier le texte</button>
-            <button class="mini" id="resetMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-rotate-ccw"></use></svg>Rétablir le texte</button>
-          </div>
-          <div class="actions">
-            <button class="btn btnPrimary btnBig full" id="copyMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg>Copier le texte</button>
-            <button class="btn btnGhost full" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Ouvrir dans Outlook</button>
-            <button class="btn btnGhost full" id="openMailWeb" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Outlook sur le web (sans l'appli)</button>
-            <button class="btn btnGhost full" data-next="1" type="button"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Nouveau signalement</button>
-          </div>
-
-          <div class="endShift">
-            <p class="hint">Une fois la tournée terminée et le message envoyé :</p>
-            <button class="btn btnRed full" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash-2"></use></svg>Fin de tournée — tout supprimer</button>
-          </div>
-        </div>
-        <div class="card mobileOnly">
-          <div class="cardTitle"><h2><svg class="icon" aria-hidden="true"><use href="#i-list"></use></svg>Signalements enregistrés</h2><span id="listBadgeMobile" class="pill" style="background:var(--green)">0</span></div>
-          <div id="bpListMobile"></div>
-        </div>
-      </section>
-
+      <div class="mapPick" id="mapPick" role="dialog" aria-label="Rues proches du point touché" hidden>
+        <div class="mapPickHead"><span>Rues les plus proches</span><button type="button" class="iconBtn" id="mapPickClose" aria-label="Fermer"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button></div>
+        <div class="mapPickList" id="mapPickList" role="listbox"></div>
+      </div>
     </section>
 
-    <aside class="rightDesk">
-      <div class="card">
-        <div class="cardTitle"><h2><svg class="icon" aria-hidden="true"><use href="#i-list"></use></svg>Signalements enregistrés</h2><span id="listBadge" class="pill" style="background:var(--green)">0</span></div>
-        <div id="bpList"></div>
+    <!-- ═══ Panneau : saisie ou rapport ═══ -->
+    <section class="panel" id="panel" tabindex="-1">
+
+      <!-- ─── Vue TERRAIN : composeur de bon de passage ─── -->
+      <div class="view view--terrain" id="viewTerrain">
+        <div class="composerHead">
+          <p class="eyebrow" id="composerEyebrow">Nouveau bon de passage <span class="mono" id="composerNum">n°1</span></p>
+          <ol class="stages" aria-label="Étapes du signalement">
+            <li><button type="button" class="stageBtn" data-stage-target="1"><span class="stageDot">1</span><span class="stageName">Lieu</span></button></li>
+            <li><button type="button" class="stageBtn" data-stage-target="2"><span class="stageDot">2</span><span class="stageName">Déchets</span></button></li>
+            <li><button type="button" class="stageBtn" data-stage-target="3"><span class="stageDot">3</span><span class="stageName">Valider</span></button></li>
+          </ol>
+        </div>
+
+        <div class="composerBody" id="composerBody">
+
+          <!-- Étape 1 · LIEU -->
+          <fieldset class="stagePane" id="stage1" data-stage="1">
+            <legend class="stageTitle">Où est le dépôt&nbsp;?</legend>
+
+            <div class="field">
+              <label class="label" for="streetInput">Rue</label>
+              <div class="combo" id="streetCombo">
+                <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
+                <input id="streetInput" class="input input--combo" autocomplete="off" spellcheck="false" placeholder="Nom de la rue…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="streetSuggest">
+                <button type="button" class="comboClear" id="streetClear" aria-label="Effacer la rue" hidden><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+                <div id="streetSuggest" class="suggest" role="listbox" aria-label="Rues correspondantes"></div>
+              </div>
+              <div class="quickRow">
+                <button type="button" class="chipBtn" id="locateBtn"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg>Ma position</button>
+                <button type="button" class="chipBtn" id="duplicateLast" hidden><svg class="icon" aria-hidden="true"><use href="#i-corner"></use></svg><span id="duplicateLastLabel">Même adresse</span></button>
+              </div>
+            </div>
+
+            <div class="place" id="placeCard" hidden>
+              <div class="placeMain">
+                <span class="placePin" aria-hidden="true"><svg class="icon"><use href="#i-map-pin"></use></svg></span>
+                <div class="placeText">
+                  <b id="placeStreet">—</b>
+                  <button type="button" class="sectorTag" id="sectorTag" aria-expanded="false" aria-controls="sectorPicker">
+                    <span class="sectorSwatch" aria-hidden="true"></span><span id="sectorTagText">Secteur ?</span><svg class="icon" aria-hidden="true"><use href="#i-chevron"></use></svg>
+                  </button>
+                </div>
+                <div class="field field--num">
+                  <label class="label" for="numeroRue">N°</label>
+                  <input id="numeroRue" class="input input--num mono" inputmode="numeric" autocomplete="off" placeholder="—" aria-describedby="numHelp">
+                </div>
+              </div>
+              <p class="help" id="numHelp">Numéro facultatif — il affine le secteur quand le réseau est disponible.</p>
+              <div class="sectorPicker" id="sectorPicker" role="radiogroup" aria-label="Secteur" hidden></div>
+            </div>
+
+            <div class="field" id="precField">
+              <span class="label" id="precLabel">Emplacement précis <span class="opt">facultatif</span></span>
+              <div class="toggles" role="group" aria-labelledby="precLabel">
+                <button class="toggle" type="button" data-key="angle" aria-pressed="false">À l'angle</button>
+                <button class="toggle" type="button" data-key="face" aria-pressed="false">En face du n°</button>
+                <button class="toggle" type="button" data-key="devant" aria-pressed="false">Devant le n°</button>
+                <button class="toggle" type="button" data-key="entre" aria-pressed="false">Entre deux maisons</button>
+                <button class="toggle" type="button" data-key="trottoir" aria-pressed="false">Trottoir</button>
+                <button class="toggle" type="button" data-key="chaussee" aria-pressed="false">Chaussée</button>
+                <button class="toggle" type="button" data-key="pav" aria-pressed="false">Pied du PAV</button>
+              </div>
+              <label class="visually-hidden" for="precCustom">Autre précision</label>
+              <input id="precCustom" class="input input--quiet" autocomplete="off" placeholder="Autre précision… (ex. près du portail bleu)">
+            </div>
+          </fieldset>
+
+          <!-- Étape 2 · DÉCHETS -->
+          <fieldset class="stagePane" id="stage2" data-stage="2">
+            <legend class="stageTitle">Qu'avez-vous constaté&nbsp;?</legend>
+
+            <div class="found" id="foundBox" aria-live="polite">
+              <span class="label" id="wasteChipsLabel">Constaté</span>
+              <div id="wasteChips" class="chips" role="group" aria-labelledby="wasteChipsLabel"></div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="wasteInput">Ajouter un déchet</label>
+              <div class="combo" id="wasteCombo">
+                <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
+                <input id="wasteInput" class="input input--combo" autocomplete="off" spellcheck="false" placeholder="ex. mat, sac, grav…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="wasteSuggest">
+                <button type="button" class="comboAdd" id="addWaste" aria-label="Ajouter le texte saisi"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg><span>Ajouter</span></button>
+                <div id="wasteSuggest" class="suggest" role="listbox" aria-label="Déchets correspondants"></div>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="label" id="frequentLabel">Les plus fréquents</span>
+              <div class="pickers" id="frequentWaste" role="group" aria-labelledby="frequentLabel"></div>
+            </div>
+
+            <div class="field">
+              <span class="label" id="catLabel">Par famille</span>
+              <div class="catTabs" id="catTabs" role="tablist" aria-labelledby="catLabel"></div>
+              <div class="pickers" id="catWaste" role="tabpanel" aria-live="polite"></div>
+            </div>
+          </fieldset>
+
+          <!-- Étape 3 · VALIDER -->
+          <fieldset class="stagePane" id="stage3" data-stage="3">
+            <legend class="stageTitle">Vérifier et enregistrer</legend>
+            <div id="ticketPreview"></div>
+            <div class="lineOut">
+              <span class="label">Ligne ajoutée au rapport</span>
+              <p class="lineOutText mono" id="linePreview">—</p>
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="actionBar" id="actionBar">
+          <button type="button" class="btn btn--quiet" id="stageBack"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg><span>Retour</span></button>
+          <button type="button" class="btn btn--primary btn--grow" id="stageNext" aria-describedby="stageHint"><span id="stageNextLabel">Continuer</span><svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
+          <p class="actionHint" id="stageHint" role="status" aria-live="polite"></p>
+          <button type="button" class="linkBtn cancelEdit" id="cancelEdit" hidden>Annuler la modification</button>
+        </div>
       </div>
-      <div class="card">
-        <div class="cardTitle"><h2><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg>Aperçu du message</h2></div>
-        <div id="mailSide" class="mail" aria-live="polite"></div>
+
+      <!-- ─── Vue RAPPORT ─── -->
+      <div class="view view--rapport" id="viewRapport" hidden>
+        <div class="reportScroll">
+          <header class="reportHead">
+            <p class="eyebrow">Rapport de tournée</p>
+            <h2 class="viewTitle" id="reportTitle">Îlotage du —</h2>
+            <div class="reportStats" id="reportStats"></div>
+          </header>
+
+          <div class="reportEmpty" id="reportEmpty" hidden>
+            <div class="emptyArt" aria-hidden="true"><span></span><span></span><span></span></div>
+            <h2>Aucun dépôt relevé pour l'instant</h2>
+            <p>Chaque bon de passage enregistré sur le terrain s'ajoute ici, classé par secteur, dans le format du message habituel.</p>
+            <button type="button" class="btn btn--primary" data-view-target="terrain"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Relever un premier dépôt</button>
+          </div>
+
+          <div class="reportBody" id="reportBody">
+            <article class="doc" aria-labelledby="docSubject">
+              <div class="docHead">
+                <span class="docLabel mono">Objet</span>
+                <span id="docSubject" class="docSubject">Dépôts sauvages</span>
+                <span class="docState" id="docState" hidden>Modifié à la main</span>
+              </div>
+              <div id="mail" class="docBody mono" aria-live="polite" spellcheck="false" aria-label="Texte du message"></div>
+              <div class="docTools">
+                <button class="linkBtn" id="editMail" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg><span>Modifier le texte</span></button>
+                <button class="linkBtn" id="resetMail" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg><span>Rétablir le texte automatique</span></button>
+              </div>
+            </article>
+
+            <div class="sendBar">
+              <button class="btn btn--primary btn--grow" id="copyMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier le message</span></button>
+              <button class="btn btn--line" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Outlook</span></button>
+              <button class="btn btn--line" id="openMailWeb" type="button" title="Outlook sur le web, sans application"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Web</span></button>
+            </div>
+
+            <section class="ledger" aria-labelledby="ledgerTitle">
+              <div class="sectionHead">
+                <h2 id="ledgerTitle">Bons de passage</h2>
+                <button type="button" class="linkBtn" data-view-target="terrain" data-new="1"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Nouveau</button>
+              </div>
+              <div id="bpList" class="tickets"></div>
+            </section>
+
+            <section class="closeTour">
+              <div>
+                <h2>Fin de tournée</h2>
+                <p>Une fois le message envoyé, clôturez pour repartir de zéro.</p>
+              </div>
+              <button class="btn btn--danger" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
+            </section>
+          </div>
+        </div>
       </div>
-    </aside>
+    </section>
   </main>
 </div>
 
-<div id="toast" class="toast" role="status" aria-live="assertive"></div>
+<!-- ═══ Réglages de tournée (feuille) ═══ -->
+<dialog class="sheet" id="settingsDlg" aria-labelledby="settingsTitle">
+  <form method="dialog" class="sheetInner">
+    <div class="sheetHead">
+      <h2 id="settingsTitle">Réglages de la tournée</h2>
+      <button class="iconBtn" value="close" aria-label="Fermer"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+    </div>
+    <div class="field">
+      <label class="label" for="date">Date de l'îlotage</label>
+      <input type="date" id="date" class="input mono">
+    </div>
+    <div class="settingRow">
+      <div>
+        <b id="gpsLabel">Localisation GPS</b>
+        <p class="help">Propose les rues proches de votre position.</p>
+      </div>
+      <button type="button" class="switch" id="gpsToggle" role="switch" aria-checked="true" aria-labelledby="gpsLabel"><span></span></button>
+    </div>
+    <div class="settingGroup">
+      <span class="label">Sauvegarde de secours</span>
+      <button class="rowBtn" id="exportBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Exporter les signalements</b><small>Fichier .json sur l'appareil</small></span></button>
+      <button class="rowBtn" id="importBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><b>Recharger un fichier</b><small>Remplace les signalements actuels</small></span></button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+    <div class="settingGroup">
+      <span class="label">Saisie</span>
+      <button class="rowBtn rowBtn--danger" id="resetCurrent" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span><b>Effacer la saisie en cours</b><small>Les bons déjà enregistrés sont conservés</small></span></button>
+    </div>
+    <p class="sheetFoot mono" id="saveStatus" role="status" aria-live="polite">Enregistré sur l'appareil</p>
+  </form>
+</dialog>
 
-<div id="successCheck" class="successCheck" aria-hidden="true">
-  <svg viewBox="0 0 52 52" role="img" aria-label="Signalement ajouté">
-    <circle cx="26" cy="26" r="25" fill="#087a4b"/>
-    <path fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" d="M14 27l8 8 16-16"/>
-  </svg>
-</div>
+<!-- ═══ Confirmation (remplace confirm() natif) ═══ -->
+<dialog class="modal" id="confirmDlg" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+  <form method="dialog" class="modalInner">
+    <h2 id="confirmTitle">Confirmer</h2>
+    <p id="confirmText"></p>
+    <label class="checkRow" id="confirmCheckRow" hidden><input type="checkbox" id="confirmCheck"><span id="confirmCheckText"></span></label>
+    <div class="modalActions">
+      <button class="btn btn--quiet" value="cancel" id="confirmCancel">Annuler</button>
+      <button class="btn btn--danger" value="ok" id="confirmOk">Confirmer</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script type="module" src="js/app.js"></script>
 </body>

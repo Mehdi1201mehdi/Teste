@@ -1,54 +1,261 @@
 /* ==========================================================================
-   Structure de page (mobile first)
+   Structure
+   · Mobile (défaut) : barre d'app → bande de territoire → panneau de saisie,
+     barre d'action collée en bas (zone du pouce). Pendant la frappe, la carte
+     se replie pour laisser la place au clavier.
+   · Tablette portrait (≥ 700 px) : même logique, carte plus haute, panneau
+     centré et plus aéré.
+   · Desktop / tablette paysage (≥ 1024 px) : la carte occupe l'écran, le
+     panneau de saisie est posé à droite comme une planchette de terrain.
    ========================================================================== */
+
 .app {
-  width: 100%;
-  max-width: var(--content-max);
-  margin: auto;
-  padding: 12px clamp(10px, 2vw, 22px);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;
 }
 
-.top {
+/* ─── Barre d'application ─── */
+.appbar {
   position: sticky;
   top: 0;
-  z-index: 20;
-  padding: 10px 0;
-  background: linear-gradient(180deg, rgba(237, 247, 241, 0.96), rgba(237, 247, 241, 0.76));
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--bar-h);
+  padding: var(--s2) var(--s4);
+  padding-top: calc(var(--s2) + env(safe-area-inset-top));
+  background: var(--slate);
+  color: var(--slate-ink);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  box-shadow: var(--shadow);
+  gap: var(--s2);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--r-sm);
+}
+.brandMark {
+  width: 32px;
+  height: 32px;
+}
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.wordmark b {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+.wordmark span {
+  margin-top: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--slate-muted);
 }
 
-main.grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-  align-items: start;
+/* ─── Scène ─── */
+.stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.territory {
+  position: relative;
+  height: clamp(200px, 30vh, 280px);
+  background: var(--slate);
+  overflow: hidden;
+  transition: height var(--t-slow) var(--ease-out);
+  flex: 0 0 auto;
+}
+
+/* Frappe au clavier sur mobile : la carte cède la place */
+.app.is-typing .territory {
+  height: 0;
+}
+
+.panel {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: -18px;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--paper);
+  box-shadow: 0 -10px 30px -18px rgba(0, 0, 0, 0.6);
+  z-index: 5;
+  outline: none;
+}
+.app.is-typing .panel {
+  margin-top: 0;
+  border-radius: 0;
 }
 
 .view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Rapport sur mobile : le document prend toute la place */
+.app[data-view="rapport"] .territory {
   display: none;
 }
-
-.view.active {
-  display: block;
+.app[data-view="rapport"] .panel {
+  margin-top: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
-.rightDesk {
-  display: none;
+.composerHead,
+.composerBody,
+.reportScroll {
+  padding-inline: var(--s4);
 }
 
-.search {
-  position: relative;
+.composerBody {
+  flex: 1;
+  padding-bottom: var(--s6);
+}
+
+/* Barre d'action : toujours sous le pouce */
+.actionBar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--line);
+}
+
+.reportScroll {
+  padding-top: var(--s5);
+  padding-bottom: calc(var(--s8) + env(safe-area-inset-bottom));
+}
+
+/* ─── Tablette portrait ─── */
+@media (min-width: 700px) {
+  .appbar {
+    padding-inline: var(--s6);
+  }
+  .territory {
+    height: clamp(260px, 36vh, 420px);
+  }
+  .composerHead,
+  .composerBody,
+  .reportScroll,
+  .actionBar {
+    padding-inline: max(var(--s6), calc((100% - 680px) / 2));
+  }
+}
+
+/* ─── Desktop et tablette paysage : carte plein écran + planchette ─── */
+@media (min-width: 1024px) {
+  .app {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .appbar {
+    position: relative;
+  }
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr var(--panel-w);
+    min-height: 0;
+  }
+  .territory,
+  .app.is-typing .territory {
+    height: auto;
+  }
+  .app[data-view="rapport"] .territory {
+    display: block;
+  }
+  .panel,
+  .app.is-typing .panel,
+  .app[data-view="rapport"] .panel {
+    margin: 0;
+    border-radius: 0;
+    border-left: 1px solid var(--line);
+    box-shadow: -18px 0 40px -30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
+  .view {
+    overflow: hidden;
+  }
+  .composerBody,
+  .reportScroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+  .composerHead,
+  .composerBody,
+  .reportScroll,
+  .actionBar {
+    padding-inline: var(--s6);
+  }
+}
+
+@media (min-width: 1440px) {
+  :root {
+    --panel-w: 500px;
+  }
+}
+
+/* ─── Téléphone : barre d'app compacte ───
+   Marque réduite au monogramme, libellé visible seulement pour la vue active,
+   tampon de tournée limité à la date. */
+@media (max-width: 559px) {
+  .appbar {
+    gap: var(--s2);
+    padding-inline: var(--s3);
+  }
+  .wordmark {
+    display: none;
+  }
+  .viewSwitch {
+    justify-self: stretch;
+  }
+  .vsBtn {
+    flex: 1;
+    justify-content: center;
+    padding: 0 10px;
+  }
+  .vsBtn:not([aria-current="page"]) > span:not(.count) {
+    display: none;
+  }
+  .stamp {
+    padding: 0 var(--s2);
+  }
+  .stampLabel,
+  .stamp .icon {
+    display: none;
+  }
+}
+@media (min-width: 560px) and (max-width: 819px) {
+  .wordmark span {
+    display: none;
+  }
 }

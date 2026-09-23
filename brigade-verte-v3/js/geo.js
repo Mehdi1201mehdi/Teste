@@ -1,92 +1,36 @@
-// Géolocalisation : propose les rues les plus proches de la position de l'agent.
-// L'agent confirme d'un tap — on ne choisit jamais la rue à sa place, car la
-// précision GPS en ville peut désigner la rue voisine.
+// Géolocalisation : position de l'agent → rues les plus proches.
+// On ne choisit jamais la rue à sa place : en ville, le GPS peut désigner la
+// rue voisine. L'agent confirme d'un toucher.
 
-import { $, esc } from "./utils.js";
-import { toast } from "./ui.js";
-import { getStreets, chooseRue } from "./streets.js";
-import { showSuggestions } from "./components.js";
-import { COLOR } from "./sectors.js";
-
-/** Distance en mètres entre deux points GPS (formule de haversine). */
-function distMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
+/** Distance lisible : « 40 m », « 1,2 km ». */
+export function fmtDist(d) {
+  return d < 1000 ? Math.round(d / 5) * 5 + " m" : (d / 1000).toFixed(1).replace(".", ",") + " km";
 }
 
-function fmtDist(d) {
-  return d < 1000 ? Math.round(d) + " m" : (d / 1000).toFixed(1) + " km";
-}
-
-/** Localise l'agent et affiche les 5 rues les plus proches dans les suggestions. */
-export async function locateNearestStreets() {
-  if (!navigator.geolocation) {
-    toast("GPS non disponible sur cet appareil");
-    return;
-  }
-  // Si la localisation a déjà été bloquée pour ce site, le navigateur ne
-  // redemandera pas : on l'explique clairement au lieu d'échouer en silence.
+/**
+ * Demande la position. Résout { lat, lon, accuracy } ou rejette avec un
+ * message déjà rédigé pour l'agent.
+ */
+export async function locate() {
+  if (!navigator.geolocation) throw new Error("GPS non disponible sur cet appareil.");
   try {
     const status = await navigator.permissions?.query?.({ name: "geolocation" });
     if (status?.state === "denied") {
-      toast("Localisation bloquée pour ce site — réactivez-la dans les réglages du navigateur (cadenas à côté de l'adresse).");
-      return;
+      throw new Error("Localisation bloquée pour ce site — réactivez-la via le cadenas à côté de l'adresse.");
     }
   } catch (e) {
-    /* API permissions absente (vieux Safari) : on tente directement */
+    if (e instanceof Error && e.message.startsWith("Localisation")) throw e;
+    /* API permissions absente (ancien Safari) : on tente directement */
   }
-  const btn = $("locateBtn");
-  const original = btn ? btn.innerHTML : "";
-  const setLoading = (on) => {
-    if (!btn) return;
-    btn.disabled = on;
-    if (on) {
-      btn.setAttribute("aria-busy", "true");
-      btn.textContent = "Localisation en cours…";
-    } else {
-      btn.removeAttribute("aria-busy");
-      btn.innerHTML = original;
-    }
-  };
-  setLoading(true);
-  toast("Recherche de votre position…");
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      setLoading(false);
-      const { latitude, longitude } = pos.coords;
-      const streets = getStreets().filter((r) => r.lat && r.lon);
-      if (!streets.length) {
-        toast("Liste des rues indisponible");
-        return;
-      }
-      const nearest = streets
-        .map((r) => ({ r, d: distMeters(latitude, longitude, r.lat, r.lon) }))
-        .sort((a, b) => a.d - b.d)
-        .slice(0, 5);
-      const entries = nearest.map(({ r, d }) => ({
-        html: `<span class="sugName">${esc(r.rue)}</span><span class="pill" style="background:${COLOR[r.secteur] || "#64748b"}">${fmtDist(d)}</span>`,
-        onClick: () => chooseRue(r),
-      }));
-      showSuggestions($("streetSuggest"), entries, "Aucune rue trouvée près d'ici.");
-      $("streetInput").setAttribute("aria-expanded", "true");
-      toast("Touchez votre rue dans la liste.");
-    },
-    (err) => {
-      setLoading(false);
-      if (err.code === err.PERMISSION_DENIED) {
-        toast("GPS refusé — autorise la localisation dans les réglages du téléphone");
-      } else if (err.code === err.POSITION_UNAVAILABLE) {
-        toast("Position introuvable — réessaie à l'extérieur");
-      } else {
-        toast("GPS trop lent — réessaie");
-      }
-    },
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
-  );
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) reject(new Error("GPS refusé — autorisez la localisation dans les réglages du téléphone."));
+        else if (err.code === err.POSITION_UNAVAILABLE) reject(new Error("Position introuvable — réessayez à découvert."));
+        else reject(new Error("GPS trop lent — réessayez."));
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
+  });
 }

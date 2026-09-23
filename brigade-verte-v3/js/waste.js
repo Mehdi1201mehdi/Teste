@@ -1,81 +1,97 @@
-// Déchets : recherche instantanée (jamais de liste déroulante) + pastilles amovibles.
+// Déchets : data/waste.json (familles → libellés).
+// Trois façons d'ajouter, du plus rapide au plus complet :
+// 1. « Les plus fréquents » — appris des tournées de l'agent ;
+// 2. la recherche instantanée (quelques lettres suffisent) ;
+// 3. la navigation par famille, pour ne jamais être bloqué.
 
-import { $ } from "./utils.js";
-import { state, save } from "./storage.js";
+import { $, esc, highlight } from "./utils.js";
 import { fuzzySearch } from "./search.js";
-import { showSuggestions, hideSuggestions, renderChips } from "./components.js";
-import { toast } from "./ui.js";
-import { renderSummary } from "./bp.js";
+import { showSuggestions, hideSuggestions } from "./components.js";
+import { icon } from "./icons.js";
 
-let DECHETS_LIST = [];
-let wasteLoadFailed = false;
+let LIST = [];
+let CATS = {};
+let failed = false;
+
+// Point de départ avant que l'agent n'ait son propre historique.
+const DEFAULT_FREQUENT = [
+  "Sac poubelle",
+  "Matelas",
+  "Cartons",
+  "Canapé",
+  "Meuble cassé",
+  "Gravats",
+  "Pneu",
+  "Déchets mélangés",
+  "Palette",
+  "Sommier",
+];
+
+// Libellés courts pour les onglets de familles.
+const SHORT = {
+  "Électrique / électronique (DEEE)": "DEEE",
+  "Textiles et objets personnels": "Textiles & objets",
+  "Métaux et ferraille": "Métaux",
+  "Véhicules et épaves": "Véhicules",
+};
 
 export async function loadWaste() {
   try {
     const r = await fetch("data/waste.json");
-    const categories = await r.json();
-    DECHETS_LIST = [...new Set(Object.values(categories).flat())].sort((a, b) =>
-      a.localeCompare(b, "fr"),
-    );
-    wasteLoadFailed = false;
+    if (!r.ok) throw new Error(String(r.status));
+    CATS = await r.json();
+    LIST = [...new Set(Object.values(CATS).flat())].sort((a, b) => a.localeCompare(b, "fr"));
+    failed = false;
   } catch (e) {
-    DECHETS_LIST = [];
-    wasteLoadFailed = true;
+    CATS = {};
+    LIST = [];
+    failed = true;
   }
 }
 
-export function showWaste(query) {
+export const categories = () => Object.keys(CATS);
+export const categoryItems = (c) => CATS[c] || [];
+export const shortCat = (c) => SHORT[c] || c;
+
+/** Les 10 déchets les plus relevés par cet agent, complétés par les défauts. */
+export function frequent(freq) {
+  const learned = Object.entries(freq || {})
+    .filter(([, n]) => n > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "fr"))
+    .map(([w]) => w);
+  const out = [];
+  [...learned, ...DEFAULT_FREQUENT].forEach((w) => {
+    if (out.length < 10 && !out.includes(w)) out.push(w);
+  });
+  return out;
+}
+
+export function showWasteSuggest(query, onPick) {
   const box = $("wasteSuggest");
   const input = $("wasteInput");
-  const nq = query.trim();
-  const list = nq ? fuzzySearch(DECHETS_LIST, nq, (d) => d, 12) : DECHETS_LIST.slice(0, 12);
-  if (!list.length) {
-    const emptyMsg = wasteLoadFailed
-      ? "Liste des déchets indisponible. Saisissez le déchet à la main puis touchez « Ajouter »."
-      : "Aucun résultat. Touchez « Ajouter » pour reprendre le texte tapé.";
-    showSuggestions(box, [], emptyMsg);
-    input.setAttribute("aria-expanded", "true");
+  const q = query.trim();
+  if (!q) {
+    hideSuggestions(box, input);
     return;
   }
-  const entries = list.map((d) => ({
-    html: `<span class="sugName">${d}</span>`,
-    onClick: () => {
-      $("wasteInput").value = d;
-      hideSuggestions(box);
-      addWaste();
-    },
-  }));
-  showSuggestions(box, entries, "");
+  const list = fuzzySearch(LIST, q, (d) => d, 10);
+  const emptyMsg = failed
+    ? "Liste des déchets indisponible — touchez « Ajouter » pour garder le texte tapé."
+    : `Pas dans la liste — touchez « Ajouter » pour relever « ${q} ».`;
+  showSuggestions(
+    box,
+    list.map((d) => ({ html: `<span class="sugName">${highlight(d, q)}</span>`, onClick: () => onPick(d) })),
+    emptyMsg,
+  );
   input.setAttribute("aria-expanded", "true");
 }
 
-export function renderWastes() {
-  const box = $("wasteChips");
-  renderChips(
-    box,
-    state.current.wastes,
-    (i) => {
-      state.current.wastes.splice(i, 1);
-      renderWastes();
-      save();
-    },
-    "Aucun déchet ajouté.",
-  );
-  renderSummary();
-  save();
-}
-
-export function addWaste() {
-  const input = $("wasteInput");
-  const w = input.value.trim();
-  if (!w) {
-    showWaste("");
-    input.focus();
-    return;
-  }
-  if (!state.current.wastes.includes(w)) state.current.wastes.push(w);
-  input.value = "";
-  hideSuggestions($("wasteSuggest"));
-  renderWastes();
-  toast("Déchet ajouté");
+/** Boutons « déchet » : aria-pressed si déjà relevé dans la saisie en cours. */
+export function pickButtons(items, selected) {
+  return items
+    .map((w) => {
+      const on = selected.includes(w);
+      return `<button type="button" class="pick" data-w="${esc(w)}" aria-pressed="${on}">${icon(on ? "check" : "plus")}${esc(w)}</button>`;
+    })
+    .join("");
 }

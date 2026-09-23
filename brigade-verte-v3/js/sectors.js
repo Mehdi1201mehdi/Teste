@@ -5,13 +5,20 @@ import { fetchSectorContours, geocodeAddress } from "./api.js";
 
 export const SECTEURS = ["CENTRE", "OUEST", "NORD", "EST", "SUD"];
 
+// Teintes minérales (identiques à tokens.css) : pastilles sur papier.
 export const COLOR = {
-  CENTRE: "#8b5cf6",
-  OUEST: "#2563eb",
-  NORD: "#16a34a",
-  EST: "#ef4444",
-  SUD: "#f59e0b",
+  CENTRE: "#6b4fc8",
+  OUEST: "#2563a8",
+  NORD: "#2e7d4f",
+  EST: "#b8412f",
+  SUD: "#9a6210",
 };
+export const COLOR_NONE = "#6b7280";
+
+/** Variable CSS `--sec` prête à poser dans un attribut style. */
+export function secStyle(s) {
+  return `--sec:${COLOR[s] || COLOR_NONE}`;
+}
 
 export const TITRE = {
   CENTRE: "Secteur Centre",

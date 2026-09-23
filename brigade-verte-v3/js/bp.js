@@ -1,16 +1,8 @@
-// Bons de Passage (BP) : précisions de localisation, récapitulatif, et CRUD complet
-// (ajouter / modifier / supprimer / dupliquer) avec sauvegarde automatique.
+// Bons de Passage (BP) — règles métier pures, sans DOM.
+// Le format des lignes du message est STRICTEMENT celui de l'outil historique :
+// les destinataires (services de propreté) le connaissent et le traitent tel quel.
 
-import { $, esc } from "./utils.js";
-import { state, save } from "./storage.js";
-import { SECTEURS, COLOR } from "./sectors.js";
-import { toast, showSuccess } from "./ui.js";
-import { go } from "./router.js";
-import { renderWastes } from "./waste.js";
-import { bpCardHtml, bindBpActions } from "./components.js";
-import { generateMail } from "./mail.js";
-
-// Les 7 précisions autorisées ; le libellé exact est conservé pour le mail.
+// Les 7 précisions autorisées ; le libellé exact est conservé pour le message.
 export const PREC = {
   angle: "À l'angle de",
   face: "En face du n°",
@@ -21,83 +13,28 @@ export const PREC = {
   pav: "Au pied du PAV",
 };
 
-export function initSectors() {
-  const box = $("sectors");
-  box.innerHTML = "";
-  SECTEURS.forEach((s) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "sector";
-    b.textContent = s;
-    b.onclick = () => setSector(s);
-    box.appendChild(b);
-  });
-}
-
-export function setSector(s) {
-  state.current.secteur = s;
-  document.querySelectorAll("#sectors .sector").forEach((b) => {
-    const on = b.textContent === s;
-    b.classList.toggle("on", on);
-    b.style.background = on ? COLOR[s] : "";
-  });
-  const chosen = $("chosenSector");
-  chosen.textContent = s ? "Secteur " + s : "Secteur ?";
-  chosen.style.background = s ? COLOR[s] : "";
-  chosen.style.color = s ? "#fff" : "";
-  renderSummary();
-  save();
-}
-
-export function precisionLabels() {
-  const num = $("numeroRue").value.trim();
-  const labels = state.current.precisions.map((k) => {
+/** Libellés des précisions de la saisie en cours (numéro inséré si connu). */
+export function precisionLabels(c) {
+  const num = (c.numero || "").trim();
+  const labels = (c.precisions || []).map((k) => {
     if (k === "face") return num ? "En face du n°" + num : "En face du n°";
     if (k === "devant") return num ? "Devant le n°" + num : "Devant le n°";
     return PREC[k] || k;
   });
-  // Précision libre tapée par l'agent, ajoutée à la fin de la liste.
-  const custom = (state.current.precisionCustom || "").trim();
+  const custom = (c.precisionCustom || "").trim();
   if (custom) labels.push(custom);
   return labels;
-}
-
-export function refreshPrecisions() {
-  const labels = precisionLabels();
-  document.querySelectorAll(".qbtn").forEach((b) => {
-    const on = state.current.precisions.includes(b.dataset.key);
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-pressed", String(on));
-  });
-  $("precPreview").innerHTML = labels.length
-    ? "<b>" + esc(labels.join(", ")) + "</b>"
-    : "Aucune précision sélectionnée.";
-  renderSummary();
-  save();
-}
-
-export function togglePrecision(key) {
-  const list = state.current.precisions;
-  const i = list.indexOf(key);
-  i >= 0 ? list.splice(i, 1) : list.push(key);
-  refreshPrecisions();
 }
 
 export function adresseText(bp) {
   return (bp.numero ? bp.numero + " " : "") + bp.rue;
 }
 
-export function bpLine(bp) {
-  let c = (bp.wastes || []).join(", ");
-  if (bp.precisions && bp.precisions.length) c += (c ? ", " : "") + bp.precisions.join(", ");
-  return c;
-}
-
 /**
- * Ligne du mail : précisions AVANT l'adresse, puis les déchets.
- * Ex : "Au pied du PAV 76 Rue du Professeur Christian Cabrol : Tapis, Table."
- * Si une précision contient déjà le numéro ("Devant le n°4"), le numéro
- * n'est pas répété dans l'adresse : "Devant le n°4 Rue de Castille : Palette."
+ * Ligne du message : précisions AVANT l'adresse, puis les déchets.
+ * Ex : « Au pied du PAV 76 Rue du Professeur Christian Cabrol : Tapis, Table. »
+ * Si une précision contient déjà le numéro (« Devant le n°4 »), il n'est pas
+ * répété dans l'adresse : « Devant le n°4 Rue de Castille : Palette. »
  */
 export function mailLine(bp) {
   const precs = bp.precisions || [];
@@ -107,178 +44,36 @@ export function mailLine(bp) {
   return `${prefix}${adresse} : ${(bp.wastes || []).join(", ")}.`;
 }
 
-export function renderSummary() {
-  const c = state.current;
-  const p = precisionLabels();
-  $("summary").innerHTML = `
-    <div class="sumItem"><b>Adresse</b>${esc((c.numero ? c.numero + " " : "") + (c.rue?.rue || "Rue non choisie"))}</div>
-    <div class="sumItem"><b>Secteur</b>${esc(c.secteur || "Secteur non choisi")}</div>
-    <div class="sumItem"><b>Précisions</b>${esc(p.length ? p.join(", ") : "Aucune")}</div>
-    <div class="sumItem"><b>Déchets</b>${esc(c.wastes.length ? c.wastes.join(", ") : "Aucun déchet")}</div>
-  `;
-}
-
-export function resetCurrent(full = true) {
-  state.current = { rue: null, numero: "", secteur: null, precisions: [], precisionCustom: "", wastes: [] };
-  state.editing = null;
-  $("streetInput").value = "";
-  $("numeroRue").value = "";
-  $("precCustom").value = "";
-  $("chosenBox").classList.remove("show");
-  $("streetSuggest").classList.remove("show");
-  $("wasteInput").value = "";
-  $("wasteSuggest").classList.remove("show");
-  setSector(null);
-  renderWastes();
-  refreshPrecisions();
-  if (full) save();
-}
-
-export function addBp() {
-  const c = state.current;
-  if (!c.rue) return toast("Choisis une rue");
-  if (!c.secteur) return toast("Choisis le secteur");
-  if (!c.wastes.length) return toast("Ajoute un déchet");
-  const bp = {
+/** Construit un BP à partir de la saisie en cours (null si incomplète). */
+export function buildBp(c) {
+  if (!c.rue || !c.secteur || !c.wastes.length) return null;
+  return {
     rue: c.rue.rue,
-    numero: $("numeroRue").value.trim(),
+    numero: (c.numero || "").trim(),
     secteur: c.secteur,
     wastes: [...c.wastes],
-    precisions: precisionLabels(),
+    precisions: precisionLabels(c),
   };
-  if (state.editing != null) {
-    state.bps[state.editing] = bp;
-    state.editing = null;
-    toast("BP modifiée");
-  } else {
-    state.bps.push(bp);
-    toast("BP ajoutée");
-  }
-  showSuccess();
-  resetCurrent(false);
-  state.mailCustom = "";
-  renderBps();
-  generateMail();
-  go(5);
-}
-
-export function editBp(i) {
-  const bp = state.bps[i];
-  state.editing = i;
-  state.current = {
-    rue: { rue: bp.rue, secteur: bp.secteur },
-    numero: bp.numero || "",
-    secteur: bp.secteur,
-    precisions: [],
-    precisionCustom: "",
-    wastes: [...(bp.wastes || [])],
-  };
-  $("precCustom").value = "";
-  $("streetInput").value = bp.rue;
-  $("chosenBox").classList.add("show");
-  $("chosenRue").textContent = bp.rue;
-  $("numeroRue").value = bp.numero || "";
-  setSector(bp.secteur);
-  renderWastes();
-  refreshPrecisions();
-  go(1);
-  toast("Modification ouverte");
-}
-
-export function duplicateBp(i) {
-  const bp = JSON.parse(JSON.stringify(state.bps[i]));
-  state.bps.splice(i + 1, 0, bp);
-  state.mailCustom = "";
-  renderBps();
-  generateMail();
-  save();
-  toast("BP dupliquée");
-}
-
-export function delBp(i) {
-  // Suppression non intrusive : on retire tout de suite et on propose d'annuler
-  // via un toast (soft-delete), au lieu d'une fenêtre de confirmation bloquante.
-  const removed = state.bps[i];
-  if (!removed) return;
-  state.bps.splice(i, 1);
-  state.mailCustom = "";
-  renderBps();
-  generateMail();
-  save();
-  toast("Signalement supprimé", {
-    label: "Annuler",
-    onClick: () => {
-      state.bps.splice(Math.min(i, state.bps.length), 0, removed);
-      state.mailCustom = "";
-      renderBps();
-      generateMail();
-      save();
-      toast("Suppression annulée");
-    },
-  });
 }
 
 /**
- * Fin de tournée : supprime définitivement tous les signalements enregistrés
- * (contrairement à resetCurrent, qui ne touche que la saisie en cours).
- * Double confirmation avec rappel d'envoi, comme les autres actions
- * destructives de l'appli.
+ * Inverse de precisionLabels : retrouve les bascules et le texte libre
+ * d'un BP enregistré, pour que « Modifier » rouvre la saisie à l'identique.
  */
-export function clearAllBps() {
-  const n = state.bps.length;
-  if (!n) return toast("Aucun signalement à effacer — déjà vide");
-  if (
-    !confirm(
-      `Tu as ${n} signalement${n > 1 ? "s" : ""} enregistré${n > 1 ? "s" : ""}.\n\nAs-tu bien envoyé ou sauvegardé le message ?\n\nContinuer effacera TOUT définitivement.`,
-    )
-  ) {
-    return;
-  }
-  if (!confirm(`Dernière confirmation : supprimer définitivement ${n} signalement${n > 1 ? "s" : ""} ?`)) return;
-  state.bps = [];
-  state.mailCustom = "";
-  state.editing = null;
-  renderBps();
-  generateMail();
-  save();
-  toast("Tournée terminée — tout est remis à zéro");
-  go(1);
-}
-
-export function duplicateLastAddress() {
-  const last = state.bps[state.bps.length - 1];
-  if (!last) return toast("Aucune BP précédente");
-  state.current.rue = { rue: last.rue, secteur: last.secteur };
-  state.current.numero = last.numero || "";
-  state.current.secteur = last.secteur;
-  state.current.precisions = [];
-  state.current.precisionCustom = "";
-  $("precCustom").value = "";
-  $("streetInput").value = last.rue;
-  $("chosenBox").classList.add("show");
-  $("chosenRue").textContent = last.rue;
-  $("numeroRue").value = last.numero || "";
-  setSector(last.secteur);
-  refreshPrecisions();
-  toast("Adresse reprise — vérifie le numéro");
-}
-
-export function renderBps() {
-  ["listBadge", "listBadgeMobile"].forEach((id) => {
-    const e = $(id);
-    if (e) e.textContent = state.bps.length;
+export function splitPrecisions(bp) {
+  const keys = [];
+  const free = [];
+  (bp.precisions || []).forEach((label) => {
+    if (/^En face du n°/.test(label)) keys.push("face");
+    else if (/^Devant le n°/.test(label)) keys.push("devant");
+    else {
+      const k = Object.keys(PREC).find((key) => PREC[key] === label);
+      if (k) keys.push(k);
+      else free.push(label);
+    }
   });
-  const html = state.bps.length
-    ? state.bps.map((bp, i) => bpCardHtml(bp, i, adresseText, bpLine)).join("")
-    : `<div class="none">Aucun signalement pour l'instant.<br><small>« BP » = Bon de Passage : un dépôt constaté lors de la tournée.</small></div>`;
-  const handlers = { edit: editBp, duplicate: duplicateBp, delete: delBp };
-  const listEl = $("bpList");
-  const listMobileEl = $("bpListMobile");
-  listEl.innerHTML = html;
-  listMobileEl.innerHTML = html;
-  bindBpActions(listEl, handlers);
-  bindBpActions(listMobileEl, handlers);
-  // Densité desktop : masque la colonne droite tant qu'aucun signalement n'existe.
-  const mainEl = $("main");
-  if (mainEl) mainEl.classList.toggle("no-bps", state.bps.length === 0);
+  return { keys, custom: free.join(", ") };
 }
+
+export const addressOk = (c) => !!c.rue && !!c.secteur;
+export const wastesOk = (c) => c.wastes.length > 0;

@@ -1,23 +1,16 @@
-// Génération du texte de signalement : format strictement identique à l'outil
-// existant, avec les précisions et déchets séparés par des virgules (jamais par "+").
+// Texte du signalement — format historique inchangé, octet pour octet :
+// regroupement par secteur dans l'ordre CENTRE, OUEST, NORD, EST, SUD,
+// précisions et déchets séparés par des virgules.
 
-import { $ } from "./utils.js";
 import { state } from "./storage.js";
 import { SECTEURS, TITRE } from "./sectors.js";
 import { mailLine } from "./bp.js";
+import { dateFr } from "./utils.js";
 
-function dateFr() {
-  const v = $("date").value;
-  if (!v) return "";
-  const [a, m, j] = v.split("-");
-  return `${j}/${m}/${a}`;
-}
-
-/** Texte généré automatiquement à partir des BP (format historique inchangé). */
 export function autoMailText() {
   if (!state.bps.length) return "(Ajoutez des BP pour générer le texte.)";
   let t = "Bonjour,\n\n";
-  t += `Lors de notre îlotage du ${dateFr()} nous avons constaté des dépôts sauvages dans les rues suivantes :\n`;
+  t += `Lors de notre îlotage du ${dateFr(state.date)} nous avons constaté des dépôts sauvages dans les rues suivantes :\n`;
   SECTEURS.forEach((sec) => {
     const list = state.bps.filter((b) => b.secteur === sec);
     if (!list.length) return;
@@ -30,12 +23,12 @@ export function autoMailText() {
   return t;
 }
 
-/**
- * Affiche le texte : la version modifiée à la main (state.mailCustom) est
- * prioritaire ; sinon le texte automatique. L'aperçu latéral suit.
- */
-export function generateMail() {
-  const t = state.mailCustom || autoMailText();
-  $("mail").textContent = t;
-  $("mailSide").textContent = t;
+/** Texte affiché/envoyé : la version modifiée à la main est prioritaire. */
+export function mailText() {
+  return state.mailCustom || autoMailText();
+}
+
+export function mailSubject() {
+  const d = dateFr(state.date);
+  return d ? `Dépôts sauvages — îlotage du ${d}` : "Dépôts sauvages";
 }

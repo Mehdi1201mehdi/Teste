@@ -47,3 +47,43 @@ export function detectPlatform() {
   if (/Android/.test(ua)) return "android";
   return "desktop";
 }
+
+/** « 1 dépôt », « 3 dépôts » — accord simple en français. */
+export function plural(n, one, many = one + "s") {
+  return `${n} ${n > 1 ? many : one}`;
+}
+
+/**
+ * Met en valeur la partie saisie dans un libellé, sans jamais injecter de HTML
+ * non échappé. La comparaison ignore accents et casse.
+ */
+export function highlight(label, query) {
+  const nq = norm(query);
+  if (!nq) return esc(label);
+  // On cherche la position dans une version « à plat » de même longueur.
+  const flat = String(label)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+  if (flat.length !== String(label).length) return esc(label);
+  const i = flat.replace(/[^a-z0-9]/g, " ").indexOf(nq);
+  if (i < 0) return esc(label);
+  const s = String(label);
+  return esc(s.slice(0, i)) + "<mark>" + esc(s.slice(i, i + nq.length)) + "</mark>" + esc(s.slice(i + nq.length));
+}
+
+/** Date AAAA-MM-JJ → « mar. 23.09 » (tampon compact de l'en-tête). */
+export function stampDate(iso) {
+  if (!iso) return "—";
+  const [a, m, j] = iso.split("-").map(Number);
+  const d = new Date(a, m - 1, j);
+  const wd = d.toLocaleDateString("fr-FR", { weekday: "short" });
+  return `${wd} ${String(j).padStart(2, "0")}.${String(m).padStart(2, "0")}`;
+}
+
+/** Date AAAA-MM-JJ → JJ/MM/AAAA (format du message). */
+export function dateFr(iso) {
+  if (!iso) return "";
+  const [a, m, j] = iso.split("-");
+  return `${j}/${m}/${a}`;
+}

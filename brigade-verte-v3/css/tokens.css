@@ -1,0 +1,147 @@
+/* ==========================================================================
+   Brigade Verte — Design tokens « Relevé de terrain »
+   --------------------------------------------------------------------------
+   Deux matières :
+   · le PAPIER (calcaire chaud) pour tout ce qui se lit et se saisit — lisible
+     en plein soleil, jamais de gris sur gris ;
+   · l'ARDOISE (vert-schiste profond) pour le territoire : la carte, où les
+     rues d'Amiens s'allument par secteur et où chaque dépôt est un signal
+     orange.
+   Toutes les paires texte/fond ci-dessous dépassent 4.5:1 (WCAG AA).
+   ========================================================================== */
+
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("../assets/fonts/BricolageGrotesque-var.woff2") format("woff2-variations"),
+    url("../assets/fonts/BricolageGrotesque-var.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("../assets/fonts/InstrumentSans-var.woff2") format("woff2-variations"),
+    url("../assets/fonts/InstrumentSans-var.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* — Typographie — */
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
+  --font-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+
+  /* Échelle (mobile d'abord, fluide jusqu'au desktop) */
+  --fs-micro: 0.6875rem;                                  /* 11 — étiquettes mono */
+  --fs-xs: 0.75rem;                                       /* 12 */
+  --fs-sm: 0.8125rem;                                     /* 13 */
+  --fs-base: 0.9375rem;                                   /* 15 */
+  --fs-md: 1.0625rem;                                     /* 17 — champs */
+  --fs-lg: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem);       /* titres d'étape */
+  --fs-xl: clamp(1.625rem, 1.4rem + 0.9vw, 2.125rem);     /* titres de vue */
+  --fs-hero: clamp(2.5rem, 2rem + 2vw, 3.5rem);           /* compteurs */
+
+  --lh-tight: 1.1;
+  --lh: 1.45;
+  --track-label: 0.08em;
+
+  /* — Papier (surfaces de lecture) — */
+  --paper: #f3f1ea;        /* fond d'application : calcaire */
+  --paper-2: #e9e6dc;      /* creux, pistes, segments */
+  --sheet: #fcfbf8;        /* panneaux et feuilles */
+  --sheet-raised: #ffffff;
+  --line: #d9d4c7;
+  --line-strong: #b9b2a1;
+
+  /* — Encre — */
+  --ink: #111915;          /* schiste : 15.8:1 sur --paper */
+  --ink-2: #36423b;        /* 9.3:1 */
+  --muted: #5b665f;        /* 5.3:1 sur --paper, 5.8:1 sur --sheet */
+  --faint: #8a918b;        /* décoratif uniquement, jamais pour du texte utile */
+
+  /* — Marque — */
+  --brand: #0b5d3b;        /* vert brigade — blanc dessus : 7.9:1 */
+  --brand-strong: #07442b;
+  --brand-tint: #dcebdf;
+  --brand-ink: #ffffff;
+
+  /* — Signal (dépôt constaté) — orange de signalisation — */
+  --signal: #c4420c;       /* blanc dessus : 4.9:1 */
+  --signal-strong: #b53a0a;
+  --signal-tint: #fbe4d6;
+  --signal-ink: #ffffff;
+
+  /* — Lumière (accent sur ardoise uniquement) — */
+  --glow: #c7f26b;
+
+  /* — États — */
+  --ok: #1f7a4d;
+  --ok-tint: #dff0e4;
+  --danger: #b42318;
+  --danger-tint: #fbe3e0;
+  --info: #1f5fa8;
+
+  /* — Ardoise (territoire) — */
+  --slate: #0f1c17;
+  --slate-2: #16271f;
+  --slate-line: rgba(199, 242, 107, 0.07);
+  --slate-ink: #e8efe9;
+  --slate-muted: #9fb1a6;
+
+  /* — Secteurs : teintes minérales, distinctes en daltonisme courant — */
+  --sec-centre: #6b4fc8;   /* améthyste */
+  --sec-ouest: #2563a8;    /* bleu Somme */
+  --sec-nord: #2e7d4f;     /* mousse */
+  --sec-est: #b8412f;      /* brique */
+  --sec-sud: #9a6210;      /* ocre */
+  --sec-none: #6b7280;
+
+  /* — Forme — */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r: 14px;
+  --r-lg: 22px;
+  --r-pill: 999px;
+
+  /* — Élévation (ombres chaudes, courtes) — */
+  --e1: 0 1px 0 rgba(17, 25, 21, 0.04), 0 1px 2px rgba(17, 25, 21, 0.06);
+  --e2: 0 1px 0 rgba(17, 25, 21, 0.04), 0 6px 16px -6px rgba(17, 25, 21, 0.18);
+  --e3: 0 2px 0 rgba(17, 25, 21, 0.03), 0 18px 40px -12px rgba(17, 25, 21, 0.32);
+
+  /* — Espacement : grille de 4 px — */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s7: 32px;
+  --s8: 48px;
+
+  /* — Ergonomie terrain — */
+  --tap: 48px;             /* cible minimale */
+  --tap-lg: 56px;          /* action principale (pouce, gants) */
+  --panel-w: 452px;        /* panneau latéral desktop */
+  --bar-h: 60px;
+
+  /* — Focus — */
+  --focus: 0 0 0 3px var(--sheet), 0 0 0 5px var(--info);
+
+  /* — Mouvement — */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --t-fast: 120ms;
+  --t: 200ms;
+  --t-slow: 320ms;
+
+  color-scheme: light;
+}

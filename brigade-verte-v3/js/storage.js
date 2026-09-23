@@ -1,39 +1,58 @@
-// Persistance locale (LocalStorage) : sauvegarde à chaque interaction,
-// pour ne jamais perdre une saisie si le téléphone s'éteint.
+// Persistance locale : chaque interaction est enregistrée, pour ne jamais
+// perdre une saisie si le téléphone s'éteint ou si l'onglet est fermé.
+// La clé et la forme des bons (bps) sont conservées depuis la v3 : les
+// tournées en cours sur les téléphones des agents sont reprises telles quelles.
 
-import { $, nowHM } from "./utils.js";
-import { renderStatus } from "./router.js";
-import { toast } from "./ui.js";
+import { nowHM } from "./utils.js";
 
 export const STORAGE_KEY = "brigade_verte_amiens_v3_pro";
-// Version du schéma de données : incrémentée quand la forme de l'état change,
-// pour migrer proprement les anciennes sauvegardes au lieu de les perdre.
-const SCHEMA = 3;
+const SCHEMA = 4;
+
+function emptyCurrent() {
+  return { rue: null, numero: "", secteur: null, secteurAuto: true, precisions: [], precisionCustom: "", wastes: [] };
+}
 
 function defaultState() {
   return {
     version: SCHEMA,
     date: "",
-    step: 1,
-    current: { rue: null, numero: "", secteur: null, precisions: [], precisionCustom: "", wastes: [] },
+    view: "terrain", // "terrain" | "rapport"
+    stage: 1, // 1 Lieu · 2 Déchets · 3 Valider
+    current: emptyCurrent(),
     bps: [],
     editing: null,
     mailCustom: "",
     gps: true,
+    wasteFreq: {}, // { "Matelas": 12, … } — alimente « Les plus fréquents »
     lastSaved: "",
   };
 }
 
 export const state = defaultState();
+export { emptyCurrent };
 
-/** Met à niveau une sauvegarde ancienne vers le schéma courant (garde-fous inclus). */
+/** Met à niveau une sauvegarde ancienne vers le schéma courant, sans rien perdre. */
 function migrate(saved) {
   if (!saved || typeof saved !== "object") return null;
-  // Les futures migrations par palier viendront ici (ex. if saved.version < 4 …).
-  if (!saved.current || typeof saved.current !== "object") saved.current = defaultState().current;
-  if (!Array.isArray(saved.current.precisions)) saved.current.precisions = [];
-  if (!Array.isArray(saved.current.wastes)) saved.current.wastes = [];
+  if (!saved.current || typeof saved.current !== "object") saved.current = emptyCurrent();
+  const c = saved.current;
+  if (!Array.isArray(c.precisions)) c.precisions = [];
+  if (!Array.isArray(c.wastes)) c.wastes = [];
+  if (typeof c.secteurAuto !== "boolean") c.secteurAuto = true;
   if (!Array.isArray(saved.bps)) saved.bps = [];
+  if (!saved.wasteFreq || typeof saved.wasteFreq !== "object") saved.wasteFreq = {};
+
+  // v3 → v4 : l'assistant en 5 étapes devient 3 temps + une vue Rapport.
+  if ((saved.version || 3) < 4) {
+    const step = Number(saved.step) || 1;
+    saved.view = step >= 5 ? "rapport" : "terrain";
+    saved.stage = step === 3 ? 2 : step === 4 ? 3 : 1;
+    delete saved.step;
+    // Les BP déjà saisis ont servi à entraîner la liste « fréquents ».
+    saved.bps.forEach((b) => (b.wastes || []).forEach((w) => (saved.wasteFreq[w] = (saved.wasteFreq[w] || 0) + 1)));
+  }
+  if (saved.view !== "rapport") saved.view = "terrain";
+  if (![1, 2, 3].includes(saved.stage)) saved.stage = 1;
   saved.version = SCHEMA;
   return saved;
 }
@@ -47,30 +66,17 @@ export function load() {
   }
 }
 
-function isQuotaError(e) {
-  return e && (e.name === "QuotaExceededError" || e.code === 22 || e.name === "NS_ERROR_DOM_QUOTA_REACHED");
-}
-
+let quotaWarned = false;
 export function save() {
   try {
-    const dateEl = $("date");
-    const numEl = $("numeroRue");
-    if (dateEl) state.date = dateEl.value;
-    if (numEl) state.current.numero = numEl.value.trim();
     state.lastSaved = nowHM();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    const statusEl = $("saveStatus");
-    if (statusEl) statusEl.textContent = "Enregistré automatiquement";
+    quotaWarned = false;
   } catch (e) {
-    // Quota dépassé : on prévient clairement pour éviter toute perte silencieuse.
-    // (En navigation privée, la session continue simplement en mémoire.)
-    if (isQuotaError(e)) {
-      try {
-        toast("Stockage plein : sauvegardez vos signalements dans un fichier pour ne rien perdre.");
-      } catch (_) {
-        /* toast indisponible : on n'aggrave pas la situation */
-      }
+    const quota = e && (e.name === "QuotaExceededError" || e.code === 22 || e.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    if (quota && !quotaWarned) {
+      quotaWarned = true;
+      document.dispatchEvent(new CustomEvent("bv:quota"));
     }
   }
-  renderStatus();
 }

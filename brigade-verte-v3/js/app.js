@@ -15,6 +15,7 @@ import { initReport, renderReport, sectorCounts, sectorBarHtml, revealBp } from 
 import { showSuggestions } from "./components.js";
 import { fmtDist } from "./geo.js";
 import * as map from "./map.js";
+import { initCollecte } from "./collecteView.js";
 
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
@@ -26,7 +27,9 @@ function renderTour({ fresh = -1 } = {}) {
   $("hudCount").textContent = n;
   $("hudCountLabel").textContent = n > 1 ? "dépôts relevés" : "dépôt relevé";
   $("hudSectors").innerHTML = sectorBarHtml(sectorCounts());
-  $("tourDate").textContent = stampDate(state.date);
+  // « jeu. 24.09 » : le jour de la semaine s'efface sur les petits écrans (3 onglets).
+  const [day, ...rest] = stampDate(state.date).split(" ");
+  $("tourDate").innerHTML = rest.length ? `<span class="stampDay">${esc(day)}</span> ${esc(rest.join(" "))}` : esc(day);
   $("tourDate").setAttribute("datetime", state.date || "");
   map.setPins(
     state.bps.map((bp, i) => ({ rue: bp.rue, label: `n°${i + 1} · ${adresseText(bp)}` })),
@@ -189,7 +192,7 @@ function bindShell() {
     renderTour();
     // Rapport : la carte cadre toute la tournée. Terrain : elle revient sur la rue choisie.
     if (view === "rapport") map.fitPins();
-    else if (state.current.rue) map.setTarget(state.current.rue.rue);
+    else if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
   });
 }
 
@@ -243,6 +246,18 @@ async function main() {
 
   initComposer({ changed, reveal: revealBp });
   initReport({ changed, edit: editBp });
+  initCollecte({
+    // « Relever un dépôt ici » depuis la vue Collecte : l'adresse passe au Terrain.
+    useAddress: (rue, num) => {
+      go("terrain", 1);
+      chooseRue(rue);
+      if (num) {
+        const input = $("numeroRue");
+        input.value = num;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    },
+  });
   bindSettings();
   bindShell();
   initOfflineBanner();

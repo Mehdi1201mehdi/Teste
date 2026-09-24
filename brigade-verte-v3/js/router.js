@@ -1,4 +1,4 @@
-// Navigation : deux vues (Terrain, Rapport) et trois temps de saisie
+// Navigation : trois vues (Terrain, Rapport, Collecte) et trois temps de saisie
 // (1 Lieu → 2 Déchets → 3 Valider). Chaque changement pousse une entrée
 // d'historique : le bouton « retour » d'Android/iOS revient d'un cran.
 
@@ -22,8 +22,10 @@ export function blockedMessage(n) {
   return "";
 }
 
+const VIEWS = ["terrain", "rapport", "collecte"];
+
 function hashFor(view, stage) {
-  return view === "rapport" ? "#rapport" : `#terrain-${stage}`;
+  return view === "terrain" ? `#terrain-${stage}` : `#${view}`;
 }
 
 function apply(view, stage, dir) {
@@ -34,6 +36,7 @@ function apply(view, stage, dir) {
   app.dataset.stage = String(stage);
   $("viewTerrain").hidden = view !== "terrain";
   $("viewRapport").hidden = view !== "rapport";
+  $("viewCollecte").hidden = view !== "collecte";
   document.querySelectorAll("[data-view-target]").forEach((b) => {
     if (b.classList.contains("vsBtn")) {
       if (b.dataset.viewTarget === view) b.setAttribute("aria-current", "page");
@@ -63,20 +66,22 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
   }
   apply(view, stage, dir);
   // La saisie remonte en haut ; sur desktop seul le panneau défile.
-  const scroller = view === "terrain" ? $("composerBody") : document.querySelector(".reportScroll");
+  const scroller = view === "terrain" ? $("composerBody") : document.querySelector(view === "rapport" ? ".reportScroll" : ".collecteScroll");
   if (window.matchMedia("(min-width: 1024px)").matches) scroller?.scrollTo({ top: 0 });
-  else if (dir !== 0 || view === "rapport") window.scrollTo({ top: 0 });
+  else if (dir !== 0 || view !== "terrain") window.scrollTo({ top: 0 });
   return true;
 }
 
 export function initRouter() {
   window.addEventListener("popstate", (e) => {
     const s = e.state || {};
-    const view = s.view === "rapport" ? "rapport" : "terrain";
+    const view = VIEWS.includes(s.view) ? s.view : "terrain";
     let stage = [1, 2, 3].includes(s.stage) ? s.stage : 1;
     while (stage > 1 && !canEnterStage(stage)) stage--;
     apply(view, stage, stage < state.stage ? -1 : 1);
   });
+  // Lien direct (raccourci d'écran d'accueil, favori) : …/#collecte
+  if (window.location.hash === "#collecte") state.view = "collecte";
   let stage = state.stage;
   while (stage > 1 && !canEnterStage(stage)) stage--;
   window.history.replaceState({ view: state.view, stage }, "", hashFor(state.view, stage));

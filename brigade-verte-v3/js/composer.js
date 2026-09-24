@@ -17,6 +17,8 @@ import { toast, replay, haptic } from "./ui.js";
 import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
 import * as map from "./map.js";
 import { trackLocate, gpsQuality, fmtDist } from "./geo.js";
+import { lookupStreet, scheduleFor, shortSchedule, nextPickup, relDay } from "./collecte.js";
+import { openCollecte } from "./collecteView.js";
 
 let activeCat = null;
 let freshWaste = null;
@@ -65,6 +67,47 @@ function setSector(s, auto) {
   save();
 }
 
+/* Jour de collecte de l'adresse choisie : utile pour juger un dépôt (sacs
+   sortis la veille du passage ≠ dépôt sauvage). Discret, jamais bloquant :
+   sans réseau ni cache, la ligne reste simplement masquée. */
+let colReq = 0;
+let colKey = "";
+function renderPlaceCollecte() {
+  const el = $("placeCollecte");
+  const c = state.current;
+  const key = c.rue ? c.rue.rue + "|" + (c.numero || "").trim() : "";
+  if (key === colKey) return;
+  colKey = key;
+  const id = ++colReq;
+  if (!c.rue) {
+    el.hidden = true;
+    return;
+  }
+  lookupStreet(c.rue.rue, c.numero)
+    .then((res) => {
+      if (id !== colReq) return;
+      const row = scheduleFor(res);
+      if (!row) return (el.hidden = true);
+      const today = [
+        ["OM", row.om],
+        ["jaune", row.tri],
+      ]
+        .filter(([, s]) => {
+          const n = nextPickup(s);
+          return n && relDay(n.date) === "aujourd'hui";
+        })
+        .map(([k]) => k);
+      el.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><span>Collecte : OM ${esc(shortSchedule(row.om))} · jaune ${esc(shortSchedule(row.tri))}</span>${
+        today.length ? `<span class="placeToday">Aujourd'hui : ${esc(today.join(" + "))}</span>` : ""
+      }`;
+      el.setAttribute("aria-label", `Jour de collecte : ordures ménagères ${row.om}, poubelle jaune ${row.tri}${today.length ? ". Collecte aujourd'hui." : ""} Ouvrir le détail.`);
+      el.hidden = false;
+    })
+    .catch(() => {
+      if (id === colReq) el.hidden = true;
+    });
+}
+
 function renderPlace() {
   const c = state.current;
   const card = $("placeCard");
@@ -75,6 +118,7 @@ function renderPlace() {
   const quartier = map.quartierOfStreet(c.rue.rue);
   $("placeQuartier").hidden = !quartier;
   $("placeQuartier").textContent = quartier ? "Quartier " + quartier : "";
+  renderPlaceCollecte();
   const tag = $("sectorTag");
   tag.setAttribute("style", secStyle(c.secteur));
   $("sectorTagText").innerHTML = c.secteur
@@ -453,6 +497,7 @@ export function renderAllComposer() {
 
 export function initComposer(opts = {}) {
   hooks = { ...hooks, ...opts };
+  $("placeCollecte").onclick = () => state.current.rue && openCollecte(state.current.rue, state.current.numero);
 
   // Rue
   const streetInput = $("streetInput");
@@ -506,7 +551,10 @@ export function initComposer(opts = {}) {
     renderComposer();
     save();
     clearTimeout(numTimer);
-    numTimer = setTimeout(refineSector, 450);
+    numTimer = setTimeout(() => {
+      refineSector();
+      renderPlaceCollecte();
+    }, 450);
   });
   $("numeroRue").addEventListener("keydown", (e) => {
     if (e.key === "Enter") {

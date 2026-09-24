@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v4.3.1";
+const VERSION = "v4.3.2";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 // Tuiles du Plan IGN : cache persistant entre versions, borné (~700 tuiles ≈ 20 Mo).
@@ -58,10 +58,14 @@ const DATA_ASSETS = ["./data/streets.json", "./data/waste.json", "./data/quartie
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
+      // cache: "reload" : on télécharge la version publiée, jamais une copie du
+      // cache HTTP du navigateur (GitHub Pages sert ses fichiers avec 10 min de
+      // cache) — sinon une nouvelle version pourrait embarquer d'anciens fichiers.
+      const fresh = (list) => list.map((url) => new Request(url, { cache: "reload" }));
       const shell = await caches.open(SHELL_CACHE);
-      await shell.addAll(SHELL_ASSETS);
+      await shell.addAll(fresh(SHELL_ASSETS));
       const data = await caches.open(DATA_CACHE);
-      await data.addAll(DATA_ASSETS);
+      await data.addAll(fresh(DATA_ASSETS));
       await self.skipWaiting();
     })(),
   );

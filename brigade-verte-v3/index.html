@@ -113,6 +113,7 @@
       </div>
 
       <p class="mapHint" id="mapHint">Touchez la carte pour choisir une rue</p>
+      <p class="gpsStatus mono" id="gpsStatus" role="status" aria-live="polite" hidden></p>
 
       <div class="mapPick" id="mapPick" role="dialog" aria-label="Rues proches du point touché" hidden>
         <div class="mapPickHead"><span id="mapPickTitle">Rues les plus proches</span><button type="button" class="iconBtn" id="mapPickClose" aria-label="Fermer"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button></div>
@@ -224,6 +225,7 @@
           <fieldset class="stagePane" id="stage3" data-stage="3">
             <legend class="stageTitle">Vérifier et enregistrer</legend>
             <div id="ticketPreview"></div>
+            <div class="dupNote" id="dupNote" role="status" hidden></div>
             <div class="lineOut">
               <span class="label">Ligne ajoutée au rapport</span>
               <p class="lineOutText mono" id="linePreview">—</p>

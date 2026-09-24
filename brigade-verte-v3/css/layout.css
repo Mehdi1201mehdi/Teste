@@ -110,11 +110,13 @@
   min-height: 0;
 }
 
-/* Rapport sur mobile : le document prend toute la place */
-.app[data-view="rapport"] .territory {
+/* Rapport et Collecte sur mobile : le contenu prend toute la place */
+.app[data-view="rapport"] .territory,
+.app[data-view="collecte"] .territory {
   display: none;
 }
-.app[data-view="rapport"] .panel {
+.app[data-view="rapport"] .panel,
+.app[data-view="collecte"] .panel {
   margin-top: 0;
   border-radius: 0;
   box-shadow: none;
@@ -122,7 +124,8 @@
 
 .composerHead,
 .composerBody,
-.reportScroll {
+.reportScroll,
+.collecteScroll {
   padding-inline: var(--s4);
 }
 
@@ -148,7 +151,8 @@
   border-top: 1px solid var(--line);
 }
 
-.reportScroll {
+.reportScroll,
+.collecteScroll {
   padding-top: var(--s5);
   padding-bottom: calc(var(--s8) + env(safe-area-inset-bottom));
 }
@@ -164,6 +168,7 @@
   .composerHead,
   .composerBody,
   .reportScroll,
+  .collecteScroll,
   .actionBar {
     padding-inline: max(var(--s6), calc((100% - 680px) / 2));
   }
@@ -187,12 +192,14 @@
   .app.is-typing .territory {
     height: auto;
   }
-  .app[data-view="rapport"] .territory {
+  .app[data-view="rapport"] .territory,
+  .app[data-view="collecte"] .territory {
     display: block;
   }
   .panel,
   .app.is-typing .panel,
-  .app[data-view="rapport"] .panel {
+  .app[data-view="rapport"] .panel,
+  .app[data-view="collecte"] .panel {
     margin: 0;
     border-radius: 0;
     border-left: 1px solid var(--line);
@@ -203,7 +210,8 @@
     overflow: hidden;
   }
   .composerBody,
-  .reportScroll {
+  .reportScroll,
+  .collecteScroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -213,6 +221,7 @@
   .composerHead,
   .composerBody,
   .reportScroll,
+  .collecteScroll,
   .actionBar {
     padding-inline: var(--s6);
   }
@@ -246,6 +255,9 @@
   .vsBtn:not([aria-current="page"]) > span:not(.count) {
     display: none;
   }
+  .stampDate {
+    white-space: nowrap;
+  }
   .stamp {
     padding: 0 var(--s2);
   }
@@ -256,6 +268,23 @@
 }
 @media (min-width: 560px) and (max-width: 819px) {
   .wordmark span {
+    display: none;
+  }
+}
+
+/* Petits téléphones (≤ 419 px) : 3 onglets + tampon tiennent sur une ligne */
+@media (max-width: 419px) {
+  .stampDay {
+    display: none;
+  }
+  .vsBtn {
+    padding: 0 8px;
+  }
+}
+/* Très petits écrans (≤ 359 px, iPhone SE 1re gén., Android compacts) :
+   onglets en icônes seules — l'onglet actif reste signalé par sa pastille claire. */
+@media (max-width: 359px) {
+  .vsBtn > span:not(.count) {
     display: none;
   }
 }

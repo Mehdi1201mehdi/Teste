@@ -1516,6 +1516,302 @@ dialog::backdrop {
   opacity: 0.45;
 }
 
+/* ───────────────────────────── Jour de collecte ────────────────────────────
+   Deux flux, deux bacs : ordures ménagères (bac gris-vert) et poubelle jaune.
+   Le prochain passage est l'information principale ; « aujourd'hui » passe
+   en orange signal, la couleur du dépôt dans toute l'application. */
+.collecteScroll {
+  --bin-om: #4a5a52;
+  --bin-tri: #e2b007;
+}
+.collecteLead {
+  margin-top: var(--s2);
+  max-width: 46ch;
+  color: var(--ink-2);
+  font-size: var(--fs-base);
+}
+.colForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: var(--s3);
+  align-items: end;
+  margin-top: var(--s5);
+}
+.colForm .field {
+  margin: 0;
+}
+.colNumField .input--num {
+  width: 100%;
+  text-align: center;
+}
+.colRecent {
+  margin-top: var(--s4);
+}
+.colRecentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+.colRecentList small {
+  color: var(--muted);
+  font-weight: 500;
+}
+.colResult {
+  margin-top: var(--s5);
+}
+.colCard {
+  padding: var(--s4);
+  border-radius: var(--r-lg);
+  background: var(--sheet-raised);
+  border: 1px solid var(--line);
+  box-shadow: var(--e2);
+  animation: rise var(--t) var(--ease-out);
+}
+.colCard h3 {
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: var(--lh-tight);
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.colCard h3 small {
+  margin-left: var(--s1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.colCard > p {
+  margin-top: var(--s2);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+.colMeta {
+  margin-top: var(--s1);
+  font-size: var(--fs-micro);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.colAll,
+.colNote {
+  margin-top: var(--s3) !important;
+}
+.colNote {
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+}
+.colGroup {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--line-strong);
+}
+.colRanges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+.colRanges span {
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+  background: var(--paper-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}
+.colStream {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: var(--s3);
+  align-items: center;
+  margin-top: var(--s3);
+  padding: var(--s3);
+  border-radius: var(--r);
+  background: var(--paper);
+  border: 1px solid transparent;
+  transition: border-color var(--t), background var(--t);
+}
+.colStream.is-today {
+  background: var(--signal-tint);
+  border-color: color-mix(in srgb, var(--signal) 40%, transparent);
+}
+.colStreamText b {
+  display: block;
+  font-size: var(--fs-sm);
+  font-weight: 650;
+}
+.colStreamText span {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--fs-base);
+  color: var(--ink);
+}
+/* Pictogramme de bac : cuve + couvercle, dessiné en CSS (léger, net à toute taille) */
+.bin {
+  position: relative;
+  width: 22px;
+  height: 26px;
+  margin: 4px auto 0;
+  border-radius: 2px 2px 5px 5px;
+  background: var(--bin);
+  clip-path: polygon(0 0, 100% 0, 90% 100%, 10% 100%);
+}
+.bin::before {
+  content: "";
+  position: absolute;
+  inset: 0 -3px auto;
+  height: 5px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--bin) 75%, #000);
+}
+.bin--om { --bin: var(--bin-om); }
+.bin--tri { --bin: var(--bin-tri); }
+.colNext {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-md);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.colNext small {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.colNext em {
+  font-style: normal;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--info);
+}
+.colNext.is-today {
+  color: var(--signal-strong);
+}
+.colUse {
+  margin-top: var(--s3);
+  margin-left: calc(var(--s2) * -1);
+}
+.colNear {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin: var(--s3) 0;
+}
+.colCard--error {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--line));
+}
+.colActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+.colActions .btn {
+  flex: 1 1 160px;
+}
+/* Chargement : squelette honnête (la requête est réellement en cours) */
+.colCard.is-loading .sk {
+  height: 58px;
+  margin-top: var(--s3);
+  border-radius: var(--r);
+  background: linear-gradient(90deg, var(--paper) 0%, var(--paper-2) 45%, var(--paper) 90%);
+  background-size: 220% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+.colRules {
+  margin-top: var(--s6);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--sheet);
+  font-size: var(--fs-sm);
+  color: var(--ink-2);
+}
+.colRules summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  font-weight: 650;
+  color: var(--ink);
+  cursor: pointer;
+}
+.colRules p {
+  margin-top: var(--s2);
+}
+.colSource a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brand);
+  font-weight: 600;
+}
+.colSource .icon {
+  width: 14px;
+  height: 14px;
+}
+@media (max-width: 359px) {
+  .colForm {
+    grid-template-columns: minmax(0, 1fr) 84px;
+  }
+  .colStream {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+  .colNext {
+    grid-column: 2;
+    justify-items: start;
+    text-align: left;
+  }
+}
+
+/* Ligne « collecte » dans la carte du lieu (Terrain) */
+.placeCollecte {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 4px 6px;
+  margin-top: 6px;
+  min-height: 32px;
+  padding: 2px 0;
+  text-align: left;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--ink-2);
+  border-radius: var(--r-xs);
+}
+.placeCollecte .icon {
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  color: var(--brand);
+}
+.placeCollecte:hover span {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.placeToday {
+  grid-column: 2;
+  justify-self: start;
+  padding: 1px 8px;
+  white-space: nowrap;
+  border-radius: var(--r-pill);
+  background: var(--signal-tint);
+  color: var(--signal-strong);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
 /* ─────────────────────────── Doublon probable ────────────────────────────
    Avertit sans bloquer : l'agent peut avoir deux dépôts à la même adresse. */
 .dupNote {

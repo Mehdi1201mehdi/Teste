@@ -12,10 +12,14 @@ export const OFFICIAL_URL = "https://www.amiens.fr/Vivre-a-Amiens/Prevention-et-
 
 /* ─────────────── Relais ─────────────── */
 
-/** Même origine sur Cloudflare Pages ; sinon (GitHub Pages) le relais Cloudflare. */
-export function apiBase(loc = window.location) {
-  if (/\.pages\.dev$/.test(loc.hostname)) return "";
-  return "https://brigade-verte.pages.dev";
+/**
+ * Adresses du relais, dans l'ordre d'essai. Sur Cloudflare Pages : même origine.
+ * Depuis GitHub Pages : le déploiement de la branche main (toujours à jour),
+ * puis l'adresse principale du projet en secours.
+ */
+export function apiBases(loc = window.location) {
+  if (/\.pages\.dev$/.test(loc.hostname)) return [""];
+  return ["https://main.brigade-verte.pages.dev", "https://brigade-verte.pages.dev"];
 }
 
 /* ─────────────── Noms de voies ─────────────── */
@@ -246,9 +250,25 @@ export async function fetchRows(q, { force = false, fetchImpl = fetch } = {}) {
   if (!navigator.onLine && hit) return hit;
   if (!navigator.onLine) throw new Error("Hors connexion — cette rue n'a pas encore été consultée sur ce téléphone.");
   try {
-    const r = await fetchImpl(`${apiBase()}/api/collecte?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout?.(12000) });
-    if (!r.ok) throw new Error(r.status >= 500 ? "Le service d'Amiens Métropole ne répond pas pour l'instant." : "Recherche refusée.");
-    const data = await r.json();
+    // Premier relais qui répond du JSON valide ; les autres ne servent qu'en secours.
+    let data = null;
+    let lastErr = null;
+    for (const base of apiBases()) {
+      try {
+        const r = await fetchImpl(`${base}/api/collecte?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout?.(12000) });
+        if (r.status === 400) throw new Error("Recherche refusée.");
+        if (!r.ok || !(r.headers.get("content-type") || "").includes("json")) {
+          lastErr = new Error(r.status >= 500 ? "Le service d'Amiens Métropole ne répond pas pour l'instant." : "Service de collecte injoignable — vérifiez la connexion.");
+          continue;
+        }
+        data = await r.json();
+        break;
+      } catch (e) {
+        if (e.message === "Recherche refusée.") throw e;
+        lastErr = e;
+      }
+    }
+    if (!data) throw lastErr || new Error("Service de collecte injoignable — vérifiez la connexion.");
     const rows = Array.isArray(data.rows) ? data.rows : [];
     const c = readCache();
     c[key] = { t: Date.now(), rows };

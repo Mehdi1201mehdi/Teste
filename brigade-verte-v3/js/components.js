@@ -111,11 +111,11 @@ export function ticketHtml(bp, o) {
       </div>`
     : "";
   const cls = ["ticket", o.preview ? "is-preview" : "", o.editing ? "is-editing" : ""].join(" ").trim();
-  return `<article class="${cls}" style="${secStyle(bp.secteur)}" aria-label="Bon de passage n°${o.num}">
+  return `<article class="${cls}"${o.actions ? ` id="bp-${o.index}" tabindex="-1"` : ""} style="${secStyle(bp.secteur)}" aria-label="Bon de passage n°${o.num}">
     <div class="ticketStub"><small>BP</small><b>${o.num}</b></div>
     <div class="ticketBody">
       <div class="ticketAddr">${esc(o.address)}</div>
-      <div class="ticketMeta"><span class="sectorChip">${esc(bp.secteur || "Secteur ?")}</span>${precs ? `<span>${esc(precs)}</span>` : ""}</div>
+      <div class="ticketMeta"><span class="sectorChip">${esc(bp.secteur || "Secteur ?")}</span>${o.quartier ? `<span>${esc(o.quartier)}</span>` : ""}${precs ? `<span>${esc(precs)}</span>` : ""}</div>
       ${wastes ? `<div class="ticketWaste">${wastes}</div>` : ""}
       ${actions}
     </div>

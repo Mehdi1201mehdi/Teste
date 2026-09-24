@@ -151,6 +151,35 @@
   animation: rise var(--t) var(--ease-out);
 }
 
+/* Toast d'alerte : petit balancement horizontal (feedback d'erreur, 360 ms) */
+@keyframes toastNudge {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -5px 0; }
+  55% { translate: 4px 0; }
+  80% { translate: -2px 0; }
+}
+
+/* GPS : anneau de recherche autour du bouton, cercle de précision */
+@keyframes gpsSeek {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+@keyframes gpsSeekIcon {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--brand) 55%, transparent); }
+  100% { box-shadow: 0 0 0 9px transparent; }
+}
+@keyframes gpsFix {
+  0% { transform: scale(2.2); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Mise en évidence d'un bon (« Voir le bon ») */
+@keyframes ticketFlash {
+  0%, 100% { box-shadow: var(--e1); }
+  30% { box-shadow: 0 0 0 3px var(--signal), var(--e2); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

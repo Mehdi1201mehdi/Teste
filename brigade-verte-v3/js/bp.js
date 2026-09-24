@@ -77,3 +77,20 @@ export function splitPrecisions(bp) {
 
 export const addressOk = (c) => !!c.rue && !!c.secteur;
 export const wastesOk = (c) => c.wastes.length > 0;
+
+/**
+ * Doublon probable dans la tournée : même rue ET même numéro (ou tous deux
+ * sans numéro). Renvoie { index, sameWaste } du premier bon concerné, sinon
+ * null. `except` : index du bon en cours de modification (ignoré).
+ */
+export function findDuplicate(bps, bp, except = null) {
+  if (!bp || !bp.rue) return null;
+  const rue = bp.rue.trim().toLowerCase();
+  const num = (bp.numero || "").trim().toLowerCase();
+  const index = bps.findIndex(
+    (b, i) => i !== except && (b.rue || "").trim().toLowerCase() === rue && (b.numero || "").trim().toLowerCase() === num,
+  );
+  if (index < 0) return null;
+  const sameWaste = (bp.wastes || []).some((w) => (bps[index].wastes || []).includes(w));
+  return { index, sameWaste };
+}

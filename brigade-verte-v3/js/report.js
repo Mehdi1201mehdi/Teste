@@ -7,7 +7,7 @@ import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
 import { ticketHtml, bindTicketActions } from "./components.js";
-import { toast, confirmDialog } from "./ui.js";
+import { toast, confirmDialog, replay } from "./ui.js";
 import { go } from "./router.js";
 import * as map from "./map.js";
 
@@ -75,13 +75,25 @@ export function renderReport() {
   });
 }
 
+/** Ouvre le rapport sur un bon précis (mis en évidence, focus pour le lecteur d'écran). */
+export function revealBp(i) {
+  go("rapport");
+  requestAnimationFrame(() => {
+    const t = $("bp-" + i);
+    if (!t) return;
+    t.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    t.focus({ preventScroll: true });
+    replay(t, "is-flash");
+  });
+}
+
 function duplicateBp(i) {
   const bp = JSON.parse(JSON.stringify(state.bps[i]));
   state.bps.splice(i + 1, 0, bp);
   state.mailCustom = "";
   hooks.changed({ fresh: i + 1 });
   save();
-  toast(`Bon n°${i + 1} dupliqué en n°${i + 2}.`);
+  toast(`Bon n°${i + 1} dupliqué en n°${i + 2}.`, null, "ok");
 }
 
 function delBp(i) {
@@ -121,7 +133,7 @@ async function clearTour() {
   hooks.changed({ reset: true });
   go("terrain", 1);
   save();
-  toast("Tournée clôturée — prêt pour la prochaine.");
+  toast("Tournée clôturée — prêt pour la prochaine.", null, "ok");
 }
 
 /* ─── Envoi ─── */
@@ -133,7 +145,7 @@ function mailParams() {
 async function copyText(text, okMsg) {
   try {
     await navigator.clipboard.writeText(text);
-    toast(okMsg);
+    toast(okMsg, null, "ok");
     return true;
   } catch (e) {
     // Repli : sélection manuelle du texte pour un appui long « Copier ».
@@ -205,7 +217,7 @@ function bindSend() {
       state.mailCustom = mailEl.innerText.trim();
       renderReport();
       save();
-      toast("Texte enregistré.");
+      toast("Texte enregistré.", null, "ok");
     } else {
       mailEl.setAttribute("contenteditable", "true");
       btn.setAttribute("aria-pressed", "true");

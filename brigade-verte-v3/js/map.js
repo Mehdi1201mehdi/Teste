@@ -188,12 +188,17 @@ export function initMap(container, data, opts = {}) {
   labelLayer = L.layerGroup().addTo(map);
   markerLayer = L.layerGroup().addTo(map);
 
-  map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
+  whenSized(() => map.fitBounds(cityBounds(), { padding: [16, 16], animate: false }));
   map.on("click", onMapClick);
   map.on("zoomend", syncLabels);
-  map.on("resize", syncLabels);
+  map.on("resize", () => {
+    applyPendingView();
+    syncLabels();
+  });
 
-  new ResizeObserver(() => map.invalidateSize({ pan: false })).observe(host);
+  // pan par défaut : le CENTRE est conservé quand la carte se replie/se redéploie
+  // (clavier mobile) — la rue choisie reste au milieu au lieu de filer sous le compteur.
+  new ResizeObserver(() => map.invalidateSize({ animate: false })).observe(host);
   window.addEventListener("online", syncDots);
   window.addEventListener("offline", syncDots);
 }
@@ -256,7 +261,7 @@ export async function loadAreas() {
     const resync = () => requestAnimationFrame(syncLabels);
     document.fonts?.load('500 10px "JetBrains Mono"').then(resync, () => {});
     document.fonts?.addEventListener?.("loadingdone", resync);
-    if (!pinsData.length && !targetStreet) map.fitBounds(cityBounds(), { padding: [16, 16], animate: false });
+    if (!pinsData.length && !targetStreet) whenSized(() => map.fitBounds(cityBounds(), { padding: [16, 16], animate: false }));
   } catch (e) {
     /* données absentes : la carte fonctionne sans les quartiers */
   }
@@ -308,18 +313,49 @@ function highlightQuartier(nom) {
   requestAnimationFrame(syncLabels);
 }
 
-/* ───────────── Vue ───────────── */
+/* ───────────── Vue ─────────────
+   Une carte masquée (vue Rapport sur mobile) a une taille nulle : y lancer un
+   flyTo produit des coordonnées NaN. On met alors le cadrage de côté et on
+   l'applique, sans animation, dès que la carte réapparaît. */
+let pendingView = null;
+function whenSized(fn) {
+  const s = map.getSize();
+  if (!s.x || !s.y) {
+    pendingView = fn;
+    return;
+  }
+  pendingView = null;
+  fn(false);
+}
+function applyPendingView() {
+  if (!pendingView) return;
+  const s = map.getSize();
+  if (!s.x || !s.y) return;
+  const fn = pendingView;
+  pendingView = null;
+  fn(true);
+}
+
 function flyTo(lat, lon, zoom) {
   if (!map) return;
-  const z = Math.max(map.getZoom(), zoom);
-  if (reduceMotion()) map.setView([lat, lon], z, { animate: false });
-  else map.flyTo([lat, lon], z, { duration: 0.6, easeLinearity: 0.3 });
+  whenSized((instant) => {
+    const z = Math.max(map.getZoom(), zoom);
+    if (instant || reduceMotion()) map.setView([lat, lon], z, { animate: false });
+    else map.flyTo([lat, lon], z, { duration: 0.6, easeLinearity: 0.3 });
+  });
+}
+
+function flyBounds(b, opts) {
+  whenSized((instant) => {
+    if (instant || reduceMotion()) map.fitBounds(b, { ...opts, animate: false });
+    else map.flyToBounds(b, { ...opts, duration: 0.6 });
+  });
 }
 
 export function fit() {
   if (!map) return;
   highlightQuartier(null);
-  map.flyToBounds(cityBounds(), { padding: [16, 16], duration: reduceMotion() ? 0 : 0.6 });
+  flyBounds(cityBounds(), { padding: [16, 16] });
 }
 
 /** Cadre la tournée : toutes les balises visibles. */
@@ -328,7 +364,7 @@ export function fitPins() {
   const pts = pinsData.map((p) => byName.get(p.rue)).filter(Boolean);
   if (!pts.length) return fit();
   const b = L.latLngBounds(pts.map((r) => [r.lat, r.lon]));
-  map.flyToBounds(b.pad(0.25), { padding: [40, 40], maxZoom: 16, duration: reduceMotion() ? 0 : 0.6 });
+  flyBounds(b.pad(0.25), { padding: [40, 40], maxZoom: 16 });
 }
 
 /* ───────────── Marqueurs ───────────── */
@@ -395,16 +431,55 @@ export function setTarget(name, { fly = true } = {}) {
   if (fly) flyTo(targetStreet.lat, targetStreet.lon, 16);
 }
 
-export function setMe(lat, lon, { fly = true } = {}) {
+/**
+ * Position de l'agent + cercle de précision RÉEL (rayon = précision du capteur).
+ * Appelé à chaque amélioration : le point glisse et le cercle se resserre au
+ * lieu de sauter. Teinte du cercle selon la qualité (bonne / moyenne / faible).
+ */
+let meCircle = null;
+let meTween = 0;
+export function setMe(lat, lon, { fly = true, accuracy = null, quality = "good" } = {}) {
   if (!map) return;
-  if (meMarker) markerLayer.removeLayer(meMarker);
-  meMarker = L.marker([lat, lon], {
-    interactive: false,
-    keyboard: false,
-    zIndexOffset: 900,
-    icon: L.divIcon({ className: "marker me", html: '<i class="halo"></i><i class="dot"></i>', iconSize: [0, 0] }),
-  }).addTo(markerLayer);
-  if (fly) flyTo(lat, lon, 16.5);
+  const first = !meMarker;
+  if (first) {
+    meMarker = L.marker([lat, lon], {
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 900,
+      icon: L.divIcon({ className: "marker me", html: '<i class="halo"></i><i class="dot"></i>', iconSize: [0, 0] }),
+    }).addTo(markerLayer);
+  }
+  if (accuracy != null) {
+    if (!meCircle) {
+      meCircle = L.circle([lat, lon], { radius: accuracy, interactive: false, className: "meAccuracy", weight: 1.5 }).addTo(markerLayer);
+    }
+    meCircle.getElement?.()?.setAttribute("data-quality", quality);
+  }
+  const from = meMarker.getLatLng();
+  const r0 = meCircle ? meCircle.getRadius() : accuracy;
+  cancelAnimationFrame(meTween);
+  if (first || reduceMotion()) {
+    meMarker.setLatLng([lat, lon]);
+    meCircle?.setLatLng([lat, lon]).setRadius(accuracy ?? r0);
+  } else {
+    const t0 = performance.now();
+    const D = 450;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / D);
+      const e = 1 - Math.pow(1 - k, 3); // décélération
+      const p = [from.lat + (lat - from.lat) * e, from.lng + (lon - from.lng) * e];
+      meMarker.setLatLng(p);
+      meCircle?.setLatLng(p).setRadius(r0 + ((accuracy ?? r0) - r0) * e);
+      if (k < 1) meTween = requestAnimationFrame(step);
+    };
+    meTween = requestAnimationFrame(step);
+  }
+  if (fly) flyTo(lat, lon, accuracy > 120 ? 15 : 16.5);
+}
+
+/** État « recherche du signal » : anneau sur le bouton et message sur la carte. */
+export function setLocating(on) {
+  host?.classList.toggle("is-locating", !!on);
 }
 
 /** Estompe les autres secteurs (survol d'un groupe dans le rapport, choix manuel…). */

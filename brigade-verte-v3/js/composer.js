@@ -9,14 +9,14 @@
 import { $, esc, plural } from "./utils.js";
 import { state, save, emptyCurrent } from "./storage.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
-import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk } from "./bp.js";
+import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk, findDuplicate } from "./bp.js";
 import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
 import { showWasteSuggest, frequent, categories, categoryItems, shortCat, pickButtons } from "./waste.js";
 import { showSuggestions, hideSuggestions, bindComboKeys, renderChips, ticketHtml } from "./components.js";
-import { toast, replay } from "./ui.js";
+import { toast, replay, haptic } from "./ui.js";
 import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
 import * as map from "./map.js";
-import { locate, fmtDist } from "./geo.js";
+import { trackLocate, gpsQuality, fmtDist } from "./geo.js";
 
 let activeCat = null;
 let freshWaste = null;
@@ -113,27 +113,79 @@ function renderPrecisions() {
   });
 }
 
+/* ─── GPS ───
+   Recherche → premier point (souvent approximatif) → la liste des rues
+   s'affiche tout de suite → le cercle se resserre à chaque mesure plus fine.
+   La liste n'est PAS réordonnée sous le doigt pendant l'affinage : elle n'est
+   remplacée qu'à la fin, et seulement si la rue la plus proche a changé. */
+let locating = false;
+let gpsStatusTimer;
+
+function gpsStatus(text, quality) {
+  const el = $("gpsStatus");
+  if (!el) return;
+  clearTimeout(gpsStatusTimer);
+  el.hidden = !text;
+  el.textContent = text || "";
+  el.dataset.quality = quality || "";
+}
+
+function showNearest(lat, lon) {
+  const near = map.nearestStreets(lat, lon, 5);
+  if (!near.length) return null;
+  showSuggestions(
+    $("streetSuggest"),
+    near.map(({ r, d }) => streetEntry(r, "", (rue) => chooseRue(rue), fmtDist(d))),
+    "",
+  );
+  $("streetInput").setAttribute("aria-expanded", "true");
+  return near[0].r.rue;
+}
+
 async function useMyPosition(btn) {
+  if (locating) return;
+  locating = true;
   const buttons = [$("locateBtn"), $("mapLocate")];
   buttons.forEach((b) => b.setAttribute("aria-busy", "true"));
+  map.setLocating(true);
+  gpsStatus("Recherche du signal GPS…", "seek");
+  let firstTop = null;
+  let shown = false;
   try {
-    const { lat, lon } = await locate();
-    map.setMe(lat, lon);
-    const near = map.nearestStreets(lat, lon, 5);
-    if (!near.length) return toast("Liste des rues indisponible.", null, "warn");
-    if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
-    const input = $("streetInput");
-    showSuggestions(
-      $("streetSuggest"),
-      near.map(({ r, d }) => streetEntry(r, "", (rue) => chooseRue(rue), fmtDist(d))),
-      "",
-    );
-    input.setAttribute("aria-expanded", "true");
-    toast("Touchez votre rue dans la liste.");
-    if (btn === $("mapLocate")) input.scrollIntoView({ block: "center", behavior: "smooth" });
+    const best = await trackLocate({
+      onFix: ({ lat, lon, accuracy }) => {
+        const quality = gpsQuality(accuracy);
+        map.setMe(lat, lon, { accuracy, quality, fly: !shown });
+        map.setLocating(false);
+        gpsStatus(`± ${accuracy} m · affinage…`, quality);
+        if (!shown) {
+          shown = true;
+          if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
+          firstTop = showNearest(lat, lon);
+          if (btn === $("mapLocate")) $("streetInput").scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      },
+    });
+    const quality = gpsQuality(best.accuracy);
+    gpsStatus(`± ${best.accuracy} m · ${quality === "good" ? "position précise" : quality === "fair" ? "précision moyenne" : "signal faible"}`, quality);
+    gpsStatusTimer = setTimeout(() => gpsStatus(""), 6000);
+    const top = map.nearestStreets(best.lat, best.lon, 1)[0]?.r.rue;
+    if (!top) return toast("Liste des rues indisponible.", null, "warn");
+    // Liste encore ouverte et la rue la plus proche a changé : on la met à jour.
+    if (top !== firstTop && !state.current.rue && $("streetInput").getAttribute("aria-expanded") === "true") showNearest(best.lat, best.lon);
+    if (quality === "poor") {
+      toast(`Signal faible (± ${best.accuracy} m) : vérifiez la rue, ou touchez la carte à l'endroit exact.`, null, "warn");
+    } else {
+      // La pastille « ± 14 m · position précise » (role=status) suffit : pas de
+      // toast qui masquerait la liste des rues à toucher.
+      haptic(10);
+    }
   } catch (e) {
-    toast(e.message, null, "warn");
+    gpsStatus("");
+    toast(e.message, null, "error");
   } finally {
+    locating = false;
+    map.setLocating(false);
     buttons.forEach((b) => b.removeAttribute("aria-busy"));
   }
 }
@@ -221,10 +273,27 @@ function renderPreview() {
   if (!bp) {
     $("ticketPreview").innerHTML = "";
     $("linePreview").textContent = "—";
+    $("dupNote").hidden = true;
     return;
   }
   $("ticketPreview").innerHTML = ticketHtml(bp, { num, address: adresseText(bp), quartier: map.quartierOfStreet(bp.rue), preview: true });
   $("linePreview").textContent = mailLine(bp);
+  renderDuplicate(bp);
+}
+
+/** Avertit (sans bloquer) si la même adresse figure déjà dans la tournée. */
+function renderDuplicate(bp) {
+  const note = $("dupNote");
+  const dup = findDuplicate(state.bps, bp, state.editing);
+  note.hidden = !dup;
+  if (!dup) return (note.innerHTML = "");
+  const n = dup.index + 1;
+  const where = bp.numero ? `au ${esc(adresseText(bp))}` : `rue sans numéro`;
+  note.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>
+    <p><b>Déjà relevé ${where} : bon n°${n}${dup.sameWaste ? ", avec un déchet identique" : ""}.</b>
+    <span>Doublon ? Vérifiez avant d'enregistrer — sinon ajoutez une précision.</span></p>
+    <button type="button" class="linkBtn" id="dupSee">Voir le bon n°${n}</button>`;
+  $("dupSee").onclick = () => hooks.reveal?.(dup.index);
 }
 
 function saveBp() {
@@ -256,7 +325,7 @@ function saveBp() {
   toast(wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`, {
     label: "Rapport",
     onClick: () => go("rapport"),
-  });
+  }, "ok");
 }
 
 export function resetCurrent({ silent = false } = {}) {

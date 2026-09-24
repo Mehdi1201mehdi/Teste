@@ -4,14 +4,14 @@
 
 import { $, esc, todayISO, stampDate, plural } from "./utils.js";
 import { state, load, save } from "./storage.js";
-import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, replay } from "./ui.js";
+import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
 import { loadStreets, streetEntry } from "./streets.js";
 import { loadWaste } from "./waste.js";
 import { adresseText } from "./bp.js";
 import { loadSectorContours } from "./sectors.js";
 import { initComposer, renderAllComposer, renderComposer, chooseRue, editBp, resetCurrent } from "./composer.js";
-import { initReport, renderReport, sectorCounts, sectorBarHtml } from "./report.js";
+import { initReport, renderReport, sectorCounts, sectorBarHtml, revealBp } from "./report.js";
 import { showSuggestions } from "./components.js";
 import { fmtDist } from "./geo.js";
 import * as map from "./map.js";
@@ -91,7 +91,7 @@ function bindSettings() {
     a.download = `brigade-verte-bp-${state.date || todayISO()}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    toast(`${plural(state.bps.length, "signalement")} exporté${state.bps.length > 1 ? "s" : ""}.`);
+    toast(`${plural(state.bps.length, "signalement")} exporté${state.bps.length > 1 ? "s" : ""}.`, null, "ok");
   };
 
   // Import : validé et normalisé strictement.
@@ -103,7 +103,7 @@ function bindSettings() {
     try {
       const json = JSON.parse(await file.text());
       const raw = Array.isArray(json) ? json : json && json.bps;
-      if (!Array.isArray(raw)) return toast("Fichier non reconnu.", null, "warn");
+      if (!Array.isArray(raw)) return toast("Fichier non reconnu : choisissez un export .json de Brigade Verte.", null, "error");
       const clean = raw
         .filter((b) => b && typeof b === "object" && b.rue && b.secteur)
         .map((b) => ({
@@ -113,7 +113,7 @@ function bindSettings() {
           wastes: Array.isArray(b.wastes) ? b.wastes.map(String) : [],
           precisions: Array.isArray(b.precisions) ? b.precisions.map(String) : [],
         }));
-      if (!clean.length) return toast("Aucun signalement valide dans le fichier.", null, "warn");
+      if (!clean.length) return toast("Aucun signalement valide dans ce fichier — rien n'a été remplacé.", null, "error");
       if (state.bps.length) {
         dlg.close();
         const ok = await confirmDialog({
@@ -129,14 +129,14 @@ function bindSettings() {
       changed();
       save();
       dlg.open && dlg.close();
-      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}.`);
+      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}.`, null, "ok");
     } catch (e) {
-      toast("Fichier illisible.", null, "warn");
+      toast("Fichier illisible — vos signalements actuels sont intacts.", null, "error");
     }
   };
 
   document.addEventListener("bv:quota", () =>
-    toast("Stockage plein : exportez vos signalements (Réglages) pour ne rien perdre.", null, "warn"),
+    toast("Stockage plein : exportez vos signalements (Réglages) pour ne rien perdre.", null, "error"),
   );
 }
 
@@ -241,11 +241,12 @@ async function main() {
     else if (state.bps.length) map.fitPins();
   });
 
-  initComposer({ changed });
+  initComposer({ changed, reveal: revealBp });
   initReport({ changed, edit: editBp });
   bindSettings();
   bindShell();
   initOfflineBanner();
+  initToast();
 
   // Restaure la saisie en cours
   const c = state.current;

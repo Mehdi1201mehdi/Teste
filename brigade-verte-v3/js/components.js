@@ -111,7 +111,7 @@ export function ticketHtml(bp, o) {
       </div>`
     : "";
   const cls = ["ticket", o.preview ? "is-preview" : "", o.editing ? "is-editing" : ""].join(" ").trim();
-  return `<article class="${cls}" style="${secStyle(bp.secteur)}" aria-label="Bon de passage n°${o.num}">
+  return `<article class="${cls}"${o.actions ? ` id="bp-${o.index}" tabindex="-1"` : ""} style="${secStyle(bp.secteur)}" aria-label="Bon de passage n°${o.num}">
     <div class="ticketStub"><small>BP</small><b>${o.num}</b></div>
     <div class="ticketBody">
       <div class="ticketAddr">${esc(o.address)}</div>

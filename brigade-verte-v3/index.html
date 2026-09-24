@@ -56,6 +56,8 @@
   <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
   <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
   <symbol id="i-map" viewBox="0 0 24 24"><path d="M14.1 4.9 9.9 3.1a2 2 0 0 0-1.7 0L3.6 5.2A1 1 0 0 0 3 6.1v13.3a1 1 0 0 0 1.4.9l3.8-1.9a2 2 0 0 1 1.7 0l4.2 2.1a2 2 0 0 0 1.7 0l4.6-2.3a1 1 0 0 0 .6-.9V4.6a1 1 0 0 0-1.4-.9l-3.8 1.9a2 2 0 0 1-1.7 0Z"/><path d="M15 5.8v15"/><path d="M9 3.2v15"/></symbol>
   <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></symbol>
   <symbol id="i-corner" viewBox="0 0 24 24"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
@@ -77,6 +79,7 @@
     <nav class="viewSwitch" aria-label="Vues">
       <button type="button" class="vsBtn" data-view-target="terrain" aria-current="page" aria-label="Terrain : saisie et carte"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Terrain</span></button>
       <button type="button" class="vsBtn" data-view-target="rapport" aria-label="Rapport de tournée"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span>Rapport</span><span class="count" id="navCount">0</span></button>
+      <button type="button" class="vsBtn" data-view-target="collecte" aria-label="Jour de collecte"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><span>Collecte</span></button>
     </nav>
 
     <button type="button" class="stamp" id="openSettings" aria-haspopup="dialog">
@@ -161,6 +164,7 @@
                 <div class="placeText">
                   <b id="placeStreet">—</b>
                   <span class="placeQuartier" id="placeQuartier" hidden></span>
+                  <button type="button" class="placeCollecte" id="placeCollecte" hidden></button>
                   <button type="button" class="sectorTag" id="sectorTag" aria-expanded="false" aria-controls="sectorPicker">
                     <span class="sectorSwatch" aria-hidden="true"></span><span id="sectorTagText">Secteur ?</span><svg class="icon" aria-hidden="true"><use href="#i-chevron"></use></svg>
                   </button>
@@ -294,6 +298,43 @@
               <button class="btn btn--danger" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
             </section>
           </div>
+        </div>
+      </div>
+
+      <!-- ═════════════ Jour de collecte ═════════════ -->
+      <div class="view view--collecte" id="viewCollecte" hidden>
+        <div class="collecteScroll">
+          <header class="collecteHead">
+            <p class="eyebrow">Jour de collecte</p>
+            <h2 class="viewTitle">Quand passe la benne&nbsp;?</h2>
+            <p class="collecteLead">Ordures ménagères et poubelle jaune, à l'adresse près — sans passer par le site de la ville.</p>
+          </header>
+
+          <form class="colForm" id="colForm" role="search" aria-label="Chercher un jour de collecte" novalidate>
+            <div class="field">
+              <label class="label" for="colInput">Rue d'Amiens ou commune</label>
+              <div class="combo" id="colCombo">
+                <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
+                <input id="colInput" class="input input--combo" autocomplete="off" spellcheck="false" placeholder="Rue Jules Barni, Longueau…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="colSuggest">
+                <button type="button" class="comboClear" id="colClear" aria-label="Effacer la recherche" hidden><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+                <div id="colSuggest" class="suggest" role="listbox" aria-label="Rues et communes"></div>
+              </div>
+            </div>
+            <div class="field colNumField">
+              <label class="label" for="colNum">N° <span class="opt">facultatif</span></label>
+              <input id="colNum" class="input input--num mono" inputmode="text" autocomplete="off" placeholder="12 bis" maxlength="10">
+            </div>
+          </form>
+
+          <div class="colRecent" id="colRecent" hidden></div>
+          <div class="colResult" id="colResult" aria-live="polite"></div>
+
+          <details class="colRules">
+            <summary>Jours fériés et semaines paires</summary>
+            <p>Les jours fériés sont collectés normalement, <b>sauf le 1<sup>er</sup> janvier, le 1<sup>er</sup> mai et le 25 décembre</b>. À Amiens, la collecte de ces jours-là a lieu le mercredi de la même semaine ; dans les autres communes, le lendemain.</p>
+            <p>« Semaines paires » : numérotation officielle des semaines (ISO). <span id="colWeek"></span></p>
+            <p class="colSource">Source : Amiens Métropole. En cas de doute, <a id="colOfficial" target="_blank" rel="noopener">vérifiez sur amiens.fr<svg class="icon" aria-hidden="true"><use href="#i-external"></use></svg></a>.</p>
+          </details>
         </div>
       </div>
     </section>

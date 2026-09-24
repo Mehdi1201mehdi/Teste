@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v4.2.0";
+const VERSION = "v4.3.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 // Tuiles du Plan IGN : cache persistant entre versions, borné (~700 tuiles ≈ 20 Mo).
@@ -26,6 +26,8 @@ const SHELL_ASSETS = [
   "./js/app.js",
   "./js/api.js",
   "./js/bp.js",
+  "./js/collecte.js",
+  "./js/collecteView.js",
   "./js/components.js",
   "./js/composer.js",
   "./js/geo.js",
@@ -137,6 +139,9 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || url.origin !== self.location.origin) {
     return; // API externes et requêtes non-GET : réseau direct, sans interception.
   }
+  // Relais jour de collecte (/api/…) : jamais servi depuis le cache de l'app —
+  // l'application gère elle-même son cache de 7 jours.
+  if (url.pathname.includes("/api/")) return;
 
   if (request.mode === "navigate") {
     // La page /suivi/ est une page autonome : réseau d'abord (pour recevoir

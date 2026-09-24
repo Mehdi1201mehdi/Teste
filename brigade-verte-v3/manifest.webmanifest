@@ -13,6 +13,10 @@
   "lang": "fr",
   "dir": "ltr",
   "categories": ["utilities", "productivity"],
+  "shortcuts": [
+    { "name": "Jour de collecte", "short_name": "Collecte", "description": "Ordures ménagères et poubelle jaune à une adresse", "url": "./index.html#collecte", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Nouveau bon de passage", "short_name": "Nouveau BP", "url": "./index.html#terrain-1", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+  ],
   "icons": [
     { "src": "assets/icons/icon-72.png", "sizes": "72x72", "type": "image/png", "purpose": "any" },
     { "src": "assets/icons/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },

@@ -16,7 +16,7 @@ function defaultState() {
   return {
     version: SCHEMA,
     date: "",
-    view: "terrain", // "terrain" | "rapport"
+    view: "terrain", // "terrain" | "rapport" | "collecte"
     stage: 1, // 1 Lieu · 2 Déchets · 3 Valider
     current: emptyCurrent(),
     bps: [],
@@ -51,7 +51,7 @@ function migrate(saved) {
     // Les BP déjà saisis ont servi à entraîner la liste « fréquents ».
     saved.bps.forEach((b) => (b.wastes || []).forEach((w) => (saved.wasteFreq[w] = (saved.wasteFreq[w] || 0) + 1)));
   }
-  if (saved.view !== "rapport") saved.view = "terrain";
+  if (!["rapport", "collecte"].includes(saved.view)) saved.view = "terrain";
   if (![1, 2, 3].includes(saved.stage)) saved.stage = 1;
   saved.version = SCHEMA;
   return saved;

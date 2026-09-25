@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Le tracé des rues régénéré par son workflow est commité par un robot, ce qui
+  # ne déclenche pas de push : on republie donc à la fin de ce workflow.
+  workflow_run:
+    workflows: ["Tracé des rues (IGN)"]
+    types: [completed]
 
 permissions:
   contents: read

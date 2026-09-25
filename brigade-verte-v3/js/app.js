@@ -2,6 +2,8 @@
 // Chaque module garde son domaine : composer (saisie), report (rapport),
 // map (territoire), router (navigation), storage (persistance).
 
+// La séquence de démarrage s'initialise en premier : elle mesure le vrai chargement.
+import { splash } from "./splash.js";
 import { $, esc, todayISO, stampDate, plural } from "./utils.js";
 import { state, load, save } from "./storage.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
@@ -222,7 +224,17 @@ async function main() {
   // La date se règle sur le jour courant à chaque ouverture (heure locale).
   state.date = todayISO();
 
-  const [streets] = await Promise.all([loadStreets(), loadWaste()]);
+  const [streets] = await Promise.all([
+    loadStreets().then((r) => {
+      splash.step("streets");
+      splash.setVoies(r.length);
+      return r;
+    }),
+    loadWaste().then((r) => {
+      splash.step("waste");
+      return r;
+    }),
+  ]);
   map.initMap($("map"), streets, {
     onPick: onMapPick,
     onPinClick: (i) => {
@@ -236,9 +248,12 @@ async function main() {
     },
   });
 
+  splash.step("map");
+
   // Quartiers officiels : chargés après la carte, puis tout est recalculé
   // (quartier de la rue choisie, répartition par quartier du rapport).
   map.loadAreas().then(() => {
+    splash.step("areas");
     changed();
     if (state.current.rue) map.setTarget(state.current.rue.rue, { fly: false });
     else if (state.bps.length) map.fitPins();
@@ -276,6 +291,12 @@ async function main() {
   renderComposer();
   save();
   loadSectorContours();
+  // Interface prête : la séquence de démarrage peut s'effacer.
+  splash.step("ui");
 }
 
-main();
+main().catch((e) => {
+  // Démarrage incomplet : on ne laisse jamais l'agent devant l'écran d'accueil.
+  console.error(e);
+  splash.fail();
+});

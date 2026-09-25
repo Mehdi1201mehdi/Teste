@@ -196,6 +196,7 @@
                 <button type="button" class="chipBtn" id="locateBtn"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg>Ma position</button>
                 <button type="button" class="chipBtn" id="duplicateLast" hidden><svg class="icon" aria-hidden="true"><use href="#i-corner"></use></svg><span id="duplicateLastLabel">Même adresse</span></button>
               </div>
+              <div class="gpsPanel" id="gpsPanel" role="region" aria-labelledby="gpsPanelTitle" aria-live="polite" hidden></div>
             </div>
 
             <div class="place" id="placeCard" hidden>
@@ -304,6 +305,11 @@
 
           <div class="reportBody" id="reportBody">
             <article class="doc" aria-labelledby="docSubject">
+              <div class="docTo">
+                <label class="docLabel mono" for="mailTo">À</label>
+                <input id="mailTo" class="docToInput" type="text" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="Adresse du service destinataire" aria-describedby="mailToNote">
+              </div>
+              <p class="docToNote" id="mailToNote" hidden></p>
               <div class="docHead">
                 <span class="docLabel mono">Objet</span>
                 <span id="docSubject" class="docSubject">Dépôts sauvages</span>
@@ -318,9 +324,19 @@
 
             <div class="sendBar">
               <button class="btn btn--primary btn--grow" id="copyMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier le message</span></button>
-              <button class="btn btn--line" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Outlook</span></button>
+              <button class="btn btn--line" id="openMail" type="button" title="Ouvrir dans l'appli Outlook (sur ordinateur : la messagerie installée)"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Outlook</span></button>
               <button class="btn btn--line" id="openMailWeb" type="button" title="Outlook sur le web, sans application"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Web</span></button>
             </div>
+            <div class="sendFallback" id="sendFallback" role="region" aria-labelledby="sendFallbackTitle" hidden>
+              <p class="sendFallbackTitle" id="sendFallbackTitle">Outlook ne s'est pas ouvert&nbsp;?</p>
+              <p class="sendFallbackText" id="sendFallbackText">Choisissez une autre façon d'envoyer ce rapport.</p>
+              <div class="sendFallbackActions">
+                <button class="btn btn--line" id="fallbackWeb" type="button"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Outlook Web</span></button>
+                <button class="btn btn--line" id="fallbackMailto" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Autre messagerie</span></button>
+                <button class="btn btn--line" id="fallbackCopy" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
+              </div>
+            </div>
+            <p class="sendNote">Destinataire, objet et message sont préremplis : vous relisez et vous envoyez vous-même. Un lien ne transporte que du texte simple (secteurs en MAJUSCULES) ; pour les secteurs en <b><u>gras souligné</u></b>, collez le message copié à la place du texte.</p>
 
             <section class="ledger" aria-labelledby="ledgerTitle">
               <div class="sectionHead">

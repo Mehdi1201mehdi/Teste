@@ -1,0 +1,30 @@
+name: Tracé des rues (IGN)
+
+# Régénère data/streets-geo.json (tracé réel des rues, utilisé par « Ma position »).
+# À lancer à la main (onglet Actions → « Tracé des rues (IGN) » → Run workflow)
+# quand des rues sont créées ou renommées. Le fichier n'est commité que s'il change.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Télécharger les tronçons IGN et générer le fichier
+        run: node tools/build-streets-geo.mjs
+      - name: Enregistrer le fichier s'il a changé
+        run: |
+          git add brigade-verte-v3/data/streets-geo.json
+          if git diff --cached --quiet; then echo "Aucun changement."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Tracé des rues IGN mis à jour ($(date +%F))"
+          git push

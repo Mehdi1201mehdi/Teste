@@ -20,6 +20,7 @@
 <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
 <link rel="preload" href="assets/fonts/InstrumentSans-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/BricolageGrotesque-var.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/JetBrainsMono-500.woff2" as="font" type="font/woff2" crossorigin>
 
 <title>Brigade Verte · Amiens</title>
 
@@ -31,8 +32,47 @@
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/map.css">
 <link rel="stylesheet" href="css/animations.css">
+<link rel="stylesheet" href="css/splash.css">
 </head>
 <body>
+<!-- ═════════ Séquence de démarrage (css/splash.css · js/splash.js) ═════════
+     Décor aria-hidden ; le lecteur d'écran n'entend qu'« Chargement… ». -->
+<div class="splash" id="splash">
+  <canvas class="splashDust" id="splashDust" aria-hidden="true"></canvas>
+  <div class="splashGrid" aria-hidden="true"></div>
+  <div class="splashSweep" aria-hidden="true"></div>
+  <div class="splashHud" aria-hidden="true">
+    <span class="hudTL"><b><i class="hudDot" id="splashSecureDot"></i><span id="splashSecure">SECURE CONNECTION</span></b><em id="splashProto">HTTPS · TLS</em></span>
+    <span class="hudTR"><b><span id="splashOnline">SYSTEM ONLINE</span><i class="hudDot" id="splashOnlineDot"></i></b><em id="splashClock">--:--:--</em></span>
+    <span class="hudBL"><b>49.8942° N · 2.2957° E</b><em>Amiens · 27 quartiers · 5 secteurs</em></span>
+    <span class="hudBR"><b>Brigade Verte · v4.4</b><em id="splashVoies">Base des voies locale</em></span>
+  </div>
+  <div class="splashCore">
+    <div class="splashLine" aria-hidden="true"></div>
+    <p class="splashBoot" aria-hidden="true">INITIALISATION DU SYSTÈME...<i></i></p>
+    <div class="splashEmblem" aria-hidden="true">
+      <svg class="splashRing" viewBox="0 0 148 148" fill="none" stroke="currentColor"><circle cx="74" cy="74" r="72" stroke-width="1" stroke-dasharray="1 5"/><path d="M74 0v7M74 141v7M0 74h7M141 74h7" stroke-width="1.2"/></svg>
+      <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+      <!-- Emblème de l'application (pas un logo officiel). Logo officiel : voir OFFICIAL_LOGO dans js/splash.js -->
+      <img class="splashLogo" id="splashLogo" src="assets/logo/logo.svg" alt="" width="76" height="76" decoding="async">
+    </div>
+    <p class="splashIdent" aria-hidden="true">IDENTIFICATION : <b>BRIGADE VERTE</b></p>
+    <p class="splashTitle" aria-hidden="true">
+      <span class="t1">Police municipale</span>
+      <span class="t2">Amiens</span>
+      <span class="t3" data-text="Brigade Verte">Brigade Verte</span>
+    </p>
+    <div class="splashLoad" aria-hidden="true">
+      <div class="splashLoadHead"><span id="splashStatus">ACCÈS SÉCURISÉ</span><span id="splashPct">000 %</span></div>
+      <div class="splashBar"><i id="splashBar"></i></div>
+    </div>
+  </div>
+  <div class="splashScanlines" aria-hidden="true"></div>
+  <div class="splashVignette" aria-hidden="true"></div>
+  <div class="splashFlash" aria-hidden="true"></div>
+  <p class="splashSkip" aria-hidden="true">Toucher pour passer</p>
+  <p class="visually-hidden" role="status">Chargement de Brigade Verte, Police municipale d'Amiens…</p>
+</div>
 <a class="skip-link" href="#panel">Aller à la saisie</a>
 
 <!-- Icônes : jeu unique Lucide (ISC), trait 2 px — référencées via <use href="#i-…"> -->

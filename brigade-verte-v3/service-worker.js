@@ -1,9 +1,9 @@
 // Service Worker — installation Android/iPhone + fonctionnement hors connexion.
-// Les API externes (WFS secteurs, api-adresse) ne sont jamais mises en cache :
+// Les API externes (géocodage inverse, api-adresse) ne sont jamais mises en cache :
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v4.4.0";
+const VERSION = "v4.5.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 // Tuiles du Plan IGN : cache persistant entre versions, borné (~700 tuiles ≈ 20 Mo).
@@ -31,8 +31,10 @@ const SHELL_ASSETS = [
   "./js/collecteView.js",
   "./js/components.js",
   "./js/composer.js",
+  "./js/email.js",
   "./js/geo.js",
   "./js/icons.js",
+  "./js/locate.js",
   "./js/mail.js",
   "./js/map.js",
   "./js/report.js",
@@ -41,6 +43,7 @@ const SHELL_ASSETS = [
   "./js/sectors.js",
   "./js/splash.js",
   "./js/storage.js",
+  "./js/streetgeo.js",
   "./js/streets.js",
   "./js/ui.js",
   "./js/utils.js",
@@ -55,7 +58,7 @@ const SHELL_ASSETS = [
   "./suivi/index.html",
 ];
 
-const DATA_ASSETS = ["./data/streets.json", "./data/waste.json", "./data/quartiers.geojson", "./data/secteurs.geojson"];
+const DATA_ASSETS = ["./data/streets.json", "./data/streets-geo.json", "./data/waste.json", "./data/quartiers.geojson", "./data/secteurs.geojson"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

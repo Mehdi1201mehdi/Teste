@@ -172,7 +172,13 @@ export function decideStreet(fix, near, rev = null) {
     return { status: "ambiguous", accuracy: acc, street: null, candidates: list.slice(0, 5), numero: "", reasons };
   }
 
-  const revAgrees = !rev?.street || rev.street.rue === top.r.rue;
+  // L'adresse officielle ne contredit le tracé que si elle est proche de la
+  // mesure ET que sa rue passe dans le cercle d'incertitude. Cas réel : à 6 m
+  // de la rue Lemerchier, le numéro le plus proche (43 m) est au boulevard
+  // Jules Verne, sur l'immeuble d'angle — ce n'est pas une raison de douter.
+  const revCand = rev?.street ? list.find((c) => c.r.rue === rev.street.rue) : null;
+  const revRelevant = !!rev?.street && (rev.distance ?? 999) <= Math.max(25, acc + 15) && (!revCand?.exact || revCand.d <= reach);
+  const revAgrees = !revRelevant || rev.street.rue === top.r.rue;
   const margin = second ? second.d - top.d : Infinity;
   const clearWinner = compatible.length === 1 || margin >= Math.max(10, acc * 0.6);
 

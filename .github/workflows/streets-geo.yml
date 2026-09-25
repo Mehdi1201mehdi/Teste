@@ -1,11 +1,18 @@
 name: Tracé des rues (IGN)
 
 # Régénère data/streets-geo.json (tracé réel des rues, utilisé par « Ma position »).
-# À lancer à la main (onglet Actions → « Tracé des rues (IGN) » → Run workflow)
+# Se lance tout seul quand la liste des rues ou l'outil change ; peut aussi être
+# lancé à la main (onglet Actions → « Tracé des rues (IGN) » → Run workflow)
 # quand des rues sont créées ou renommées. Le fichier n'est commité que s'il change.
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/streets-geo.yml"
+      - "tools/build-streets-geo.mjs"
+      - "brigade-verte-v3/data/streets.json"
 
 permissions:
   contents: write

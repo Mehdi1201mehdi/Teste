@@ -16,7 +16,8 @@ import { showSuggestions, hideSuggestions, bindComboKeys, renderChips, ticketHtm
 import { toast, replay, haptic } from "./ui.js";
 import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
 import * as map from "./map.js";
-import { trackLocate, gpsQuality, fmtDist } from "./geo.js";
+import { gpsQuality, fmtDist } from "./geo.js";
+import { resolveStreet, resolveSectorAt } from "./locate.js";
 import { lookupStreet, scheduleFor, shortSchedule, nextPickup, relDay } from "./collecte.js";
 import { openCollecte } from "./collecteView.js";
 
@@ -26,7 +27,8 @@ let hooks = { changed: () => {} };
 
 /* ═════════════ Lieu ═════════════ */
 
-export function chooseRue(rue, { fly = true } = {}) {
+export function chooseRue(rue, { fly = true, keepGps = false } = {}) {
+  if (!keepGps) hideGpsPanel(); // rue choisie autrement : le bandeau GPS n'a plus lieu d'être
   const c = state.current;
   c.rue = { rue: rue.rue, lon: rue.lon, lat: rue.lat, secteur: rue.secteur };
   c.secteur = rue.secteur || null;
@@ -46,6 +48,7 @@ export function chooseRue(rue, { fly = true } = {}) {
 }
 
 function clearRue() {
+  hideGpsPanel();
   const c = state.current;
   c.rue = null;
   c.secteur = null;
@@ -157,13 +160,15 @@ function renderPrecisions() {
   });
 }
 
-/* ─── GPS ───
-   Recherche → premier point (souvent approximatif) → la liste des rues
-   s'affiche tout de suite → le cercle se resserre à chaque mesure plus fine.
-   La liste n'est PAS réordonnée sous le doigt pendant l'affinage : elle n'est
-   remplacée qu'à la fin, et seulement si la rue la plus proche a changé. */
-let locating = false;
+/* ─── GPS : « Ma position » ───
+   Mesure fraîche → tracé réel des rues → adresse officielle → décision.
+   · rue certaine (précision fine, aucune rue voisine) : retenue, modifiable ;
+   · rues proches ou précision moyenne : l'agent confirme parmi les candidates ;
+   · précision insuffisante : aucune rue n'est affirmée, « Réessayer » en tête.
+   Le GPS est coupé dès la mesure obtenue (jamais de suivi permanent). */
+let locating = null; // AbortController de la recherche en cours
 let gpsStatusTimer;
+let lastLocate = null; // dernier résultat (pour la confirmation d'une candidate)
 
 function gpsStatus(text, quality) {
   const el = $("gpsStatus");
@@ -174,61 +179,196 @@ function gpsStatus(text, quality) {
   el.dataset.quality = quality || "";
 }
 
-function showNearest(lat, lon) {
-  const near = map.nearestStreets(lat, lon, 5);
-  if (!near.length) return null;
-  showSuggestions(
-    $("streetSuggest"),
-    near.map(({ r, d }) => streetEntry(r, "", (rue) => chooseRue(rue), fmtDist(d))),
-    "",
-  );
-  $("streetInput").setAttribute("aria-expanded", "true");
-  return near[0].r.rue;
+function hideGpsPanel() {
+  const p = $("gpsPanel");
+  if (p) p.hidden = true;
+}
+
+const QUALITY_LABEL = { good: "position précise", fair: "précision moyenne", poor: "précision insuffisante" };
+
+/** Bandeau de résultat sous « Ma position ». */
+function showGpsPanel({ state: st, title, msg, hint = "", accuracy = null, candidates = [], chosen = null, source = "", numero = "" }) {
+  const p = $("gpsPanel");
+  p.hidden = false;
+  p.dataset.state = st;
+  const q = accuracy != null ? gpsQuality(accuracy) : "";
+  const badge = accuracy != null ? `<span class="gpsBadge mono" data-quality="${q}">± ${accuracy} m</span>` : "";
+  const busy = st === "seek" || st === "address";
+  const candHtml = candidates
+    .map(
+      (c, k) => `<button type="button" class="gpsCand${chosen === c.r.rue ? " is-chosen" : ""}" data-k="${k}" style="${secStyle(c.r.secteur)}">
+        <span class="gpsCandName">${esc(c.r.rue)}</span>
+        <span class="gpsCandMeta mono">${k === 0 && st !== "imprecise" ? "la plus proche · " : ""}${fmtDist(c.d)}${c.exact ? "" : " · approx."}${c.r.secteur ? " · " + esc(c.r.secteur) : ""}</span>
+        ${chosen === c.r.rue ? '<svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg>' : ""}
+      </button>`,
+    )
+    .join("");
+  const settled = st === "confident" || st === "confirmed";
+  const listLabel = st === "confident" ? "Pas la bonne rue ?" : st === "confirmed" ? "Changer de rue" : st === "imprecise" ? "Rues possibles (à vérifier)" : "Confirmez la rue";
+  p.innerHTML = `
+    <div class="gpsHead">
+      <span class="gpsIcon${busy ? " is-busy" : ""}" aria-hidden="true"><svg class="icon"><use href="#i-locate"></use></svg></span>
+      <p class="gpsTitle" id="gpsPanelTitle">${title}</p>
+      ${badge}
+      <button type="button" class="iconBtn gpsClose" id="gpsPanelClose" aria-label="${busy ? "Annuler la localisation" : "Fermer"}"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+    </div>
+    ${msg ? `<p class="gpsMsg">${msg}</p>` : ""}
+    ${hint ? `<p class="gpsHint">${hint}</p>` : ""}
+    ${numero ? `<button type="button" class="chipBtn gpsNum" id="gpsUseNum"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"></use></svg>Numéro le plus proche : <b class="mono">${esc(numero)}</b> · utiliser</button>` : ""}
+    ${
+      candidates.length
+        ? settled
+          ? `<details class="gpsMore"><summary>${listLabel}</summary><div class="gpsCands" role="group" aria-label="Autres rues proches">${candHtml}</div></details>`
+          : `<p class="gpsListLabel">${listLabel}</p><div class="gpsCands" role="group" aria-label="${listLabel}">${candHtml}</div>`
+        : ""
+    }
+    <div class="gpsFoot">
+      ${busy ? "" : `<button type="button" class="linkBtn" id="gpsRetry"><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>Réessayer</button>`}
+      ${source ? `<span class="gpsSource">${source}</span>` : ""}
+    </div>`;
+  $("gpsPanelClose").onclick = () => {
+    locating?.abort();
+    hideGpsPanel();
+  };
+  $("gpsRetry")?.addEventListener("click", () => useMyPosition($("locateBtn")));
+  $("gpsUseNum")?.addEventListener("click", () => applyNumero(numero));
+  p.querySelectorAll(".gpsCand").forEach((b) => {
+    b.onclick = () => confirmCandidate(candidates[+b.dataset.k]);
+  });
+}
+
+function applyNumero(numero) {
+  const input = $("numeroRue");
+  input.value = numero;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  $("gpsUseNum")?.remove();
+  toast(`N° ${numero} repris — vérifiez-le sur la façade.`);
+}
+
+/** Rue choisie depuis le GPS (automatiquement ou confirmée par l'agent). */
+function applyGpsStreet(street, secteur) {
+  chooseRue(street, { keepGps: true });
+  const c = state.current;
+  if (secteur && secteur !== c.secteur) {
+    c.secteur = secteur;
+    c.secteurAuto = true;
+    renderPlace();
+    renderComposer();
+    save();
+  }
+}
+
+function confirmCandidate(cand) {
+  if (!cand || !lastLocate) return;
+  const { fix, reverse } = lastLocate;
+  applyGpsStreet(cand.r, resolveSectorAt(cand.r, fix, cand.d));
+  haptic(10);
+  const numero = reverse?.street?.rue === cand.r.rue && reverse.housenumber && (reverse.distance ?? 999) <= Math.max(20, fix.accuracy) ? reverse.housenumber : "";
+  showGpsPanel({
+    state: "confirmed",
+    title: `Rue confirmée : <b>${esc(cand.r.rue)}</b>`,
+    msg: "Choix enregistré. Vous pouvez encore la changer ci-dessous.",
+    accuracy: fix.accuracy,
+    candidates: lastLocate.decision.candidates,
+    chosen: cand.r.rue,
+    source: lastLocate.sourceText,
+    numero: numero && !state.current.numero ? numero : "",
+  });
+}
+
+function sourceText(res) {
+  const parts = [res.geometry ? "Tracé des rues IGN" : "Plan simplifié (tracé non chargé)"];
+  if (res.reverse?.street) parts.push("adresse vérifiée (Base Adresse Nationale)");
+  else if (res.reverseError?.kind === "offline") parts.push("hors connexion : numéro indisponible");
+  else if (res.reverseError) parts.push("service d'adresses indisponible : numéro non proposé");
+  return parts.join(" · ");
 }
 
 async function useMyPosition(btn) {
   if (locating) return;
-  locating = true;
+  const ctrl = new AbortController();
+  locating = ctrl;
   const buttons = [$("locateBtn"), $("mapLocate")];
   buttons.forEach((b) => b.setAttribute("aria-busy", "true"));
   map.setLocating(true);
+  hideSuggestions($("streetSuggest"), $("streetInput"));
+  if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
   gpsStatus("Recherche du signal GPS…", "seek");
-  let firstTop = null;
+  showGpsPanel({ state: "seek", title: "Recherche de votre position…", msg: "Restez immobile quelques secondes, téléphone dégagé." });
+  if (btn === $("mapLocate")) $("gpsPanel").scrollIntoView({ block: "center", behavior: "smooth" });
   let shown = false;
+  let acc = null;
   try {
-    const best = await trackLocate({
+    const res = await resolveStreet({
+      signal: ctrl.signal,
       onFix: ({ lat, lon, accuracy }) => {
         const quality = gpsQuality(accuracy);
         map.setMe(lat, lon, { accuracy, quality, fly: !shown });
         map.setLocating(false);
+        shown = true;
+        acc = accuracy;
         gpsStatus(`± ${accuracy} m · affinage…`, quality);
-        if (!shown) {
-          shown = true;
-          if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
-          firstTop = showNearest(lat, lon);
-          if (btn === $("mapLocate")) $("streetInput").scrollIntoView({ block: "center", behavior: "smooth" });
-        }
+        showGpsPanel({ state: "seek", title: "Position reçue, affinage en cours…", msg: "Le cercle se resserre à chaque mesure plus fine.", accuracy });
+      },
+      onStage: (stage) => {
+        if (stage === "adresse") showGpsPanel({ state: "address", title: "Identification de la rue…", accuracy: acc });
       },
     });
-    const quality = gpsQuality(best.accuracy);
-    gpsStatus(`± ${best.accuracy} m · ${quality === "good" ? "position précise" : quality === "fair" ? "précision moyenne" : "signal faible"}`, quality);
+    const { fix, decision } = res;
+    lastLocate = { ...res, sourceText: sourceText(res) };
+    const quality = gpsQuality(fix.accuracy);
+    gpsStatus(`± ${fix.accuracy} m · ${QUALITY_LABEL[quality]}`, quality);
     gpsStatusTimer = setTimeout(() => gpsStatus(""), 6000);
-    const top = map.nearestStreets(best.lat, best.lon, 1)[0]?.r.rue;
-    if (!top) return toast("Liste des rues indisponible.", null, "warn");
-    // Liste encore ouverte et la rue la plus proche a changé : on la met à jour.
-    if (top !== firstTop && !state.current.rue && $("streetInput").getAttribute("aria-expanded") === "true") showNearest(best.lat, best.lon);
-    if (quality === "poor") {
-      toast(`Signal faible (± ${best.accuracy} m) : vérifiez la rue, ou touchez la carte à l'endroit exact.`, null, "warn");
-    } else {
-      // La pastille « ± 14 m · position précise » (role=status) suffit : pas de
-      // toast qui masquerait la liste des rues à toucher.
+    const base = { accuracy: fix.accuracy, candidates: decision.candidates, source: lastLocate.sourceText };
+
+    if (decision.status === "confident") {
+      applyGpsStreet(decision.street, decision.secteur);
       haptic(10);
+      showGpsPanel({
+        ...base,
+        state: "confident",
+        title: `Rue détectée : <b>${esc(decision.street.rue)}</b>`,
+        msg: `Position précise (± ${fix.accuracy} m), aucune autre rue à proximité immédiate.`,
+        chosen: decision.street.rue,
+        numero: decision.numero && !state.current.numero ? decision.numero : "",
+      });
+    } else if (decision.status === "imprecise") {
+      showGpsPanel({
+        ...base,
+        state: "imprecise",
+        title: "Précision insuffisante",
+        msg: `Localisation obtenue, mais précision insuffisante (± ${fix.accuracy} m). Déplacez-vous légèrement ou réessayez.`,
+        hint: "Vous pouvez aussi choisir la rue ci-dessous, la rechercher, ou toucher la carte.",
+      });
+    } else {
+      const why = decision.reasons.includes("far")
+        ? `Aucune rue connue à moins de ${fmtDist(decision.candidates[0]?.d ?? 0)} (parc, cour, voie privée ?).`
+        : decision.reasons.includes("reverse-disagrees")
+          ? "L'adresse officielle la plus proche est dans une autre rue : confirmez."
+          : decision.reasons.includes("close-streets")
+            ? "Plusieurs rues à proximité : touchez la bonne."
+            : decision.reasons.includes("no-geometry")
+              ? "Tracé exact de cette rue non disponible : confirmez."
+              : `Précision GPS ± ${fix.accuracy} m : vérifiez la rue.`;
+      showGpsPanel({
+        ...base,
+        state: "ambiguous",
+        title: decision.street && !decision.reasons.includes("far") ? `Rue détectée : <b>${esc(decision.street.rue)}</b> — à vérifier` : "Rue à confirmer",
+        msg: why,
+      });
+      $("gpsPanel").querySelector(".gpsCand")?.focus({ preventScroll: true });
     }
   } catch (e) {
     gpsStatus("");
-    toast(e.message, null, "error");
+    if (e?.code === "aborted") return hideGpsPanel();
+    showGpsPanel({
+      state: "error",
+      title: "Localisation impossible",
+      msg: esc(e?.message || "Erreur inconnue."),
+      hint: e?.hint ? esc(e.hint) : "En attendant : recherchez la rue par son nom ou touchez la carte.",
+    });
   } finally {
-    locating = false;
+    locating = null;
     map.setLocating(false);
     buttons.forEach((b) => b.removeAttribute("aria-busy"));
   }
@@ -385,6 +525,7 @@ export function resetCurrent({ silent = false } = {}) {
   hideSuggestions($("wasteSuggest"), $("wasteInput"));
   map.setTarget(null);
   map.focusSector(null);
+  hideGpsPanel();
   renderAllComposer();
   save();
   if (!silent) toast("Saisie effacée.");

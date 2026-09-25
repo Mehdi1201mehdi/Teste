@@ -21,3 +21,56 @@ export async function geocodeAddress(numero, rue) {
     return null;
   }
 }
+
+/* ─── Géocodage inverse : coordonnées → adresse la plus proche ───
+   Service officiel de la Géoplateforme IGN (successeur de api-adresse), avec
+   repli sur api-adresse.data.gouv.fr. Public, sans clé, CORS ouvert ; limite
+   d'usage raisonnable (≈ 50 requêtes/s/IP) très au-delà d'un usage terrain.
+   Une seule requête par mesure GPS ; résultats gardés en mémoire (≈ 10 m). */
+const REVERSE_APIS = [
+  (lat, lon) => `https://data.geopf.fr/geocodage/reverse?lon=${lon}&lat=${lat}&index=address&limit=10`,
+  (lat, lon) => `https://api-adresse.data.gouv.fr/reverse/?lon=${lon}&lat=${lat}&limit=10`,
+];
+const reverseCache = new Map();
+
+/** Erreur typée : `kind` = "offline" | "unavailable". */
+export class ReverseError extends Error {
+  constructor(kind, message) {
+    super(message);
+    this.kind = kind;
+  }
+}
+
+/**
+ * Adresses proches d'un point (GeoJSON `features`, chacune avec `distance` en
+ * mètres). Lève ReverseError si hors connexion ou si aucun service ne répond.
+ */
+export async function reverseGeocode(lat, lon, { timeoutMs = 4500 } = {}) {
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  if (reverseCache.has(key)) return reverseCache.get(key);
+  if (typeof navigator !== "undefined" && navigator.onLine === false) {
+    throw new ReverseError("offline", "Hors connexion");
+  }
+  const la = lat.toFixed(6);
+  const lo = lon.toFixed(6);
+  let lastErr = null;
+  for (const url of REVERSE_APIS) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const r = await fetch(url(la, lo), { signal: ctrl.signal });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const j = await r.json();
+      const features = Array.isArray(j.features) ? j.features : [];
+      reverseCache.set(key, features);
+      if (reverseCache.size > 50) reverseCache.delete(reverseCache.keys().next().value);
+      return features;
+    } catch (e) {
+      lastErr = e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  throw new ReverseError(offline ? "offline" : "unavailable", lastErr?.message || "Service indisponible");
+}

@@ -16,6 +16,7 @@ import { initComposer, renderAllComposer, renderComposer, chooseRue, editBp, res
 import { initReport, renderReport, sectorCounts, sectorBarHtml, revealBp } from "./report.js";
 import { showSuggestions } from "./components.js";
 import { fmtDist } from "./geo.js";
+import { initStreetIndex, loadStreetGeometry } from "./locate.js";
 import * as map from "./map.js";
 import { initCollecte } from "./collecteView.js";
 
@@ -235,6 +236,7 @@ async function main() {
       return r;
     }),
   ]);
+  initStreetIndex(streets);
   map.initMap($("map"), streets, {
     onPick: onMapPick,
     onPinClick: (i) => {
@@ -293,6 +295,12 @@ async function main() {
   loadSectorContours();
   // Interface prête : la séquence de démarrage peut s'effacer.
   splash.step("ui");
+  // Tracé réel des rues (pour « Ma position ») : chargé hors du chemin critique,
+  // une fois la séquence de démarrage terminée (aucune saccade pendant l'animation).
+  // « Ma position » le charge de toute façon à la demande s'il n'est pas prêt.
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1200));
+  if ($("splash")) document.addEventListener("bv:splashdone", () => idle(() => loadStreetGeometry()), { once: true });
+  else idle(() => loadStreetGeometry());
 }
 
 main().catch((e) => {

@@ -1,11 +1,12 @@
 // Vue Rapport — le message tel qu'il partira, les bons classés par secteur,
 // l'envoi (copie, Outlook appli, Outlook web) et la clôture de tournée.
 
-import { $, esc, plural, dateFr, detectPlatform } from "./utils.js";
+import { $, esc, plural, dateFr } from "./utils.js";
 import { state, save } from "./storage.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
+import { buildEmailBody, parseRecipients, openEmailClient, copyEmailContent } from "./email.js";
 import { ticketHtml, bindTicketActions } from "./components.js";
 import { toast, confirmDialog, replay } from "./ui.js";
 import { go } from "./router.js";
@@ -53,7 +54,10 @@ export function renderReport() {
 
   // Document
   const mailEl = $("mail");
-  if (mailEl.getAttribute("contenteditable") !== "true") mailEl.textContent = mailText();
+  // Aperçu fidèle : secteurs en gras souligné, comme dans le message collé.
+  if (mailEl.getAttribute("contenteditable") !== "true") mailEl.innerHTML = buildEmailBody(mailText()).previewHtml;
+  const to = $("mailTo");
+  if (document.activeElement !== to) to.value = state.mailTo || "";
   $("docSubject").textContent = mailSubject();
   $("docState").hidden = !state.mailCustom;
   $("resetMail").hidden = !state.mailCustom;
@@ -136,74 +140,119 @@ async function clearTour() {
   toast("Tournée clôturée — prêt pour la prochaine.", null, "ok");
 }
 
-/* ─── Envoi ─── */
-function mailParams() {
-  const body = $("mail").textContent;
-  return { body, params: `subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(body)}` };
+/* ─── Envoi ───
+   Tout passe par email.js : un seul endroit pour l'encodage, le choix du
+   lien selon l'appareil, la copie (HTML + texte) et les replis. */
+
+/** Message courant : texte en cours d'édition, sinon texte du rapport. */
+function currentMessage() {
+  const mailEl = $("mail");
+  const text = mailEl.getAttribute("contenteditable") === "true" ? mailEl.innerText.trim() : mailText();
+  const body = buildEmailBody(text);
+  return { to: parseRecipients(state.mailTo).valid, subject: mailSubject(), body: body.plain, html: body.html, text };
 }
 
-async function copyText(text, okMsg) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast(okMsg, null, "ok");
-    return true;
-  } catch (e) {
-    // Repli : sélection manuelle du texte pour un appui long « Copier ».
-    const range = document.createRange();
-    range.selectNodeContents($("mail"));
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    toast("Copie automatique impossible — le texte est sélectionné, copiez-le manuellement.", null, "warn");
-    return false;
+function checkRecipients({ warnEmpty = false } = {}) {
+  const note = $("mailToNote");
+  const input = $("mailTo");
+  const { valid, invalid } = parseRecipients(state.mailTo);
+  input.setAttribute("aria-invalid", String(invalid.length > 0));
+  if (invalid.length) {
+    note.textContent = `Adresse à corriger : ${invalid.join(", ")}`;
+    note.dataset.tone = "error";
+    note.hidden = false;
+  } else if (warnEmpty && !valid.length) {
+    note.textContent = "Aucun destinataire : ajoutez l'adresse du service ci-dessus (elle sera mémorisée), ou saisissez-la dans la messagerie.";
+    note.dataset.tone = "info";
+    note.hidden = false;
+  } else note.hidden = true;
+  return { valid, invalid };
+}
+
+/** Copie avec mise en forme ; repli : texte sélectionné pour un appui long. */
+async function copyEmail({ silent = false } = {}) {
+  const m = currentMessage();
+  const res = await copyEmailContent({ html: m.html, text: m.body });
+  if (res || silent) return res;
+  const range = document.createRange();
+  range.selectNodeContents($("mail"));
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  toast("Copie automatique impossible — le texte est sélectionné, copiez-le manuellement.", null, "warn");
+  return false;
+}
+
+function showFallback(text) {
+  const box = $("sendFallback");
+  $("sendFallbackText").textContent = text || "Choisissez une autre façon d'envoyer ce rapport.";
+  box.hidden = false;
+  box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+/**
+ * Ouvre la messagerie. Tout se fait dans le geste de l'agent, sans attente :
+ * Safari et Chrome n'autorisent l'ouverture d'une appli ou d'un onglet que
+ * pendant ce geste. La copie mise en forme est lancée juste avant (bonus pour
+ * obtenir les secteurs en gras souligné par un collage).
+ */
+async function sendVia(channel, { fromFallback = false } = {}) {
+  const { invalid } = checkRecipients({ warnEmpty: true });
+  if (invalid.length) {
+    $("mailTo").focus();
+    return toast("Corrigez l'adresse du destinataire avant d'ouvrir la messagerie.", null, "warn");
+  }
+  // Depuis un repli, les autres options restent affichées (si celui-ci échoue aussi).
+  if (!fromFallback) $("sendFallback").hidden = true;
+  const m = currentMessage();
+  const copying = copyEmail({ silent: true });
+  const plan = openEmailClient(channel, m, {
+    onNotOpened: (p) =>
+      showFallback(
+        p.kind === "app"
+          ? "L'appli Outlook ne semble pas installée (ou le lien a été bloqué). Essayez Outlook Web ou une autre messagerie."
+          : "La messagerie ne s'est pas ouverte. Essayez Outlook Web, ou copiez le message.",
+      ),
+  });
+  if (plan.truncated) {
+    const copied = await copying;
+    toast(copied ? "Rapport trop long pour un lien : il est copié — collez-le dans le corps du message." : "Rapport trop long pour un lien : copiez-le puis collez-le dans le message.", null, "warn");
   }
 }
 
 function bindSend() {
   $("copyMail").onclick = async () => {
-    const ok = await copyText($("mail").textContent, "Message copié — collez-le dans votre messagerie.");
-    if (ok) {
-      const b = $("copyMail");
-      b.classList.add("is-done");
-      b.querySelector("span").textContent = "Copié";
-      b.querySelector("use").setAttribute("href", "#i-check");
-      setTimeout(() => {
-        b.classList.remove("is-done");
-        b.querySelector("span").textContent = "Copier le message";
-        b.querySelector("use").setAttribute("href", "#i-copy");
-      }, 1600);
-    }
+    const res = await copyEmail();
+    if (!res) return;
+    toast(res === "rich" ? "Message copié avec la mise en forme — collez-le dans votre messagerie." : "Message copié (texte simple) — collez-le dans votre messagerie.", null, "ok");
+    const b = $("copyMail");
+    b.classList.add("is-done");
+    b.querySelector("span").textContent = "Copié";
+    b.querySelector("use").setAttribute("href", "#i-check");
+    setTimeout(() => {
+      b.classList.remove("is-done");
+      b.querySelector("span").textContent = "Copier le message";
+      b.querySelector("use").setAttribute("href", "#i-copy");
+    }, 1600);
   };
 
-  // Outlook : appli mobile (ms-outlook://) si installée, sinon appli mail par
-  // défaut (mailto:). Sur PC, directement l'appli mail du système.
-  // Texte trop long pour une URL : copié dans le presse-papiers à la place.
-  $("openMail").onclick = async () => {
-    const { body, params } = mailParams();
-    if (params.length > 1800) return copyText(body, "Texte trop long pour un lien direct — copié à la place.");
-    if (detectPlatform() === "desktop") {
-      window.location.href = `mailto:?${params}`;
-      return;
-    }
-    const fallback = setTimeout(() => {
-      window.location.href = `mailto:?${params}`;
-    }, 1400);
-    const cancel = () => {
-      if (document.visibilityState === "hidden") {
-        clearTimeout(fallback);
-        document.removeEventListener("visibilitychange", cancel);
-      }
-    };
-    document.addEventListener("visibilitychange", cancel);
-    window.location.href = `ms-outlook://compose?${params}`;
-  };
-
+  // Outlook : appli sur téléphone (repli Outlook Web géré par Android, ou
+  // proposé à l'écran), messagerie installée sur ordinateur.
+  $("openMail").onclick = () => sendVia("app");
   // Outlook sur le web : aucune appli requise (PC partagé en mairie…).
-  $("openMailWeb").onclick = async () => {
-    const { body, params } = mailParams();
-    if (params.length > 1800) return copyText(body, "Texte trop long pour Outlook Web — copié à la place.");
-    window.open(`https://outlook.office.com/mail/deeplink/compose?${params}`, "_blank", "noopener");
-  };
+  $("openMailWeb").onclick = () => sendVia("web");
+  $("fallbackWeb").onclick = () => sendVia("web", { fromFallback: true });
+  $("fallbackMailto").onclick = () => sendVia("mailto", { fromFallback: true });
+  $("fallbackCopy").onclick = () => $("copyMail").click();
+
+  // Destinataire(s) : mémorisé sur l'appareil, conservé d'une tournée à l'autre.
+  const to = $("mailTo");
+  to.addEventListener("input", () => {
+    state.mailTo = to.value.trim();
+    save();
+    if (!$("mailToNote").hidden) checkRecipients();
+  });
+  to.addEventListener("change", () => checkRecipients());
 
   // Édition manuelle : un appui ouvre, un second enregistre. Survit au rechargement.
   $("editMail").onclick = () => {

@@ -22,6 +22,7 @@ function defaultState() {
     bps: [],
     editing: null,
     mailCustom: "",
+    mailTo: "", // destinataire(s) du rapport, gardé d'une tournée à l'autre
     gps: true,
     wasteFreq: {}, // { "Matelas": 12, … } — alimente « Les plus fréquents »
     lastSaved: "",
@@ -41,6 +42,7 @@ function migrate(saved) {
   if (typeof c.secteurAuto !== "boolean") c.secteurAuto = true;
   if (!Array.isArray(saved.bps)) saved.bps = [];
   if (!saved.wasteFreq || typeof saved.wasteFreq !== "object") saved.wasteFreq = {};
+  if (typeof saved.mailTo !== "string") saved.mailTo = "";
 
   // v3 → v4 : l'assistant en 5 étapes devient 3 temps + une vue Rapport.
   if ((saved.version || 3) < 4) {

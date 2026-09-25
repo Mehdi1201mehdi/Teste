@@ -9,6 +9,7 @@
 // Moteur : Leaflet 1.9 (embarqué dans js/vendor), gestes natifs iOS / Android / souris.
 
 import { esc } from "./utils.js";
+import { findNearestStreets } from "./locate.js";
 
 const L = window.L;
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -98,15 +99,6 @@ function labelPoint(geom) {
     }
   }
   return [cy, mid];
-}
-
-function distM(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const r = Math.PI / 180;
-  const dLat = (lat2 - lat1) * r;
-  const dLon = (lon2 - lon1) * r;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 const firstSector = (s) => String(s || "").split(",")[0].trim().toUpperCase();
@@ -494,12 +486,12 @@ export function streetByName(name) {
   return byName.get(name) || null;
 }
 
-/** Les n rues les plus proches d'un point, avec la distance en mètres. */
+/**
+ * Les n rues les plus proches d'un point, avec la distance en mètres —
+ * mesurée jusqu'au tracé réel de la rue (voir locate.js / streetgeo.js).
+ */
 export function nearestStreets(lat, lon, n = 5) {
-  return streets
-    .map((r) => ({ r, d: distM(lat, lon, r.lat, r.lon) }))
-    .sort((a, b) => a.d - b.d)
-    .slice(0, n);
+  return findNearestStreets(lat, lon, n);
 }
 
 export function clearProbe() {

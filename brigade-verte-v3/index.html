@@ -158,6 +158,9 @@
       </div>
 
       <p class="mapHint" id="mapHint">Touchez la carte pour choisir une rue</p>
+      <div class="mapLegend" id="mapLegend" aria-label="Légende des signalements">
+        <span><i data-level="critique"></i>Critique</span><span><i data-level="haute"></i>Haute</span><span><i data-level="moyenne"></i>Moyenne</span><span><i data-level="faible"></i>Faible</span><span><i data-level="clos"></i>Traité</span><span><i class="is-approx"></i>Position approchée</span>
+      </div>
       <p class="gpsStatus mono" id="gpsStatus" role="status" aria-live="polite" hidden></p>
 
       <div class="mapPick" id="mapPick" role="dialog" aria-label="Rues proches du point touché" hidden>
@@ -273,6 +276,7 @@
             <legend class="stageTitle">Vérifier et enregistrer</legend>
             <div id="ticketPreview"></div>
             <div class="dupNote" id="dupNote" role="status" hidden></div>
+            <div class="dupNote recurNote" id="recurNote" role="status" hidden></div>
             <div class="lineOut">
               <span class="label">Ligne ajoutée au rapport</span>
               <p class="lineOutText mono" id="linePreview">—</p>
@@ -344,6 +348,22 @@
             </div>
             <p class="sendNote">Destinataire, objet et message sont préremplis : vous relisez et vous envoyez vous-même. Un lien ne transporte que du texte simple (secteurs en MAJUSCULES) ; pour les secteurs en <b><u>gras souligné</u></b>, collez le message copié à la place du texte.</p>
 
+            <section class="checkCard" id="checkCard" aria-labelledby="checkTitle">
+              <div class="sectionHead">
+                <h2 id="checkTitle">Contrôle avant envoi</h2>
+                <span class="checkScore mono" id="checkScore"></span>
+              </div>
+              <ul class="checkList" id="checkList"></ul>
+              <details class="synth" id="synth">
+                <summary>Synthèse de la tournée <span class="opt">pour le responsable · hors message</span></summary>
+                <ul class="synthList" id="synthList"></ul>
+                <div class="synthTools">
+                  <button type="button" class="linkBtn" id="copySynth"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg>Copier la synthèse</button>
+                  <button type="button" class="linkBtn" id="printReport"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg>Imprimer le rapport</button>
+                </div>
+              </details>
+            </section>
+
             <section class="ledger" aria-labelledby="ledgerTitle">
               <div class="sectionHead">
                 <h2 id="ledgerTitle">Bons de passage</h2>
@@ -404,13 +424,19 @@
       <div class="view view--historique" id="viewHistorique" hidden>
         <div class="histScroll">
           <header class="histHead">
-            <p class="eyebrow">Historique</p>
-            <h2 class="viewTitle">Signalements</h2>
+            <div class="histTitleRow">
+              <div>
+                <p class="eyebrow">Historique · pilotage</p>
+                <h2 class="viewTitle" id="histTitle">Tableau de bord</h2>
+              </div>
+              <button type="button" class="btn btn--line histMapBtn" id="histMapBtn" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Carte</span></button>
+            </div>
             <p class="histCount" id="histCount" role="status"></p>
             <p class="banner banner--warn histWarn" id="histArchiveWarn" role="alert" hidden></p>
           </header>
           <div class="histTabs" id="histTabs" role="tablist" aria-label="Liste affichée">
-            <button type="button" role="tab" data-tab="bps" aria-selected="true" aria-controls="histList">Signalements</button>
+            <button type="button" role="tab" data-tab="dash" aria-selected="true" aria-controls="histDash">Tableau de bord</button>
+            <button type="button" role="tab" data-tab="bps" aria-selected="false" aria-controls="histList">Signalements</button>
             <button type="button" role="tab" data-tab="tours" aria-selected="false" aria-controls="histList">Tournées</button>
           </div>
           <div class="histFilters" id="histFilters">
@@ -421,6 +447,7 @@
             </div>
             <div class="histSelects">
               <label class="visually-hidden" for="histStatus">Statut</label><select id="histStatus" class="chipSelect"></select>
+              <label class="visually-hidden" for="histPrio">Priorité</label><select id="histPrio" class="chipSelect"></select>
               <label class="visually-hidden" for="histSecteur">Secteur</label><select id="histSecteur" class="chipSelect"></select>
               <label class="visually-hidden" for="histPeriod">Période</label>
               <select id="histPeriod" class="chipSelect">
@@ -434,6 +461,7 @@
                 <option value="recent">Plus récents</option>
                 <option value="old">Plus anciens</option>
                 <option value="rue">Rue (A → Z)</option>
+                <option value="prio">Priorité</option>
               </select>
             </div>
             <div class="histResultRow">
@@ -441,7 +469,8 @@
               <button type="button" class="linkBtn" id="histCsv"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>Exporter la liste (CSV)</button>
             </div>
           </div>
-          <div class="recList recList--index" id="histList" role="tabpanel"></div>
+          <div class="histDash" id="histDash" role="tabpanel"></div>
+          <div class="recList recList--index" id="histList" role="tabpanel" hidden></div>
           <button type="button" class="btn btn--line histMore" id="histMore" hidden>Afficher plus</button>
         </div>
       </div>
@@ -476,6 +505,16 @@
       <button class="rowBtn" id="importBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><b>Recharger un fichier</b><small>Sauvegarde complète : l'historique est complété, rien n'est supprimé</small></span></button>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
+    <details class="settingGroup settingFold" id="prioSettings">
+      <summary class="label">Indice de priorité <span class="opt">interne · réglable</span></summary>
+      <p class="help">Aide à organiser les passages, sans valeur officielle. Chaque point attribué est expliqué dans la fiche du signalement. Niveaux : Critique ≥ 6 · Haute ≥ 4 · Moyenne ≥ 2 · Faible.</p>
+      <div class="prioWeights" id="prioWeights"></div>
+      <button type="button" class="linkBtn" id="prioReset"><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>Valeurs par défaut</button>
+    </details>
+    <details class="settingGroup settingFold" id="healthSettings">
+      <summary class="label">Santé du système</summary>
+      <dl class="health" id="health"></dl>
+    </details>
     <div class="settingGroup">
       <span class="label">Saisie</span>
       <button class="rowBtn rowBtn--danger" id="resetCurrent" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span><b>Effacer la saisie en cours</b><small>Les bons déjà enregistrés sont conservés</small></span></button>

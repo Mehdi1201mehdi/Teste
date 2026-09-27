@@ -13,6 +13,7 @@ import { ticketHtml, bindTicketActions } from "./components.js";
 import { toast, confirmDialog, replay } from "./ui.js";
 import { go } from "./router.js";
 import * as map from "./map.js";
+import { currentQuality, currentTourView, summaryOf } from "./ops.js";
 
 let hooks = { changed: () => {}, edit: () => {} };
 
@@ -75,10 +76,62 @@ export function renderReport() {
   const list = $("bpList");
   list.innerHTML = groups;
   bindTicketActions(list, { edit: (i) => hooks.edit(i), duplicate: duplicateBp, delete: delBp });
+  renderCheck();
   list.querySelectorAll(".ticketGroup").forEach((g) => {
     g.addEventListener("mouseenter", () => map.focusSector(g.dataset.sector));
     g.addEventListener("mouseleave", () => map.focusSector(null));
   });
+}
+
+/**
+ * Contrôle avant envoi (hors message) : bons à corriger ou à vérifier, et
+ * informations manquantes. Il signale, l'agent décide — rien n'est bloqué.
+ * Synthèse factuelle pour le responsable (aucune donnée inventée).
+ */
+let lastSynth = null;
+function renderCheck() {
+  const card = $("checkCard");
+  if (!state.bps.length) {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  let q;
+  try {
+    q = currentQuality();
+  } catch (e) {
+    card.hidden = true;
+    return;
+  }
+  const flagged = q.rows.filter((r) => r.issues.some((i) => i.severity !== "info"));
+  const infos = new Map();
+  q.rows.forEach((r) => r.issues.filter((i) => i.severity === "info").forEach((i) => infos.set(i.code, { text: i.text, n: (infos.get(i.code)?.n || 0) + 1 })));
+  $("checkScore").textContent = q.score != null ? `Complétude ${q.score} %` : "";
+  const items = [
+    ...flagged.map(
+      (r) => `<li class="checkItem" data-sev="${r.issues.some((i) => i.severity === "error") ? "error" : "warn"}">
+        <span class="checkWhat"><b>Bon n°${r.index + 1} · ${esc(adresseText(r.bp))}</b>${r.issues
+          .filter((i) => i.severity !== "info")
+          .map((i) => `<span>${esc(i.text)}</span>`)
+          .join("")}</span>
+        <button type="button" class="chipBtn" data-fix="${r.index}">Corriger</button></li>`,
+    ),
+    ...[...infos.values()].map((x) => `<li class="checkItem" data-sev="info"><span class="checkWhat"><span>${esc(x.text.replace(/\s*\(.*\)$/, ""))} : ${x.n} bon${x.n > 1 ? "s" : ""}</span></span></li>`),
+  ];
+  $("checkList").innerHTML = items.length ? items.join("") : '<li class="checkItem" data-sev="ok"><span class="checkWhat"><span>Aucun point à vérifier : adresses, déchets, numéros, emplacements et positions renseignés.</span></span></li>';
+  $("checkList").querySelectorAll("[data-fix]").forEach((b) => (b.onclick = () => hooks.edit(+b.dataset.fix)));
+  // La synthèse n'est calculée que si elle est dépliée (et à l'ouverture).
+  if ($("synth").open) renderSynth();
+}
+
+function renderSynth() {
+  try {
+    lastSynth = summaryOf(currentTourView());
+    $("synthList").innerHTML = lastSynth.lines.map((l) => `<li>${esc(l)}</li>`).join("");
+  } catch (e) {
+    lastSynth = null;
+    $("synthList").innerHTML = `<li class="recMissing">Synthèse indisponible (${esc(e.message)}).</li>`;
+  }
 }
 
 /** Ouvre le rapport sur un bon précis (mis en évidence, focus pour le lecteur d'écran). */
@@ -335,4 +388,16 @@ function bindSend() {
 export function initReport(opts = {}) {
   hooks = { ...hooks, ...opts };
   bindSend();
+  $("synth").addEventListener("toggle", () => $("synth").open && renderSynth());
+  $("copySynth").onclick = async () => {
+    renderSynth();
+    if (!lastSynth) return;
+    const text = [lastSynth.title, "", ...lastSynth.lines.map((l) => "• " + l)].join("\n");
+    const ok = await copyEmailContent({ text, html: `<p>${esc(text).replace(/\n/g, "<br>")}</p>` });
+    toast(ok ? "Synthèse copiée." : "Copie impossible sur ce navigateur.", null, ok ? "ok" : "error");
+  };
+  $("printReport").onclick = () => {
+    renderSynth();
+    window.print();
+  };
 }

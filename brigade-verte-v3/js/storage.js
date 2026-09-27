@@ -31,6 +31,7 @@ function defaultState() {
     gps: true,
     wasteFreq: {}, // { "Matelas": 12, … } — alimente « Les plus fréquents »
     lastSaved: "",
+    lastBackup: "", // date ISO de la dernière sauvegarde complète exportée
   };
 }
 

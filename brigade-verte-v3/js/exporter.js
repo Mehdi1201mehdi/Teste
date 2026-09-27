@@ -1,11 +1,11 @@
 // Exports — un format par usage, tous cohérents :
 //   · CSV       tableur (Excel / LibreOffice) : une ligne par signalement
 //   · JSON      sauvegarde complète (tournée en cours + historique), restaurable
-//   · Impression rapport imprimable (voir pilotage.js / CSS @media print)
+//   · Impression rapport imprimable (CSS @media print, vue Rapport)
 //   · Outlook   message historique (email.js)
 // Fonctions pures, sauf download().
 
-import { SCHEMA, STATUS } from "./model.js";
+import { SCHEMA, STATUS, OPEN_STATUS } from "./model.js";
 import { mailLine } from "./bp.js";
 
 const CSV_COLS = [
@@ -24,11 +24,17 @@ const CSV_COLS = [
   ["precision_gps_m", (x) => x.bp.geo?.acc ?? ""],
   ["source_position", (x) => x.bp.geo?.source || "rue"],
   ["statut", (x) => STATUS[x.bp.status]?.label || x.bp.status],
+  // Indice interne (non officiel) et récidive : calculés sur cet appareil.
+  ["priorite_interne", (x) => (x.priority && isOpen(x.bp) ? x.priority.level.label : "")],
+  ["indice_priorite", (x) => (x.priority && isOpen(x.bp) ? x.priority.score : "")],
+  ["zone_recurrente", (x) => (x.zone ? `${x.zone.count} dépôts du ${x.zone.first} au ${x.zone.last}` : "")],
   ["note_interne", (x) => x.bp.note],
   ["ligne_message", (x) => mailLine(x.bp)],
   ["id", (x) => x.bp.id],
   ["modifie_le", (x) => x.bp.updatedAt],
 ];
+
+const isOpen = (bp) => OPEN_STATUS.has(bp.status);
 
 function cell(v) {
   const s = v == null ? "" : String(v);

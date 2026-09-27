@@ -112,11 +112,13 @@
 
 /* Rapport et Collecte sur mobile : le contenu prend toute la place */
 .app[data-view="rapport"] .territory,
-.app[data-view="collecte"] .territory {
+.app[data-view="collecte"] .territory,
+.app[data-view="historique"] .territory {
   display: none;
 }
 .app[data-view="rapport"] .panel,
-.app[data-view="collecte"] .panel {
+.app[data-view="collecte"] .panel,
+.app[data-view="historique"] .panel {
   margin-top: 0;
   border-radius: 0;
   box-shadow: none;
@@ -125,7 +127,8 @@
 .composerHead,
 .composerBody,
 .reportScroll,
-.collecteScroll {
+.collecteScroll,
+.histScroll {
   padding-inline: var(--s4);
 }
 
@@ -152,7 +155,8 @@
 }
 
 .reportScroll,
-.collecteScroll {
+.collecteScroll,
+.histScroll {
   padding-top: var(--s5);
   padding-bottom: calc(var(--s8) + env(safe-area-inset-bottom));
 }
@@ -169,6 +173,7 @@
   .composerBody,
   .reportScroll,
   .collecteScroll,
+  .histScroll,
   .actionBar {
     padding-inline: max(var(--s6), calc((100% - 680px) / 2));
   }
@@ -193,13 +198,15 @@
     height: auto;
   }
   .app[data-view="rapport"] .territory,
-  .app[data-view="collecte"] .territory {
+  .app[data-view="collecte"] .territory,
+  .app[data-view="historique"] .territory {
     display: block;
   }
   .panel,
   .app.is-typing .panel,
   .app[data-view="rapport"] .panel,
-  .app[data-view="collecte"] .panel {
+  .app[data-view="collecte"] .panel,
+  .app[data-view="historique"] .panel {
     margin: 0;
     border-radius: 0;
     border-left: 1px solid var(--line);
@@ -211,7 +218,8 @@
   }
   .composerBody,
   .reportScroll,
-  .collecteScroll {
+  .collecteScroll,
+  .histScroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -222,6 +230,7 @@
   .composerBody,
   .reportScroll,
   .collecteScroll,
+  .histScroll,
   .actionBar {
     padding-inline: var(--s6);
   }
@@ -271,20 +280,46 @@
     display: none;
   }
 }
-
-/* Petits téléphones (≤ 419 px) : 3 onglets + tampon tiennent sur une ligne */
-@media (max-width: 419px) {
+/* Jusqu'à la tablette (≤ 919 px) : 4 onglets → nom affiché pour l'onglet actif seulement. */
+@media (max-width: 919px) {
+  .vsBtn:not([aria-current="page"]) > span:not(.count) {
+    display: none;
+  }
+}
+/* ≤ 639 px : marque réduite au monogramme ; ≤ 819 px : tampon sans l'étiquette « Tournée ». */
+@media (max-width: 639px) {
+  .wordmark {
+    display: none;
+  }
+}
+@media (max-width: 819px) {
+  .stampLabel {
+    display: none;
+  }
+}
+/* Tampon de tournée sur téléphone : la date seule (le jour de la semaine est dans la date). */
+@media (max-width: 559px) {
   .stampDay {
     display: none;
   }
-  .vsBtn {
-    padding: 0 8px;
-  }
 }
-/* Très petits écrans (≤ 359 px, iPhone SE 1re gén., Android compacts) :
-   onglets en icônes seules — l'onglet actif reste signalé par sa pastille claire. */
-@media (max-width: 359px) {
+
+/* Téléphones (≤ 439 px) : 4 onglets + tampon sur une ligne → onglets en
+   icônes seules ; l'onglet actif reste signalé par sa pastille claire et
+   chaque onglet garde son nom accessible (aria-label). */
+@media (max-width: 439px) {
+  .viewSwitch,
+  .viewSwitch .vsBtn {
+    min-width: 0;
+  }
+  .viewSwitch .vsBtn {
+    flex: 1 1 auto;
+    padding: 0 7px;
+  }
   .vsBtn > span:not(.count) {
     display: none;
+  }
+  .stamp {
+    flex: 0 0 auto;
   }
 }

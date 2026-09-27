@@ -22,7 +22,7 @@ export function blockedMessage(n) {
   return "";
 }
 
-const VIEWS = ["terrain", "rapport", "collecte"];
+const VIEWS = ["terrain", "rapport", "collecte", "historique"];
 
 function hashFor(view, stage) {
   return view === "terrain" ? `#terrain-${stage}` : `#${view}`;
@@ -37,6 +37,7 @@ function apply(view, stage, dir) {
   $("viewTerrain").hidden = view !== "terrain";
   $("viewRapport").hidden = view !== "rapport";
   $("viewCollecte").hidden = view !== "collecte";
+  $("viewHistorique").hidden = view !== "historique";
   document.querySelectorAll("[data-view-target]").forEach((b) => {
     if (b.classList.contains("vsBtn")) {
       if (b.dataset.viewTarget === view) b.setAttribute("aria-current", "page");
@@ -66,22 +67,31 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
   }
   apply(view, stage, dir);
   // La saisie remonte en haut ; sur desktop seul le panneau défile.
-  const scroller = view === "terrain" ? $("composerBody") : document.querySelector(view === "rapport" ? ".reportScroll" : ".collecteScroll");
+  const scroller = view === "terrain" ? $("composerBody") : document.querySelector({ rapport: ".reportScroll", collecte: ".collecteScroll", historique: ".histScroll" }[view]);
   if (window.matchMedia("(min-width: 1024px)").matches) scroller?.scrollTo({ top: 0 });
   else if (dir !== 0 || view !== "terrain") window.scrollTo({ top: 0 });
   return true;
 }
 
+/** Vue et temps d'après l'ancre (#rapport, #historique, #terrain-2…), ou null. */
+function fromHash(hash) {
+  const m = /^#(terrain|rapport|collecte|historique)(?:-(\d))?$/.exec(hash || "");
+  if (!m) return null;
+  return { view: m[1], stage: m[2] ? Number(m[2]) : state.stage };
+}
+
 export function initRouter() {
   window.addEventListener("popstate", (e) => {
-    const s = e.state || {};
+    // Entrée créée par l'app (state) ; sinon lien ou ancre saisie à la main.
+    const s = e.state || fromHash(window.location.hash) || {};
     const view = VIEWS.includes(s.view) ? s.view : "terrain";
     let stage = [1, 2, 3].includes(s.stage) ? s.stage : 1;
     while (stage > 1 && !canEnterStage(stage)) stage--;
     apply(view, stage, stage < state.stage ? -1 : 1);
   });
-  // Lien direct (raccourci d'écran d'accueil, favori) : …/#collecte
-  if (window.location.hash === "#collecte") state.view = "collecte";
+  // Lien direct (raccourci, favori) vers une vue : …/#collecte, …/#historique
+  const direct = fromHash(window.location.hash);
+  if (direct && direct.view !== "terrain") state.view = direct.view;
   let stage = state.stage;
   while (stage > 1 && !canEnterStage(stage)) stage--;
   window.history.replaceState({ view: state.view, stage }, "", hashFor(state.view, stage));

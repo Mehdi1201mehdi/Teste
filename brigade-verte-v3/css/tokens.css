@@ -105,6 +105,13 @@
   --sec-sud: #9a6210;      /* ocre */
   --sec-none: #6b7280;
 
+  /* Indice de priorité (interne) — toujours accompagné de son libellé */
+  --prio-critique: #b42318;
+  --prio-haute: #c4520a;
+  --prio-moyenne: #8a6a00;
+  --prio-faible: #2e7d4f;
+  --prio-clos: #7b8494;
+
   /* — Forme — */
   --r-xs: 6px;
   --r-sm: 10px;

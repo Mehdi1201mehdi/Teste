@@ -444,3 +444,31 @@
     width: 340px;
   }
 }
+
+/* Légende de la couche « historique » (vue Historique uniquement) */
+.mapLegend {
+  position: absolute;
+  left: 12px;
+  bottom: 30px;
+  z-index: 500;
+  display: none;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  max-width: calc(100% - 24px);
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--sheet) 94%, transparent);
+  box-shadow: var(--e2);
+  font-size: var(--fs-micro);
+  color: var(--ink-2);
+}
+.app[data-view="historique"] .mapLegend { display: flex; }
+.app[data-view="historique"] .mapHint { display: none; }
+.mapLegend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mapLegend i { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15); }
+.mapLegend i[data-level="critique"] { background: var(--prio-critique); }
+.mapLegend i[data-level="haute"] { background: var(--prio-haute); }
+.mapLegend i[data-level="moyenne"] { background: var(--prio-moyenne); }
+.mapLegend i[data-level="faible"] { background: var(--prio-faible); }
+.mapLegend i[data-level="clos"] { background: var(--prio-clos); }
+.mapLegend i.is-approx { background: transparent; border: 2px solid var(--ink-2); box-shadow: none; }

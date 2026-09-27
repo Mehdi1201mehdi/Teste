@@ -1,8 +1,10 @@
 // Vue Rapport — le message tel qu'il partira, les bons classés par secteur,
 // l'envoi (copie, Outlook appli, Outlook web) et la clôture de tournée.
 
-import { $, esc, plural, dateFr } from "./utils.js";
-import { state, save } from "./storage.js";
+import { $, esc, plural, dateFr, todayISO } from "./utils.js";
+import { state, save, nextRef } from "./storage.js";
+import { normalizeBp, withStatus, newTourId } from "./model.js";
+import { putTour, archiveAvailable } from "./archive.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
@@ -92,7 +94,10 @@ export function revealBp(i) {
 }
 
 function duplicateBp(i) {
-  const bp = JSON.parse(JSON.stringify(state.bps[i]));
+  // Copie = nouveau signalement : nouvel identifiant, nouvelle référence, maintenant.
+  const now = new Date().toISOString();
+  const src = JSON.parse(JSON.stringify(state.bps[i]));
+  const bp = normalizeBp({ ...src, id: "", ref: "", createdAt: now, updatedAt: now, status: "releve", statusLog: null }, { nextRef, date: state.date, tourId: state.tour?.id });
   state.bps.splice(i + 1, 0, bp);
   state.mailCustom = "";
   hooks.changed({ fresh: i + 1 });
@@ -121,23 +126,53 @@ function delBp(i) {
   });
 }
 
+/**
+ * Clôture : la tournée est ARCHIVÉE dans l'historique, jamais effacée.
+ * Les bons passent au statut « Transmis » ; le message envoyé est gardé tel
+ * quel. La tournée en cours n'est vidée qu'APRÈS confirmation de l'écriture :
+ * si l'historique est indisponible (navigation privée, stockage plein…),
+ * rien n'est perdu et l'agent est prévenu.
+ */
 async function clearTour() {
   const n = state.bps.length;
-  if (!n) return toast("Aucun bon à effacer — la tournée est déjà vide.");
+  if (!n) return toast("Aucun bon à clôturer — la tournée est vide.");
+  if (state.editing != null) return toast("Terminez d'abord la modification en cours.", null, "warn");
   const ok = await confirmDialog({
     title: "Clôturer la tournée ?",
-    text: `${plural(n, "bon de passage", "bons de passage")} ${n > 1 ? "seront supprimés" : "sera supprimé"} de cet appareil. Cette action est définitive.`,
-    check: "J'ai envoyé ou sauvegardé le message.",
-    ok: "Clôturer et tout effacer",
+    text: `${plural(n, "bon de passage", "bons de passage")} ${n > 1 ? "seront archivés" : "sera archivé"} dans l'historique avec le statut « Transmis ». La saisie repart de zéro.`,
+    check: "J'ai envoyé le rapport au service destinataire.",
+    ok: "Clôturer et archiver",
+    danger: false,
   });
   if (!ok) return;
+  const closedAt = new Date().toISOString();
+  const tour = {
+    id: state.tour?.id || newTourId(state.date),
+    v: 5,
+    date: state.date,
+    startedAt: state.tour?.startedAt || null,
+    closedAt,
+    mailSubject: mailSubject(),
+    mailText: $("mail").getAttribute("contenteditable") === "true" ? $("mail").innerText.trim() : mailText(),
+    mailTo: state.mailTo || "",
+    bps: state.bps.map((b) => withStatus(b, "transmis", closedAt)),
+  };
+  try {
+    if (!archiveAvailable()) throw new Error("historique indisponible sur ce navigateur");
+    await putTour(tour);
+  } catch (e) {
+    toast(`Archivage impossible (${e.message}) — la tournée est conservée. Exportez une sauvegarde (Réglages) avant de réessayer.`, null, "error");
+    return;
+  }
   state.bps = [];
+  state.tour = null;
   state.mailCustom = "";
   state.editing = null;
+  state.date = todayISO(); // la prochaine tournée démarre à la date du jour
   hooks.changed({ reset: true });
   go("terrain", 1);
   save();
-  toast("Tournée clôturée — prêt pour la prochaine.", null, "ok");
+  toast(`Tournée archivée : ${plural(n, "bon")} dans l'historique.`, null, "ok");
 }
 
 /* ─── Envoi ───

@@ -7,7 +7,8 @@
 // pour le dépôt suivant, la balise tombe sur la carte, le compteur avance.
 
 import { $, esc, plural } from "./utils.js";
-import { state, save, emptyCurrent } from "./storage.js";
+import { state, save, emptyCurrent, ensureTour, nextRef } from "./storage.js";
+import { normalizeBp } from "./model.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
 import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk, findDuplicate } from "./bp.js";
 import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
@@ -27,9 +28,12 @@ let hooks = { changed: () => {} };
 
 /* ═════════════ Lieu ═════════════ */
 
-export function chooseRue(rue, { fly = true, keepGps = false } = {}) {
+export function chooseRue(rue, { fly = true, keepGps = false, geo = null } = {}) {
   if (!keepGps) hideGpsPanel(); // rue choisie autrement : le bandeau GPS n'a plus lieu d'être
   const c = state.current;
+  // Position du dépôt : mesure GPS ou point touché sur la carte ; aucune si la
+  // rue vient de la recherche (jamais de position inventée).
+  c.geo = geo;
   c.rue = { rue: rue.rue, lon: rue.lon, lat: rue.lat, secteur: rue.secteur };
   c.secteur = rue.secteur || null;
   c.secteurAuto = true;
@@ -246,8 +250,9 @@ function applyNumero(numero) {
 }
 
 /** Rue choisie depuis le GPS (automatiquement ou confirmée par l'agent). */
-function applyGpsStreet(street, secteur) {
-  chooseRue(street, { keepGps: true });
+function applyGpsStreet(street, secteur, fix) {
+  const geo = fix ? { lat: fix.lat, lon: fix.lon, acc: fix.accuracy, source: "gps" } : null;
+  chooseRue(street, { keepGps: true, geo });
   const c = state.current;
   if (secteur && secteur !== c.secteur) {
     c.secteur = secteur;
@@ -261,7 +266,7 @@ function applyGpsStreet(street, secteur) {
 function confirmCandidate(cand) {
   if (!cand || !lastLocate) return;
   const { fix, reverse } = lastLocate;
-  applyGpsStreet(cand.r, resolveSectorAt(cand.r, fix, cand.d));
+  applyGpsStreet(cand.r, resolveSectorAt(cand.r, fix, cand.d), fix);
   haptic(10);
   const numero = reverse?.street?.rue === cand.r.rue && reverse.housenumber && (reverse.distance ?? 999) <= Math.max(20, fix.accuracy) ? reverse.housenumber : "";
   showGpsPanel({
@@ -322,7 +327,7 @@ async function useMyPosition(btn) {
     const base = { accuracy: fix.accuracy, candidates: decision.candidates, source: lastLocate.sourceText };
 
     if (decision.status === "confident") {
-      applyGpsStreet(decision.street, decision.secteur);
+      applyGpsStreet(decision.street, decision.secteur, fix);
       haptic(10);
       showGpsPanel({
         ...base,
@@ -481,18 +486,25 @@ function renderDuplicate(bp) {
 }
 
 function saveBp() {
-  const bp = buildBp(state.current);
-  if (!bp) {
+  const c = state.current;
+  const base = buildBp(c);
+  if (!base) {
     toast(blockedMessage(3) || "Saisie incomplète.", null, "warn");
     return;
   }
   let index;
+  const now = new Date().toISOString();
   const wasEditing = state.editing != null;
   if (wasEditing) {
+    // Modification : identifiant, référence, création et statut conservés.
     index = state.editing;
-    state.bps[index] = bp;
+    const old = state.bps[index];
+    state.bps[index] = { ...old, ...base, geo: c.geo || old.geo || null, note: (c.note || "").trim(), updatedAt: now };
     state.editing = null;
   } else {
+    const tour = ensureTour();
+    if (!tour.startedAt) tour.startedAt = now;
+    const bp = normalizeBp({ ...base, geo: c.geo, note: c.note, createdAt: now, updatedAt: now, date: state.date, tourId: tour.id }, { nextRef });
     state.bps.push(bp);
     index = state.bps.length - 1;
     bp.wastes.forEach((w) => (state.wasteFreq[w] = (state.wasteFreq[w] || 0) + 1));
@@ -518,6 +530,7 @@ export function resetCurrent({ silent = false } = {}) {
   $("streetInput").value = "";
   $("numeroRue").value = "";
   $("precCustom").value = "";
+  $("bpNote").value = "";
   $("wasteInput").value = "";
   $("sectorPicker").hidden = true;
   $("sectorTag").setAttribute("aria-expanded", "false");
@@ -536,6 +549,7 @@ export function editBp(i) {
   const bp = state.bps[i];
   if (!bp) return;
   const rue = getStreets().find((r) => r.rue === bp.rue);
+  $("bpNote").value = bp.note || "";
   const { keys, custom } = splitPrecisions(bp);
   state.editing = i;
   state.current = {
@@ -546,6 +560,8 @@ export function editBp(i) {
     precisions: keys,
     precisionCustom: custom,
     wastes: [...(bp.wastes || [])],
+    geo: bp.geo || null,
+    note: bp.note || "",
   };
   $("streetInput").value = bp.rue;
   $("numeroRue").value = bp.numero || "";
@@ -715,6 +731,12 @@ export function initComposer(opts = {}) {
       save();
     };
   });
+  // Note interne : conservée avec le bon, jamais envoyée dans le message.
+  $("bpNote").addEventListener("input", (e) => {
+    state.current.note = e.target.value.slice(0, 500);
+    save();
+  });
+
   $("precCustom").addEventListener("input", (e) => {
     state.current.precisionCustom = e.target.value;
     save();

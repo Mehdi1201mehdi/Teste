@@ -103,6 +103,7 @@
   <symbol id="i-corner" viewBox="0 0 24 24"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
   <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
 </svg>
 
@@ -120,6 +121,7 @@
       <button type="button" class="vsBtn" data-view-target="terrain" aria-current="page" aria-label="Terrain : saisie et carte"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Terrain</span></button>
       <button type="button" class="vsBtn" data-view-target="rapport" aria-label="Rapport de tournée"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span>Rapport</span><span class="count" id="navCount">0</span></button>
       <button type="button" class="vsBtn" data-view-target="collecte" aria-label="Jour de collecte"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><span>Collecte</span></button>
+      <button type="button" class="vsBtn" data-view-target="historique" aria-label="Historique des signalements et des tournées"><svg class="icon" aria-hidden="true"><use href="#i-history"></use></svg><span>Historique</span></button>
     </nav>
 
     <button type="button" class="stamp" id="openSettings" aria-haspopup="dialog">
@@ -275,6 +277,10 @@
               <span class="label">Ligne ajoutée au rapport</span>
               <p class="lineOutText mono" id="linePreview">—</p>
             </div>
+            <div class="field fieldNote">
+              <label class="label" for="bpNote">Note interne <span class="opt">facultatif · non envoyée dans le message</span></label>
+              <textarea id="bpNote" class="input input--quiet noteInput" rows="2" maxlength="500" placeholder="Ex. déjà signalé au bailleur, dépôt présent depuis plusieurs jours…"></textarea>
+            </div>
           </fieldset>
         </div>
 
@@ -349,9 +355,9 @@
             <section class="closeTour">
               <div>
                 <h2>Fin de tournée</h2>
-                <p>Une fois le message envoyé, clôturez pour repartir de zéro.</p>
+                <p>Une fois le message envoyé, clôturez : la tournée est archivée dans l'historique et la saisie repart de zéro.</p>
               </div>
-              <button class="btn btn--danger" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
+              <button class="btn btn--line" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
             </section>
           </div>
         </div>
@@ -393,6 +399,52 @@
           </details>
         </div>
       </div>
+
+      <!-- ═════════════ Historique : signalements et tournées ═════════════ -->
+      <div class="view view--historique" id="viewHistorique" hidden>
+        <div class="histScroll">
+          <header class="histHead">
+            <p class="eyebrow">Historique</p>
+            <h2 class="viewTitle">Signalements</h2>
+            <p class="histCount" id="histCount" role="status"></p>
+            <p class="banner banner--warn histWarn" id="histArchiveWarn" role="alert" hidden></p>
+          </header>
+          <div class="histTabs" id="histTabs" role="tablist" aria-label="Liste affichée">
+            <button type="button" role="tab" data-tab="bps" aria-selected="true" aria-controls="histList">Signalements</button>
+            <button type="button" role="tab" data-tab="tours" aria-selected="false" aria-controls="histList">Tournées</button>
+          </div>
+          <div class="histFilters" id="histFilters">
+            <div class="combo histSearchBox">
+              <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
+              <label class="visually-hidden" for="histSearch">Rechercher un signalement</label>
+              <input id="histSearch" class="input input--combo" type="search" autocomplete="off" spellcheck="false" placeholder="Rue, n°, BV-…, déchet, date…">
+            </div>
+            <div class="histSelects">
+              <label class="visually-hidden" for="histStatus">Statut</label><select id="histStatus" class="chipSelect"></select>
+              <label class="visually-hidden" for="histSecteur">Secteur</label><select id="histSecteur" class="chipSelect"></select>
+              <label class="visually-hidden" for="histPeriod">Période</label>
+              <select id="histPeriod" class="chipSelect">
+                <option value="all">Toute période</option>
+                <option value="7">7 derniers jours</option>
+                <option value="30">30 derniers jours</option>
+                <option value="90">90 derniers jours</option>
+              </select>
+              <label class="visually-hidden" for="histSort">Tri</label>
+              <select id="histSort" class="chipSelect">
+                <option value="recent">Plus récents</option>
+                <option value="old">Plus anciens</option>
+                <option value="rue">Rue (A → Z)</option>
+              </select>
+            </div>
+            <div class="histResultRow">
+              <p class="histResult mono" id="histResult" aria-live="polite"></p>
+              <button type="button" class="linkBtn" id="histCsv"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>Exporter la liste (CSV)</button>
+            </div>
+          </div>
+          <div class="recList recList--index" id="histList" role="tabpanel"></div>
+          <button type="button" class="btn btn--line histMore" id="histMore" hidden>Afficher plus</button>
+        </div>
+      </div>
     </section>
   </main>
 </div>
@@ -416,9 +468,12 @@
       <button type="button" class="switch" id="gpsToggle" role="switch" aria-checked="true" aria-labelledby="gpsLabel"><span></span></button>
     </div>
     <div class="settingGroup">
-      <span class="label">Sauvegarde de secours</span>
-      <button class="rowBtn" id="exportBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Exporter les signalements</b><small>Fichier .json sur l'appareil</small></span></button>
-      <button class="rowBtn" id="importBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><b>Recharger un fichier</b><small>Remplace les signalements actuels</small></span></button>
+      <span class="label">Sauvegarde et exports</span>
+      <p class="help">L'historique n'existe que sur cet appareil (aucune synchronisation) : sauvegardez-le régulièrement.</p>
+      <button class="rowBtn" id="exportAll" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Sauvegarde complète</b><small>Tournée en cours + historique · fichier .json</small></span></button>
+      <button class="rowBtn" id="exportCsv" type="button"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span><b>Exporter en tableur</b><small>Tous les signalements · .csv (Excel, LibreOffice, CRM)</small></span></button>
+      <button class="rowBtn" id="exportBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Exporter la tournée en cours</b><small>Fichier .json sur l'appareil</small></span></button>
+      <button class="rowBtn" id="importBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><b>Recharger un fichier</b><small>Sauvegarde complète : l'historique est complété, rien n'est supprimé</small></span></button>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
     <div class="settingGroup">
@@ -426,6 +481,17 @@
       <button class="rowBtn rowBtn--danger" id="resetCurrent" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span><b>Effacer la saisie en cours</b><small>Les bons déjà enregistrés sont conservés</small></span></button>
     </div>
     <p class="sheetFoot mono" id="saveStatus" role="status" aria-live="polite">Enregistré sur l'appareil</p>
+  </form>
+</dialog>
+
+<!-- ═══ Fiche (signalement ou tournée) ═══ -->
+<dialog class="sheet recordDlg" id="recordDlg" aria-labelledby="recordTitle">
+  <form method="dialog" class="sheetInner">
+    <div class="sheetHead recordTop">
+      <span class="label">Fiche</span>
+      <button class="iconBtn" value="close" aria-label="Fermer la fiche"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+    </div>
+    <div id="recordBody"></div>
   </form>
 </dialog>
 

@@ -4,12 +4,13 @@
 // tournées en cours sur les téléphones des agents sont reprises telles quelles.
 
 import { nowHM } from "./utils.js";
+import { SCHEMA, normalizeBp, formatRef, newTourId } from "./model.js";
 
 export const STORAGE_KEY = "brigade_verte_amiens_v3_pro";
-const SCHEMA = 4;
 
 function emptyCurrent() {
-  return { rue: null, numero: "", secteur: null, secteurAuto: true, precisions: [], precisionCustom: "", wastes: [] };
+  // geo : position de la mesure (GPS ou toucher de carte) — null si rue choisie par recherche.
+  return { rue: null, numero: "", secteur: null, secteurAuto: true, precisions: [], precisionCustom: "", wastes: [], geo: null, note: "" };
 }
 
 function defaultState() {
@@ -23,6 +24,10 @@ function defaultState() {
     editing: null,
     mailCustom: "",
     mailTo: "", // destinataire(s) du rapport, gardé d'une tournée à l'autre
+    tour: null, // { id, startedAt } — tournée en cours (créée au 1er signalement)
+    seq: { year: new Date().getFullYear(), n: 0 }, // compteur des références BV-AAAA-NNNNNN
+    quarantine: [], // éléments illisibles mis de côté (jamais supprimés en silence)
+    prio: null, // pondérations de l'indice de priorité (null = valeurs par défaut)
     gps: true,
     wasteFreq: {}, // { "Matelas": 12, … } — alimente « Les plus fréquents »
     lastSaved: "",
@@ -30,6 +35,21 @@ function defaultState() {
 }
 
 export const state = defaultState();
+
+/** Référence suivante (compteur de l'appareil, remis à 1 chaque année). */
+function nextRefOf(st) {
+  const year = new Date().getFullYear();
+  if (!st.seq || st.seq.year !== year) st.seq = { year, n: 0 };
+  st.seq.n += 1;
+  return formatRef(year, st.seq.n);
+}
+export const nextRef = () => nextRefOf(state);
+
+/** Tournée en cours (créée au premier signalement). */
+export function ensureTour() {
+  if (!state.tour) state.tour = { id: newTourId(state.date || undefined), startedAt: new Date().toISOString() };
+  return state.tour;
+}
 export { emptyCurrent };
 
 /** Met à niveau une sauvegarde ancienne vers le schéma courant, sans rien perdre. */
@@ -53,7 +73,28 @@ function migrate(saved) {
     // Les BP déjà saisis ont servi à entraîner la liste « fréquents ».
     saved.bps.forEach((b) => (b.wastes || []).forEach((w) => (saved.wasteFreq[w] = (saved.wasteFreq[w] || 0) + 1)));
   }
-  if (!["rapport", "collecte"].includes(saved.view)) saved.view = "terrain";
+  // v4 → v5 : chaque bon reçoit un identifiant, une référence, sa date et un
+  // statut. L'heure des bons antérieurs n'est pas connue : elle reste vide.
+  if (!saved.seq || typeof saved.seq.n !== "number") saved.seq = { year: new Date().getFullYear(), n: 0 };
+  if (!saved.tour || typeof saved.tour !== "object" || !saved.tour.id) {
+    saved.tour = saved.bps.length ? { id: newTourId(saved.date || undefined), startedAt: null } : null;
+  }
+  const ctx = { date: saved.date || null, tourId: saved.tour?.id || "", nextRef: () => nextRefOf(saved) };
+  // Un élément illisible n'est jamais jeté : il part en quarantaine, conservée
+  // sur l'appareil et incluse dans la sauvegarde complète (Réglages).
+  const kept = [];
+  const quarantine = Array.isArray(saved.quarantine) ? saved.quarantine : [];
+  saved.bps.forEach((b) => {
+    const n = normalizeBp(b, ctx);
+    if (n) kept.push(n);
+    else quarantine.push({ at: new Date().toISOString(), raw: b });
+  });
+  saved.bps = kept;
+  saved.quarantine = quarantine.slice(-200);
+  if (typeof c.note !== "string") c.note = "";
+  if (!("geo" in c)) c.geo = null;
+  if (saved.editing != null && !saved.bps[saved.editing]) saved.editing = null;
+  if (!["rapport", "collecte", "historique"].includes(saved.view)) saved.view = "terrain";
   if (![1, 2, 3].includes(saved.stage)) saved.stage = 1;
   saved.version = SCHEMA;
   return saved;

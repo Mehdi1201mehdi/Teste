@@ -5,7 +5,10 @@
 // La séquence de démarrage s'initialise en premier : elle mesure le vrai chargement.
 import { splash } from "./splash.js";
 import { $, esc, todayISO, stampDate, plural } from "./utils.js";
-import { state, load, save } from "./storage.js";
+import { state, load, save, nextRef } from "./storage.js";
+import { normalizeBp } from "./model.js";
+import { loadTours, cachedTours, mergeTours } from "./archive.js";
+import { toCSV, buildBackup, parseBackup, download } from "./exporter.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
 import { loadStreets, streetEntry } from "./streets.js";
@@ -19,6 +22,7 @@ import { fmtDist } from "./geo.js";
 import { initStreetIndex, loadStreetGeometry } from "./locate.js";
 import * as map from "./map.js";
 import { initCollecte } from "./collecteView.js";
+import { initHistory, renderHistory, refreshArchive } from "./history.js";
 
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
@@ -39,6 +43,7 @@ function renderTour({ fresh = -1 } = {}) {
     { fresh, editing: state.editing },
   );
   renderReport();
+  renderHistory();
 }
 
 function changed(opts = {}) {
@@ -87,57 +92,92 @@ function bindSettings() {
     go("terrain", 1);
   };
 
-  // Export de secours : tous les bons dans un fichier JSON.
+  // Export de secours : les bons de la tournée en cours (format historique, champs v5 inclus).
   $("exportBps").onclick = () => {
     if (!state.bps.length) return toast("Aucun signalement à sauvegarder.");
-    const data = JSON.stringify({ app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps }, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `brigade-verte-bp-${state.date || todayISO()}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    download(`brigade-verte-bp-${state.date || todayISO()}.json`, JSON.stringify({ app: "brigade-verte-amiens", version: 5, date: state.date, bps: state.bps }, null, 2), "application/json");
     toast(`${plural(state.bps.length, "signalement")} exporté${state.bps.length > 1 ? "s" : ""}.`, null, "ok");
   };
 
-  // Import : validé et normalisé strictement.
+  // Sauvegarde complète : tournée en cours + historique (seul moyen de copier
+  // l'historique hors de l'appareil — aucune synchronisation n'existe).
+  $("exportAll").onclick = async () => {
+    let tours = [];
+    try {
+      tours = await loadTours();
+    } catch (e) {
+      toast(`Historique illisible (${e.message}) : seule la tournée en cours est sauvegardée.`, null, "warn");
+    }
+    if (!state.bps.length && !tours.length) return toast("Rien à sauvegarder pour l'instant.");
+    download(`brigade-verte-sauvegarde-${todayISO()}.json`, JSON.stringify(buildBackup(state, tours)), "application/json");
+    const n = state.bps.length + tours.reduce((a, t) => a + t.bps.length, 0);
+    toast(`Sauvegarde complète : ${plural(n, "signalement")}, ${plural(tours.length, "tournée archivée", "tournées archivées")}.`, null, "ok");
+  };
+
+  // Tableur : un signalement par ligne (Excel, LibreOffice, import dans un CRM).
+  $("exportCsv").onclick = async () => {
+    try {
+      await loadTours();
+    } catch (e) {
+      /* l'historique manquant est signalé ci-dessous par le nombre de lignes */
+    }
+    const rows = [...state.bps.map((bp) => ({ bp, tour: { id: state.tour?.id || "" } })), ...cachedTours().flatMap((t) => t.bps.map((bp) => ({ bp, tour: t })))];
+    if (!rows.length) return toast("Aucun signalement à exporter.");
+    download(`brigade-verte-signalements-${todayISO()}.csv`, toCSV(rows), "text/csv;charset=utf-8");
+    toast(`${plural(rows.length, "signalement")} exporté${rows.length > 1 ? "s" : ""} en CSV.`, null, "ok");
+  };
+
+  // Import : sauvegarde complète (fusion de l'historique, rien n'est supprimé)
+  // ou fichier d'une tournée (remplace la tournée en cours, après confirmation).
   $("importBps").onclick = () => $("importFile").click();
   $("importFile").onchange = async () => {
     const file = $("importFile").files[0];
     $("importFile").value = "";
     if (!file) return;
     try {
-      const json = JSON.parse(await file.text());
-      const raw = Array.isArray(json) ? json : json && json.bps;
-      if (!Array.isArray(raw)) return toast("Fichier non reconnu : choisissez un export .json de Brigade Verte.", null, "error");
-      const clean = raw
-        .filter((b) => b && typeof b === "object" && b.rue && b.secteur)
-        .map((b) => ({
-          rue: String(b.rue),
-          numero: b.numero != null ? String(b.numero) : "",
-          secteur: String(b.secteur),
-          wastes: Array.isArray(b.wastes) ? b.wastes.map(String) : [],
-          precisions: Array.isArray(b.precisions) ? b.precisions.map(String) : [],
-        }));
-      if (!clean.length) return toast("Aucun signalement valide dans ce fichier — rien n'a été remplacé.", null, "error");
+      const parsed = parseBackup(JSON.parse(await file.text()));
+      let merged = null;
+      if (parsed.tours.length) {
+        try {
+          merged = await mergeTours(parsed.tours, { nextRef });
+        } catch (e) {
+          return toast(`Historique non restauré (${e.message}) — rien n'a été modifié.`, null, "error");
+        }
+      }
+      if (parsed.settings?.mailTo && !state.mailTo) state.mailTo = parsed.settings.mailTo;
+      const date = parsed.date || state.date;
+      const tourId = state.tour?.id || "";
+      const clean = parsed.currentBps.map((b) => normalizeBp(b, { date, tourId, nextRef })).filter(Boolean);
+      const skipped = parsed.currentBps.length - clean.length;
+      if (!clean.length) {
+        if (merged) {
+          changed();
+          save();
+          dlg.open && dlg.close();
+          return toast(`Historique restauré : ${plural(merged.added, "tournée ajoutée", "tournées ajoutées")}, ${plural(merged.updated, "complétée", "complétées")}.`, null, "ok");
+        }
+        return toast("Aucun signalement valide dans ce fichier — rien n'a été remplacé.", null, "error");
+      }
       if (state.bps.length) {
         dlg.close();
         const ok = await confirmDialog({
-          title: "Remplacer la tournée ?",
-          text: `Les ${state.bps.length} signalements actuels seront remplacés par les ${clean.length} du fichier.`,
+          title: "Remplacer la tournée en cours ?",
+          text: `Les ${state.bps.length} signalements de la tournée en cours seront remplacés par les ${clean.length} du fichier.${merged ? " L'historique, lui, a déjà été complété sans rien supprimer." : ""}`,
           ok: "Remplacer",
         });
         if (!ok) return;
       }
-      state.bps = clean;
+      if (!state.tour) state.tour = { id: clean[0].tourId || `T-${(date || todayISO()).replace(/-/g, "")}-imp`, startedAt: null };
+      if (parsed.date) state.date = parsed.date;
+      state.bps = clean.map((b) => ({ ...b, tourId: b.tourId || state.tour.id }));
       state.mailCustom = "";
       state.editing = null;
       changed();
       save();
       dlg.open && dlg.close();
-      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}.`, null, "ok");
+      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}${skipped ? ` (${skipped} illisible${skipped > 1 ? "s" : ""} ignoré${skipped > 1 ? "s" : ""})` : ""}${merged ? ` · historique : +${merged.added} tournée(s)` : ""}.`, null, "ok");
     } catch (e) {
-      toast("Fichier illisible — vos signalements actuels sont intacts.", null, "error");
+      toast(/non reconnu/.test(e.message) ? e.message : "Fichier illisible — vos signalements actuels sont intacts.", null, "error");
     }
   };
 
@@ -147,7 +187,7 @@ function bindSettings() {
 }
 
 /* ─── Carte : toucher → rues proches ─── */
-function onMapPick({ list, quartier }) {
+function onMapPick({ list, quartier, lat, lon }) {
   const box = $("mapPick");
   $("mapPickTitle").innerHTML = quartier
     ? `Quartier <b>${esc(quartier)}</b> · rues proches`
@@ -159,7 +199,8 @@ function onMapPick({ list, quartier }) {
     streetEntry(r, "", (rue) => {
       box.hidden = true;
       if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
-      chooseRue(rue, { fly: true });
+      // Le point touché devient la position du dépôt (source « carte »).
+      chooseRue(rue, { fly: true, geo: Number.isFinite(lat) ? { lat, lon, acc: null, source: "carte" } : null });
     }, fmtDist(d)),
   );
   showSuggestions(listEl, entries, "");
@@ -195,6 +236,7 @@ function bindShell() {
     renderTour();
     // Rapport : la carte cadre toute la tournée. Terrain : elle revient sur la rue choisie.
     if (view === "rapport") map.fitPins();
+    if (view === "historique") refreshArchive({ fresh: true });
     else if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
   });
 }
@@ -222,8 +264,10 @@ async function main() {
   registerServiceWorker();
   navigator.storage?.persist?.().catch(() => {});
   load();
-  // La date se règle sur le jour courant à chaque ouverture (heure locale).
-  state.date = todayISO();
+  // Date de tournée : le jour courant pour une NOUVELLE tournée. Une tournée
+  // commencée (bons déjà relevés) garde sa date, même rouverte le lendemain —
+  // sinon le rapport partirait avec une fausse date d'îlotage.
+  if (!state.bps.length || !state.date) state.date = todayISO();
 
   const [streets] = await Promise.all([
     loadStreets().then((r) => {
@@ -263,6 +307,7 @@ async function main() {
 
   initComposer({ changed, reveal: revealBp });
   initReport({ changed, edit: editBp });
+  initHistory({ changed, edit: editBp });
   initCollecte({
     // « Relever un dépôt ici » depuis la vue Collecte : l'adresse passe au Terrain.
     useAddress: (rue, num) => {
@@ -285,6 +330,7 @@ async function main() {
   $("streetInput").value = c.rue?.rue || "";
   $("numeroRue").value = c.numero || "";
   $("precCustom").value = c.precisionCustom || "";
+  $("bpNote").value = c.note || "";
   if (c.rue) map.setTarget(c.rue.rue, { fly: false });
 
   initRouter();

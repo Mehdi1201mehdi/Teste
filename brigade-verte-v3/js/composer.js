@@ -6,7 +6,8 @@
 // Après enregistrement, on reste sur le terrain : le composeur se remet à zéro
 // pour le dépôt suivant, la balise tombe sur la carte, le compteur avance.
 
-import { $, esc, plural } from "./utils.js";
+import { $, esc, plural, dateFr } from "./utils.js";
+import { historyAt } from "./ops.js";
 import { state, save, emptyCurrent, ensureTour, nextRef } from "./storage.js";
 import { normalizeBp } from "./model.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
@@ -463,11 +464,36 @@ function renderPreview() {
     $("ticketPreview").innerHTML = "";
     $("linePreview").textContent = "—";
     $("dupNote").hidden = true;
+    $("recurNote").hidden = true;
     return;
   }
   $("ticketPreview").innerHTML = ticketHtml(bp, { num, address: adresseText(bp), quartier: map.quartierOfStreet(bp.rue), preview: true });
   $("linePreview").textContent = mailLine(bp);
   renderDuplicate(bp);
+  renderRecurrence(bp);
+}
+
+/**
+ * Zone potentiellement récurrente : des dépôts ont déjà été relevés ici (même
+ * adresse, ou moins de 35 m de la position mesurée) lors d'une AUTRE journée.
+ * Information pour l'agent, jamais un blocage.
+ */
+function renderRecurrence(bp) {
+  const note = $("recurNote");
+  const editingId = state.editing != null ? state.bps[state.editing]?.id : null;
+  let past = [];
+  try {
+    past = historyAt({ geo: state.current.geo, rue: bp.rue, numero: bp.numero }, editingId).filter(({ bp: b }) => b.date !== state.date);
+  } catch (e) {
+    past = [];
+  }
+  note.hidden = !past.length;
+  if (!past.length) return (note.innerHTML = "");
+  const last = past[0].bp;
+  const dates = [...new Set(past.map((x) => x.bp.date))];
+  note.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>
+    <p><b>Zone potentiellement récurrente : ${plural(past.length, "dépôt déjà relevé", "dépôts déjà relevés")} ici.</b>
+    <span>Dernier le ${esc(dateFr(last.date))} (${esc(last.ref || "—")}${last.wastes?.length ? " · " + esc(last.wastes.slice(0, 2).join(", ")) : ""})${dates.length > 1 ? ` · ${dates.length} dates différentes` : ""}.</span></p>`;
 }
 
 /** Avertit (sans bloquer) si la même adresse figure déjà dans la tournée. */

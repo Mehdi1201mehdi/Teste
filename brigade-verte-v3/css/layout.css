@@ -323,3 +323,21 @@
     flex: 0 0 auto;
   }
 }
+
+/* Historique sur mobile : bouton « Carte » → la carte prend l'écran, la liste
+   revient avec « Liste ». Desktop : carte et liste sont toujours côte à côte. */
+@media (max-width: 1023px) {
+  .app[data-view="historique"][data-histmap] .territory {
+    display: block;
+    height: calc(100dvh - var(--bar-h) - 150px);
+  }
+  .app[data-view="historique"][data-histmap] .histFilters,
+  .app[data-view="historique"][data-histmap] .histDash,
+  .app[data-view="historique"][data-histmap] #histList,
+  .app[data-view="historique"][data-histmap] .histMore,
+  .app[data-view="historique"][data-histmap] .histTabs,
+  .app[data-view="historique"][data-histmap] .histCount {
+    display: none !important;
+  }
+  .app[data-view="historique"][data-histmap] .histScroll { padding-top: var(--s3); padding-bottom: var(--s3); }
+}

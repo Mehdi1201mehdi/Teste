@@ -7,7 +7,9 @@ import { splash } from "./splash.js";
 import { $, esc, todayISO, stampDate, plural } from "./utils.js";
 import { state, load, save, nextRef } from "./storage.js";
 import { normalizeBp } from "./model.js";
-import { loadTours, cachedTours, mergeTours } from "./archive.js";
+import { loadTours, cachedTours, mergeTours, storageEstimate, archiveAvailable } from "./archive.js";
+import { withInsights } from "./ops.js";
+import { DEFAULT_WEIGHTS, WEIGHT_LABELS, weightsOf } from "./priority.js";
 import { toCSV, buildBackup, parseBackup, download } from "./exporter.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
@@ -22,7 +24,7 @@ import { fmtDist } from "./geo.js";
 import { initStreetIndex, loadStreetGeometry } from "./locate.js";
 import * as map from "./map.js";
 import { initCollecte } from "./collecteView.js";
-import { initHistory, renderHistory, refreshArchive } from "./history.js";
+import { initHistory, renderHistory, refreshArchive, leaveHistory } from "./history.js";
 
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
@@ -58,8 +60,87 @@ function bindSettings() {
   $("openSettings").onclick = () => {
     $("date").value = state.date;
     $("saveStatus").textContent = state.lastSaved ? `Enregistré sur l'appareil à ${state.lastSaved}` : "Enregistré sur l'appareil";
+    renderWeights();
     dlg.showModal();
   };
+  $("healthSettings").addEventListener("toggle", () => $("healthSettings").open && renderHealth());
+
+  // Indice de priorité : pondérations réglables (0 à 10), appliquées partout
+  // (liste, fiche, carte, tableau de bord, CSV) dès la modification.
+  function renderWeights() {
+    const w = weightsOf(state.prio);
+    $("prioWeights").innerHTML = Object.keys(DEFAULT_WEIGHTS)
+      .map(
+        (k) => `<label class="weightRow"><span>${esc(WEIGHT_LABELS[k])}</span>
+        <input type="number" class="input input--num mono" inputmode="numeric" min="0" max="10" step="1" data-w="${k}" value="${w[k]}" aria-label="Points : ${esc(WEIGHT_LABELS[k])}"></label>`,
+      )
+      .join("");
+    $("prioWeights").querySelectorAll("[data-w]").forEach((inp) => {
+      inp.onchange = () => {
+        const v = Math.round(Number(inp.value));
+        if (!Number.isFinite(v) || v < 0 || v > 10) {
+          inp.value = weightsOf(state.prio)[inp.dataset.w];
+          return toast("Valeur entre 0 et 10.", null, "warn");
+        }
+        state.prio = { ...weightsOf(state.prio), [inp.dataset.w]: v };
+        save();
+        renderTour();
+      };
+    });
+  }
+  $("prioReset").onclick = () => {
+    state.prio = null;
+    save();
+    renderWeights();
+    renderTour();
+    toast("Pondérations par défaut rétablies.", null, "ok");
+  };
+
+  // Santé du système : uniquement des informations réellement mesurées.
+  async function renderHealth() {
+    const row = (k, v, tone = "") => `<div${tone ? ` data-tone="${tone}"` : ""}><dt>${esc(k)}</dt><dd>${v}</dd></div>`;
+    let version = "—";
+    try {
+      const keys = await caches.keys();
+      const m = keys.map((k) => k.match(/shell-(v[\d.]+)/)).find(Boolean);
+      version = m ? m[1] : "non installée (pas de cache hors ligne)";
+    } catch (e) {
+      version = "indisponible";
+    }
+    const sw = !("serviceWorker" in navigator) ? ["Non pris en charge", "warn"] : navigator.serviceWorker.controller ? ["Actif : l'application fonctionne hors ligne", "ok"] : ["Inactif (premier chargement ou navigation privée)", "warn"];
+    const conn = navigator.connection?.effectiveType ? ` · ${navigator.connection.effectiveType.toUpperCase()}` : "";
+    let gps = state.gps ? "Activé dans l'application" : "Désactivé dans l'application";
+    try {
+      const p = await navigator.permissions?.query({ name: "geolocation" });
+      if (p) gps += ` · autorisation navigateur : ${{ granted: "accordée", denied: "refusée", prompt: "demandée à l'usage" }[p.state] || p.state}`;
+    } catch (e) {
+      /* API absente (Safari ancien) : on n'affiche que le réglage */
+    }
+    const est = await storageEstimate();
+    const mo = (b) => `${(b / 1048576).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
+    let tours = [];
+    let archive = "Disponible";
+    try {
+      tours = await loadTours();
+    } catch (e) {
+      archive = `Illisible (${e.message})`;
+    }
+    const nbArch = tours.reduce((a, t) => a + t.bps.length, 0);
+    const quarantine = (state.quarantine || []).length;
+    $("health").innerHTML = [
+      row("Version", `<span class="mono">${esc(version)}</span>`),
+      row("Service worker", esc(sw[0]), sw[1]),
+      row("Réseau", navigator.onLine ? `En ligne${esc(conn)}` : "Hors ligne — la saisie continue", navigator.onLine ? "ok" : "warn"),
+      row("GPS", esc(gps)),
+      row("Tournée en cours", `${plural(state.bps.length, "signalement")}`),
+      row("Historique (IndexedDB)", archiveAvailable() ? `${esc(archive)} · ${plural(tours.length, "tournée")} · ${plural(nbArch, "signalement")}` : "Non pris en charge par ce navigateur", archiveAvailable() && !/Illisible/.test(archive) ? "" : "warn"),
+      row("Éléments en quarantaine", quarantine ? `${quarantine} (données illisibles conservées, incluses dans la sauvegarde complète)` : "Aucun", quarantine ? "warn" : ""),
+      row("Espace utilisé", est ? `${mo(est.usage)} sur ${mo(est.quota)} disponibles${est.persisted ? " · stockage protégé" : " · stockage non protégé (le navigateur peut le vider si l'appareil manque de place)"}` : "Non communiqué par ce navigateur"),
+      row("Dernier enregistrement", state.lastSaved ? `Aujourd'hui à ${esc(state.lastSaved)}` : "—"),
+      row("Dernière sauvegarde complète", state.lastBackup ? esc(new Date(state.lastBackup).toLocaleString("fr-FR")) : "Jamais — pensez à exporter l'historique", state.lastBackup ? "" : "warn"),
+      row("Synchronisation", "Aucune : les données restent sur cet appareil (pas de serveur)"),
+    ].join("");
+  }
   $("date").addEventListener("change", (e) => {
     state.date = e.target.value || todayISO();
     renderTour();
@@ -110,6 +191,8 @@ function bindSettings() {
     }
     if (!state.bps.length && !tours.length) return toast("Rien à sauvegarder pour l'instant.");
     download(`brigade-verte-sauvegarde-${todayISO()}.json`, JSON.stringify(buildBackup(state, tours)), "application/json");
+    state.lastBackup = new Date().toISOString();
+    save();
     const n = state.bps.length + tours.reduce((a, t) => a + t.bps.length, 0);
     toast(`Sauvegarde complète : ${plural(n, "signalement")}, ${plural(tours.length, "tournée archivée", "tournées archivées")}.`, null, "ok");
   };
@@ -121,7 +204,7 @@ function bindSettings() {
     } catch (e) {
       /* l'historique manquant est signalé ci-dessous par le nombre de lignes */
     }
-    const rows = [...state.bps.map((bp) => ({ bp, tour: { id: state.tour?.id || "" } })), ...cachedTours().flatMap((t) => t.bps.map((bp) => ({ bp, tour: t })))];
+    const rows = withInsights([...state.bps.map((bp) => ({ bp, tour: { id: state.tour?.id || "" } })), ...cachedTours().flatMap((t) => t.bps.map((bp) => ({ bp, tour: t })))]);
     if (!rows.length) return toast("Aucun signalement à exporter.");
     download(`brigade-verte-signalements-${todayISO()}.csv`, toCSV(rows), "text/csv;charset=utf-8");
     toast(`${plural(rows.length, "signalement")} exporté${rows.length > 1 ? "s" : ""} en CSV.`, null, "ok");
@@ -145,6 +228,7 @@ function bindSettings() {
         }
       }
       if (parsed.settings?.mailTo && !state.mailTo) state.mailTo = parsed.settings.mailTo;
+      if (parsed.settings?.prio && !state.prio) state.prio = weightsOf(parsed.settings.prio);
       const date = parsed.date || state.date;
       const tourId = state.tour?.id || "";
       const clean = parsed.currentBps.map((b) => normalizeBp(b, { date, tourId, nextRef })).filter(Boolean);
@@ -236,8 +320,9 @@ function bindShell() {
     renderTour();
     // Rapport : la carte cadre toute la tournée. Terrain : elle revient sur la rue choisie.
     if (view === "rapport") map.fitPins();
-    if (view === "historique") refreshArchive({ fresh: true });
-    else if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
+    if (view === "historique") return refreshArchive({ fresh: true, entering: true });
+    leaveHistory(); // couche « historique » et bascule carte retirées
+    if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
   });
 }
 
@@ -307,7 +392,18 @@ async function main() {
 
   initComposer({ changed, reveal: revealBp });
   initReport({ changed, edit: editBp });
-  initHistory({ changed, edit: editBp });
+  initHistory({
+    changed,
+    edit: editBp,
+    // « Régler les pondérations » depuis une fiche ou le tableau de bord.
+    settings: (section) => {
+      $("openSettings").click();
+      if (section === "prio") {
+        $("prioSettings").open = true;
+        requestAnimationFrame(() => $("prioSettings").scrollIntoView({ block: "start" }));
+      }
+    },
+  });
   initCollecte({
     // « Relever un dépôt ici » depuis la vue Collecte : l'adresse passe au Terrain.
     useAddress: (rue, num) => {

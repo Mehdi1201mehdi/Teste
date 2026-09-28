@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v4.7.0";
+const VERSION = "v4.8.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 // Tuiles du Plan IGN : cache persistant entre versions, borné (~700 tuiles ≈ 20 Mo).
@@ -24,9 +24,7 @@ const SHELL_ASSETS = [
   "./css/animations.css",
   "./css/splash.css",
   "./js/vendor/leaflet.js",
-  "./js/analytics.js",
   "./js/app.js",
-  "./js/archive.js",
   "./js/api.js",
   "./js/bp.js",
   "./js/collecte.js",
@@ -34,17 +32,11 @@ const SHELL_ASSETS = [
   "./js/components.js",
   "./js/composer.js",
   "./js/email.js",
-  "./js/exporter.js",
   "./js/geo.js",
-  "./js/history.js",
   "./js/icons.js",
   "./js/locate.js",
   "./js/mail.js",
-  "./js/model.js",
   "./js/map.js",
-  "./js/ops.js",
-  "./js/priority.js",
-  "./js/quality.js",
   "./js/report.js",
   "./js/router.js",
   "./js/search.js",
@@ -53,7 +45,6 @@ const SHELL_ASSETS = [
   "./js/storage.js",
   "./js/streetgeo.js",
   "./js/streets.js",
-  "./js/synthesis.js",
   "./js/ui.js",
   "./js/utils.js",
   "./js/waste.js",

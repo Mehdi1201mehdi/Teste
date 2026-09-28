@@ -103,7 +103,6 @@
   <symbol id="i-corner" viewBox="0 0 24 24"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
-  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
   <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
 </svg>
 
@@ -121,7 +120,6 @@
       <button type="button" class="vsBtn" data-view-target="terrain" aria-current="page" aria-label="Terrain : saisie et carte"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Terrain</span></button>
       <button type="button" class="vsBtn" data-view-target="rapport" aria-label="Rapport de tournée"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span>Rapport</span><span class="count" id="navCount">0</span></button>
       <button type="button" class="vsBtn" data-view-target="collecte" aria-label="Jour de collecte"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><span>Collecte</span></button>
-      <button type="button" class="vsBtn" data-view-target="historique" aria-label="Historique des signalements et des tournées"><svg class="icon" aria-hidden="true"><use href="#i-history"></use></svg><span>Historique</span></button>
     </nav>
 
     <button type="button" class="stamp" id="openSettings" aria-haspopup="dialog">
@@ -158,9 +156,6 @@
       </div>
 
       <p class="mapHint" id="mapHint">Touchez la carte pour choisir une rue</p>
-      <div class="mapLegend" id="mapLegend" aria-label="Légende des signalements">
-        <span><i data-level="critique"></i>Critique</span><span><i data-level="haute"></i>Haute</span><span><i data-level="moyenne"></i>Moyenne</span><span><i data-level="faible"></i>Faible</span><span><i data-level="clos"></i>Traité</span><span><i class="is-approx"></i>Position approchée</span>
-      </div>
       <p class="gpsStatus mono" id="gpsStatus" role="status" aria-live="polite" hidden></p>
 
       <div class="mapPick" id="mapPick" role="dialog" aria-label="Rues proches du point touché" hidden>
@@ -179,7 +174,6 @@
           <ol class="stages" aria-label="Étapes du signalement">
             <li><button type="button" class="stageBtn" data-stage-target="1"><span class="stageDot">1</span><span class="stageName">Lieu</span></button></li>
             <li><button type="button" class="stageBtn" data-stage-target="2"><span class="stageDot">2</span><span class="stageName">Déchets</span></button></li>
-            <li><button type="button" class="stageBtn" data-stage-target="3"><span class="stageDot">3</span><span class="stageName">Valider</span></button></li>
           </ol>
         </div>
 
@@ -249,8 +243,19 @@
               <div id="wasteChips" class="chips" role="group" aria-labelledby="wasteChipsLabel"></div>
             </div>
 
+            <div class="lineOut" id="lineOut" hidden>
+              <span class="label">Ligne du rapport</span>
+              <p class="lineOutText mono" id="linePreview">—</p>
+            </div>
+            <div class="dupNote" id="dupNote" role="status" hidden></div>
+
             <div class="field">
-              <label class="label" for="wasteInput">Ajouter un déchet</label>
+              <span class="label" id="frequentLabel">Les plus fréquents</span>
+              <div class="pickers" id="frequentWaste" role="group" aria-labelledby="frequentLabel"></div>
+            </div>
+
+            <div class="field">
+              <label class="label" for="wasteInput">Autre déchet</label>
               <div class="combo" id="wasteCombo">
                 <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
                 <input id="wasteInput" class="input input--combo" autocomplete="off" spellcheck="false" placeholder="ex. mat, sac, grav…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="wasteSuggest">
@@ -259,10 +264,6 @@
               </div>
             </div>
 
-            <div class="field">
-              <span class="label" id="frequentLabel">Les plus fréquents</span>
-              <div class="pickers" id="frequentWaste" role="group" aria-labelledby="frequentLabel"></div>
-            </div>
 
             <div class="field">
               <span class="label" id="catLabel">Par famille</span>
@@ -271,21 +272,6 @@
             </div>
           </fieldset>
 
-          <!-- Étape 3 · VALIDER -->
-          <fieldset class="stagePane" id="stage3" data-stage="3">
-            <legend class="stageTitle">Vérifier et enregistrer</legend>
-            <div id="ticketPreview"></div>
-            <div class="dupNote" id="dupNote" role="status" hidden></div>
-            <div class="dupNote recurNote" id="recurNote" role="status" hidden></div>
-            <div class="lineOut">
-              <span class="label">Ligne ajoutée au rapport</span>
-              <p class="lineOutText mono" id="linePreview">—</p>
-            </div>
-            <div class="field fieldNote">
-              <label class="label" for="bpNote">Note interne <span class="opt">facultatif · non envoyée dans le message</span></label>
-              <textarea id="bpNote" class="input input--quiet noteInput" rows="2" maxlength="500" placeholder="Ex. déjà signalé au bailleur, dépôt présent depuis plusieurs jours…"></textarea>
-            </div>
-          </fieldset>
         </div>
 
         <div class="actionBar" id="actionBar">
@@ -333,9 +319,9 @@
             </article>
 
             <div class="sendBar">
-              <button class="btn btn--primary btn--grow" id="copyMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier le message</span></button>
-              <button class="btn btn--line" id="openMail" type="button" title="Ouvrir dans l'appli Outlook (sur ordinateur : la messagerie installée)"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Outlook</span></button>
-              <button class="btn btn--line" id="openMailWeb" type="button" title="Outlook sur le web, sans application"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Web</span></button>
+              <button class="btn btn--primary sendMain" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Envoyer avec Outlook</span></button>
+              <button class="btn btn--line" id="copyMail" type="button" aria-label="Copier le message"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
+              <button class="btn btn--line" id="openMailWeb" type="button" title="Outlook sur le web, sans application"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Outlook Web</span></button>
             </div>
             <div class="sendFallback" id="sendFallback" role="region" aria-labelledby="sendFallbackTitle" hidden>
               <p class="sendFallbackTitle" id="sendFallbackTitle">Outlook ne s'est pas ouvert&nbsp;?</p>
@@ -346,23 +332,7 @@
                 <button class="btn btn--line" id="fallbackCopy" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
               </div>
             </div>
-            <p class="sendNote">Destinataire, objet et message sont préremplis : vous relisez et vous envoyez vous-même. Un lien ne transporte que du texte simple (secteurs en MAJUSCULES) ; pour les secteurs en <b><u>gras souligné</u></b>, collez le message copié à la place du texte.</p>
-
-            <section class="checkCard" id="checkCard" aria-labelledby="checkTitle">
-              <div class="sectionHead">
-                <h2 id="checkTitle">Contrôle avant envoi</h2>
-                <span class="checkScore mono" id="checkScore"></span>
-              </div>
-              <ul class="checkList" id="checkList"></ul>
-              <details class="synth" id="synth">
-                <summary>Synthèse de la tournée <span class="opt">pour le responsable · hors message</span></summary>
-                <ul class="synthList" id="synthList"></ul>
-                <div class="synthTools">
-                  <button type="button" class="linkBtn" id="copySynth"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg>Copier la synthèse</button>
-                  <button type="button" class="linkBtn" id="printReport"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg>Imprimer le rapport</button>
-                </div>
-              </details>
-            </section>
+            <p class="sendNote">Outlook s'ouvre prérempli et le message est aussi copié&nbsp;: collez-le à la place du texte pour garder les secteurs en <b><u>gras souligné</u></b>.</p>
 
             <section class="ledger" aria-labelledby="ledgerTitle">
               <div class="sectionHead">
@@ -375,9 +345,9 @@
             <section class="closeTour">
               <div>
                 <h2>Fin de tournée</h2>
-                <p>Une fois le message envoyé, clôturez : la tournée est archivée dans l'historique et la saisie repart de zéro.</p>
+                <p>Une fois le message envoyé, clôturez pour repartir de zéro.</p>
               </div>
-              <button class="btn btn--line" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
+              <button class="btn btn--danger" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
             </section>
           </div>
         </div>
@@ -419,61 +389,6 @@
           </details>
         </div>
       </div>
-
-      <!-- ═════════════ Historique : signalements et tournées ═════════════ -->
-      <div class="view view--historique" id="viewHistorique" hidden>
-        <div class="histScroll">
-          <header class="histHead">
-            <div class="histTitleRow">
-              <div>
-                <p class="eyebrow">Historique · pilotage</p>
-                <h2 class="viewTitle" id="histTitle">Tableau de bord</h2>
-              </div>
-              <button type="button" class="btn btn--line histMapBtn" id="histMapBtn" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Carte</span></button>
-            </div>
-            <p class="histCount" id="histCount" role="status"></p>
-            <p class="banner banner--warn histWarn" id="histArchiveWarn" role="alert" hidden></p>
-          </header>
-          <div class="histTabs" id="histTabs" role="tablist" aria-label="Liste affichée">
-            <button type="button" role="tab" data-tab="dash" aria-selected="true" aria-controls="histDash">Tableau de bord</button>
-            <button type="button" role="tab" data-tab="bps" aria-selected="false" aria-controls="histList">Signalements</button>
-            <button type="button" role="tab" data-tab="tours" aria-selected="false" aria-controls="histList">Tournées</button>
-          </div>
-          <div class="histFilters" id="histFilters">
-            <div class="combo histSearchBox">
-              <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
-              <label class="visually-hidden" for="histSearch">Rechercher un signalement</label>
-              <input id="histSearch" class="input input--combo" type="search" autocomplete="off" spellcheck="false" placeholder="Rue, n°, BV-…, déchet, date…">
-            </div>
-            <div class="histSelects">
-              <label class="visually-hidden" for="histStatus">Statut</label><select id="histStatus" class="chipSelect"></select>
-              <label class="visually-hidden" for="histPrio">Priorité</label><select id="histPrio" class="chipSelect"></select>
-              <label class="visually-hidden" for="histSecteur">Secteur</label><select id="histSecteur" class="chipSelect"></select>
-              <label class="visually-hidden" for="histPeriod">Période</label>
-              <select id="histPeriod" class="chipSelect">
-                <option value="all">Toute période</option>
-                <option value="7">7 derniers jours</option>
-                <option value="30">30 derniers jours</option>
-                <option value="90">90 derniers jours</option>
-              </select>
-              <label class="visually-hidden" for="histSort">Tri</label>
-              <select id="histSort" class="chipSelect">
-                <option value="recent">Plus récents</option>
-                <option value="old">Plus anciens</option>
-                <option value="rue">Rue (A → Z)</option>
-                <option value="prio">Priorité</option>
-              </select>
-            </div>
-            <div class="histResultRow">
-              <p class="histResult mono" id="histResult" aria-live="polite"></p>
-              <button type="button" class="linkBtn" id="histCsv"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg>Exporter la liste (CSV)</button>
-            </div>
-          </div>
-          <div class="histDash" id="histDash" role="tabpanel"></div>
-          <div class="recList recList--index" id="histList" role="tabpanel" hidden></div>
-          <button type="button" class="btn btn--line histMore" id="histMore" hidden>Afficher plus</button>
-        </div>
-      </div>
     </section>
   </main>
 </div>
@@ -497,40 +412,16 @@
       <button type="button" class="switch" id="gpsToggle" role="switch" aria-checked="true" aria-labelledby="gpsLabel"><span></span></button>
     </div>
     <div class="settingGroup">
-      <span class="label">Sauvegarde et exports</span>
-      <p class="help">L'historique n'existe que sur cet appareil (aucune synchronisation) : sauvegardez-le régulièrement.</p>
-      <button class="rowBtn" id="exportAll" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Sauvegarde complète</b><small>Tournée en cours + historique · fichier .json</small></span></button>
-      <button class="rowBtn" id="exportCsv" type="button"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span><b>Exporter en tableur</b><small>Tous les signalements · .csv (Excel, LibreOffice, CRM)</small></span></button>
-      <button class="rowBtn" id="exportBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Exporter la tournée en cours</b><small>Fichier .json sur l'appareil</small></span></button>
-      <button class="rowBtn" id="importBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><b>Recharger un fichier</b><small>Sauvegarde complète : l'historique est complété, rien n'est supprimé</small></span></button>
+      <span class="label">Sauvegarde de secours</span>
+      <button class="rowBtn" id="exportBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-download"></use></svg><span><b>Exporter les signalements</b><small>Fichier .json sur l'appareil</small></span></button>
+      <button class="rowBtn" id="importBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"></use></svg><span><b>Recharger un fichier</b><small>Remplace les signalements actuels</small></span></button>
       <input type="file" id="importFile" accept=".json,application/json" hidden>
     </div>
-    <details class="settingGroup settingFold" id="prioSettings">
-      <summary class="label">Indice de priorité <span class="opt">interne · réglable</span></summary>
-      <p class="help">Aide à organiser les passages, sans valeur officielle. Chaque point attribué est expliqué dans la fiche du signalement. Niveaux : Critique ≥ 6 · Haute ≥ 4 · Moyenne ≥ 2 · Faible.</p>
-      <div class="prioWeights" id="prioWeights"></div>
-      <button type="button" class="linkBtn" id="prioReset"><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>Valeurs par défaut</button>
-    </details>
-    <details class="settingGroup settingFold" id="healthSettings">
-      <summary class="label">Santé du système</summary>
-      <dl class="health" id="health"></dl>
-    </details>
     <div class="settingGroup">
       <span class="label">Saisie</span>
       <button class="rowBtn rowBtn--danger" id="resetCurrent" type="button"><svg class="icon" aria-hidden="true"><use href="#i-trash"></use></svg><span><b>Effacer la saisie en cours</b><small>Les bons déjà enregistrés sont conservés</small></span></button>
     </div>
     <p class="sheetFoot mono" id="saveStatus" role="status" aria-live="polite">Enregistré sur l'appareil</p>
-  </form>
-</dialog>
-
-<!-- ═══ Fiche (signalement ou tournée) ═══ -->
-<dialog class="sheet recordDlg" id="recordDlg" aria-labelledby="recordTitle">
-  <form method="dialog" class="sheetInner">
-    <div class="sheetHead recordTop">
-      <span class="label">Fiche</span>
-      <button class="iconBtn" value="close" aria-label="Fermer la fiche"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
-    </div>
-    <div id="recordBody"></div>
   </form>
 </dialog>
 

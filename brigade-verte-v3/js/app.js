@@ -5,12 +5,7 @@
 // La séquence de démarrage s'initialise en premier : elle mesure le vrai chargement.
 import { splash } from "./splash.js";
 import { $, esc, todayISO, stampDate, plural } from "./utils.js";
-import { state, load, save, nextRef } from "./storage.js";
-import { normalizeBp } from "./model.js";
-import { loadTours, cachedTours, mergeTours, storageEstimate, archiveAvailable } from "./archive.js";
-import { withInsights } from "./ops.js";
-import { DEFAULT_WEIGHTS, WEIGHT_LABELS, weightsOf } from "./priority.js";
-import { toCSV, buildBackup, parseBackup, download } from "./exporter.js";
+import { state, load, save } from "./storage.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
 import { loadStreets, streetEntry } from "./streets.js";
@@ -24,7 +19,6 @@ import { fmtDist } from "./geo.js";
 import { initStreetIndex, loadStreetGeometry } from "./locate.js";
 import * as map from "./map.js";
 import { initCollecte } from "./collecteView.js";
-import { initHistory, renderHistory, refreshArchive, leaveHistory } from "./history.js";
 
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
@@ -45,7 +39,6 @@ function renderTour({ fresh = -1 } = {}) {
     { fresh, editing: state.editing },
   );
   renderReport();
-  renderHistory();
 }
 
 function changed(opts = {}) {
@@ -60,87 +53,8 @@ function bindSettings() {
   $("openSettings").onclick = () => {
     $("date").value = state.date;
     $("saveStatus").textContent = state.lastSaved ? `Enregistré sur l'appareil à ${state.lastSaved}` : "Enregistré sur l'appareil";
-    renderWeights();
     dlg.showModal();
   };
-  $("healthSettings").addEventListener("toggle", () => $("healthSettings").open && renderHealth());
-
-  // Indice de priorité : pondérations réglables (0 à 10), appliquées partout
-  // (liste, fiche, carte, tableau de bord, CSV) dès la modification.
-  function renderWeights() {
-    const w = weightsOf(state.prio);
-    $("prioWeights").innerHTML = Object.keys(DEFAULT_WEIGHTS)
-      .map(
-        (k) => `<label class="weightRow"><span>${esc(WEIGHT_LABELS[k])}</span>
-        <input type="number" class="input input--num mono" inputmode="numeric" min="0" max="10" step="1" data-w="${k}" value="${w[k]}" aria-label="Points : ${esc(WEIGHT_LABELS[k])}"></label>`,
-      )
-      .join("");
-    $("prioWeights").querySelectorAll("[data-w]").forEach((inp) => {
-      inp.onchange = () => {
-        const v = Math.round(Number(inp.value));
-        if (!Number.isFinite(v) || v < 0 || v > 10) {
-          inp.value = weightsOf(state.prio)[inp.dataset.w];
-          return toast("Valeur entre 0 et 10.", null, "warn");
-        }
-        state.prio = { ...weightsOf(state.prio), [inp.dataset.w]: v };
-        save();
-        renderTour();
-      };
-    });
-  }
-  $("prioReset").onclick = () => {
-    state.prio = null;
-    save();
-    renderWeights();
-    renderTour();
-    toast("Pondérations par défaut rétablies.", null, "ok");
-  };
-
-  // Santé du système : uniquement des informations réellement mesurées.
-  async function renderHealth() {
-    const row = (k, v, tone = "") => `<div${tone ? ` data-tone="${tone}"` : ""}><dt>${esc(k)}</dt><dd>${v}</dd></div>`;
-    let version = "—";
-    try {
-      const keys = await caches.keys();
-      const m = keys.map((k) => k.match(/shell-(v[\d.]+)/)).find(Boolean);
-      version = m ? m[1] : "non installée (pas de cache hors ligne)";
-    } catch (e) {
-      version = "indisponible";
-    }
-    const sw = !("serviceWorker" in navigator) ? ["Non pris en charge", "warn"] : navigator.serviceWorker.controller ? ["Actif : l'application fonctionne hors ligne", "ok"] : ["Inactif (premier chargement ou navigation privée)", "warn"];
-    const conn = navigator.connection?.effectiveType ? ` · ${navigator.connection.effectiveType.toUpperCase()}` : "";
-    let gps = state.gps ? "Activé dans l'application" : "Désactivé dans l'application";
-    try {
-      const p = await navigator.permissions?.query({ name: "geolocation" });
-      if (p) gps += ` · autorisation navigateur : ${{ granted: "accordée", denied: "refusée", prompt: "demandée à l'usage" }[p.state] || p.state}`;
-    } catch (e) {
-      /* API absente (Safari ancien) : on n'affiche que le réglage */
-    }
-    const est = await storageEstimate();
-    const mo = (b) => `${(b / 1048576).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} Mo`;
-    let tours = [];
-    let archive = "Disponible";
-    try {
-      tours = await loadTours();
-    } catch (e) {
-      archive = `Illisible (${e.message})`;
-    }
-    const nbArch = tours.reduce((a, t) => a + t.bps.length, 0);
-    const quarantine = (state.quarantine || []).length;
-    $("health").innerHTML = [
-      row("Version", `<span class="mono">${esc(version)}</span>`),
-      row("Service worker", esc(sw[0]), sw[1]),
-      row("Réseau", navigator.onLine ? `En ligne${esc(conn)}` : "Hors ligne — la saisie continue", navigator.onLine ? "ok" : "warn"),
-      row("GPS", esc(gps)),
-      row("Tournée en cours", `${plural(state.bps.length, "signalement")}`),
-      row("Historique (IndexedDB)", archiveAvailable() ? `${esc(archive)} · ${plural(tours.length, "tournée")} · ${plural(nbArch, "signalement")}` : "Non pris en charge par ce navigateur", archiveAvailable() && !/Illisible/.test(archive) ? "" : "warn"),
-      row("Éléments en quarantaine", quarantine ? `${quarantine} (données illisibles conservées, incluses dans la sauvegarde complète)` : "Aucun", quarantine ? "warn" : ""),
-      row("Espace utilisé", est ? `${mo(est.usage)} sur ${mo(est.quota)} disponibles${est.persisted ? " · stockage protégé" : " · stockage non protégé (le navigateur peut le vider si l'appareil manque de place)"}` : "Non communiqué par ce navigateur"),
-      row("Dernier enregistrement", state.lastSaved ? `Aujourd'hui à ${esc(state.lastSaved)}` : "—"),
-      row("Dernière sauvegarde complète", state.lastBackup ? esc(new Date(state.lastBackup).toLocaleString("fr-FR")) : "Jamais — pensez à exporter l'historique", state.lastBackup ? "" : "warn"),
-      row("Synchronisation", "Aucune : les données restent sur cet appareil (pas de serveur)"),
-    ].join("");
-  }
   $("date").addEventListener("change", (e) => {
     state.date = e.target.value || todayISO();
     renderTour();
@@ -173,95 +87,57 @@ function bindSettings() {
     go("terrain", 1);
   };
 
-  // Export de secours : les bons de la tournée en cours (format historique, champs v5 inclus).
+  // Export de secours : tous les bons dans un fichier JSON.
   $("exportBps").onclick = () => {
     if (!state.bps.length) return toast("Aucun signalement à sauvegarder.");
-    download(`brigade-verte-bp-${state.date || todayISO()}.json`, JSON.stringify({ app: "brigade-verte-amiens", version: 5, date: state.date, bps: state.bps }, null, 2), "application/json");
+    const data = JSON.stringify({ app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps }, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `brigade-verte-bp-${state.date || todayISO()}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     toast(`${plural(state.bps.length, "signalement")} exporté${state.bps.length > 1 ? "s" : ""}.`, null, "ok");
   };
 
-  // Sauvegarde complète : tournée en cours + historique (seul moyen de copier
-  // l'historique hors de l'appareil — aucune synchronisation n'existe).
-  $("exportAll").onclick = async () => {
-    let tours = [];
-    try {
-      tours = await loadTours();
-    } catch (e) {
-      toast(`Historique illisible (${e.message}) : seule la tournée en cours est sauvegardée.`, null, "warn");
-    }
-    if (!state.bps.length && !tours.length) return toast("Rien à sauvegarder pour l'instant.");
-    download(`brigade-verte-sauvegarde-${todayISO()}.json`, JSON.stringify(buildBackup(state, tours)), "application/json");
-    state.lastBackup = new Date().toISOString();
-    save();
-    const n = state.bps.length + tours.reduce((a, t) => a + t.bps.length, 0);
-    toast(`Sauvegarde complète : ${plural(n, "signalement")}, ${plural(tours.length, "tournée archivée", "tournées archivées")}.`, null, "ok");
-  };
-
-  // Tableur : un signalement par ligne (Excel, LibreOffice, import dans un CRM).
-  $("exportCsv").onclick = async () => {
-    try {
-      await loadTours();
-    } catch (e) {
-      /* l'historique manquant est signalé ci-dessous par le nombre de lignes */
-    }
-    const rows = withInsights([...state.bps.map((bp) => ({ bp, tour: { id: state.tour?.id || "" } })), ...cachedTours().flatMap((t) => t.bps.map((bp) => ({ bp, tour: t })))]);
-    if (!rows.length) return toast("Aucun signalement à exporter.");
-    download(`brigade-verte-signalements-${todayISO()}.csv`, toCSV(rows), "text/csv;charset=utf-8");
-    toast(`${plural(rows.length, "signalement")} exporté${rows.length > 1 ? "s" : ""} en CSV.`, null, "ok");
-  };
-
-  // Import : sauvegarde complète (fusion de l'historique, rien n'est supprimé)
-  // ou fichier d'une tournée (remplace la tournée en cours, après confirmation).
+  // Import : validé et normalisé strictement.
   $("importBps").onclick = () => $("importFile").click();
   $("importFile").onchange = async () => {
     const file = $("importFile").files[0];
     $("importFile").value = "";
     if (!file) return;
     try {
-      const parsed = parseBackup(JSON.parse(await file.text()));
-      let merged = null;
-      if (parsed.tours.length) {
-        try {
-          merged = await mergeTours(parsed.tours, { nextRef });
-        } catch (e) {
-          return toast(`Historique non restauré (${e.message}) — rien n'a été modifié.`, null, "error");
-        }
-      }
-      if (parsed.settings?.mailTo && !state.mailTo) state.mailTo = parsed.settings.mailTo;
-      if (parsed.settings?.prio && !state.prio) state.prio = weightsOf(parsed.settings.prio);
-      const date = parsed.date || state.date;
-      const tourId = state.tour?.id || "";
-      const clean = parsed.currentBps.map((b) => normalizeBp(b, { date, tourId, nextRef })).filter(Boolean);
-      const skipped = parsed.currentBps.length - clean.length;
-      if (!clean.length) {
-        if (merged) {
-          changed();
-          save();
-          dlg.open && dlg.close();
-          return toast(`Historique restauré : ${plural(merged.added, "tournée ajoutée", "tournées ajoutées")}, ${plural(merged.updated, "complétée", "complétées")}.`, null, "ok");
-        }
-        return toast("Aucun signalement valide dans ce fichier — rien n'a été remplacé.", null, "error");
-      }
+      const json = JSON.parse(await file.text());
+      const raw = Array.isArray(json) ? json : json && json.bps;
+      if (!Array.isArray(raw)) return toast("Fichier non reconnu : choisissez un export .json de Brigade Verte.", null, "error");
+      const clean = raw
+        .filter((b) => b && typeof b === "object" && b.rue && b.secteur)
+        .map((b) => ({
+          rue: String(b.rue),
+          numero: b.numero != null ? String(b.numero) : "",
+          secteur: String(b.secteur),
+          wastes: Array.isArray(b.wastes) ? b.wastes.map(String) : [],
+          precisions: Array.isArray(b.precisions) ? b.precisions.map(String) : [],
+        }));
+      if (!clean.length) return toast("Aucun signalement valide dans ce fichier — rien n'a été remplacé.", null, "error");
       if (state.bps.length) {
         dlg.close();
         const ok = await confirmDialog({
-          title: "Remplacer la tournée en cours ?",
-          text: `Les ${state.bps.length} signalements de la tournée en cours seront remplacés par les ${clean.length} du fichier.${merged ? " L'historique, lui, a déjà été complété sans rien supprimer." : ""}`,
+          title: "Remplacer la tournée ?",
+          text: `Les ${state.bps.length} signalements actuels seront remplacés par les ${clean.length} du fichier.`,
           ok: "Remplacer",
         });
         if (!ok) return;
       }
-      if (!state.tour) state.tour = { id: clean[0].tourId || `T-${(date || todayISO()).replace(/-/g, "")}-imp`, startedAt: null };
-      if (parsed.date) state.date = parsed.date;
-      state.bps = clean.map((b) => ({ ...b, tourId: b.tourId || state.tour.id }));
+      state.bps = clean;
       state.mailCustom = "";
       state.editing = null;
       changed();
       save();
       dlg.open && dlg.close();
-      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}${skipped ? ` (${skipped} illisible${skipped > 1 ? "s" : ""} ignoré${skipped > 1 ? "s" : ""})` : ""}${merged ? ` · historique : +${merged.added} tournée(s)` : ""}.`, null, "ok");
+      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}.`, null, "ok");
     } catch (e) {
-      toast(/non reconnu/.test(e.message) ? e.message : "Fichier illisible — vos signalements actuels sont intacts.", null, "error");
+      toast("Fichier illisible — vos signalements actuels sont intacts.", null, "error");
     }
   };
 
@@ -271,7 +147,7 @@ function bindSettings() {
 }
 
 /* ─── Carte : toucher → rues proches ─── */
-function onMapPick({ list, quartier, lat, lon }) {
+function onMapPick({ list, quartier }) {
   const box = $("mapPick");
   $("mapPickTitle").innerHTML = quartier
     ? `Quartier <b>${esc(quartier)}</b> · rues proches`
@@ -283,8 +159,7 @@ function onMapPick({ list, quartier, lat, lon }) {
     streetEntry(r, "", (rue) => {
       box.hidden = true;
       if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
-      // Le point touché devient la position du dépôt (source « carte »).
-      chooseRue(rue, { fly: true, geo: Number.isFinite(lat) ? { lat, lon, acc: null, source: "carte" } : null });
+      chooseRue(rue, { fly: true });
     }, fmtDist(d)),
   );
   showSuggestions(listEl, entries, "");
@@ -320,9 +195,7 @@ function bindShell() {
     renderTour();
     // Rapport : la carte cadre toute la tournée. Terrain : elle revient sur la rue choisie.
     if (view === "rapport") map.fitPins();
-    if (view === "historique") return refreshArchive({ fresh: true, entering: true });
-    leaveHistory(); // couche « historique » et bascule carte retirées
-    if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
+    else if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
   });
 }
 
@@ -392,18 +265,6 @@ async function main() {
 
   initComposer({ changed, reveal: revealBp });
   initReport({ changed, edit: editBp });
-  initHistory({
-    changed,
-    edit: editBp,
-    // « Régler les pondérations » depuis une fiche ou le tableau de bord.
-    settings: (section) => {
-      $("openSettings").click();
-      if (section === "prio") {
-        $("prioSettings").open = true;
-        requestAnimationFrame(() => $("prioSettings").scrollIntoView({ block: "start" }));
-      }
-    },
-  });
   initCollecte({
     // « Relever un dépôt ici » depuis la vue Collecte : l'adresse passe au Terrain.
     useAddress: (rue, num) => {
@@ -426,7 +287,6 @@ async function main() {
   $("streetInput").value = c.rue?.rue || "";
   $("numeroRue").value = c.numero || "";
   $("precCustom").value = c.precisionCustom || "";
-  $("bpNote").value = c.note || "";
   if (c.rue) map.setTarget(c.rue.rue, { fly: false });
 
   initRouter();

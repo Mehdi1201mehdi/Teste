@@ -85,18 +85,20 @@ export async function checkLocationAvailable() {
  * (`{lat, lon, accuracy, timestamp}`), le GPS étant alors arrêté.
  * `signal` (AbortSignal) permet d'annuler.
  */
-export async function getCurrentPosition({ onFix, goal = 15, maxMs = 12000, signal } = {}) {
+export async function getCurrentPosition({ onFix, goal = 15, maxMs = 12000, signal, enough, plateauMs = 4000 } = {}) {
   await checkLocationAvailable();
   const startedAt = Date.now();
   return new Promise((resolve, reject) => {
     let best = null;
     let done = false;
     let id = null;
+    let plateau = null; // la précision ne s'améliore plus : inutile de faire attendre l'agent
     const finish = (err) => {
       if (done) return;
       done = true;
       if (id != null) navigator.geolocation.clearWatch(id);
       clearTimeout(timer);
+      clearTimeout(plateau);
       signal?.removeEventListener("abort", onAbort);
       if (err && (err.code === "denied" || err.code === "aborted" || !best)) reject(err);
       else if (best) resolve(best);
@@ -119,7 +121,11 @@ export async function getCurrentPosition({ onFix, goal = 15, maxMs = 12000, sign
         if (best && fix.accuracy >= best.accuracy) return;
         best = fix;
         onFix?.(fix);
-        if (fix.accuracy <= goal) finish();
+        // Arrêt anticipé : précision visée atteinte, ou mesure déjà suffisante
+        // pour trancher la rue (`enough`), ou plus aucun progrès depuis 4 s.
+        if (fix.accuracy <= goal || (fix.accuracy <= 30 && enough?.(fix))) return finish();
+        clearTimeout(plateau);
+        if (fix.accuracy <= 50) plateau = setTimeout(() => finish(), plateauMs);
       },
       (err) => {
         // Refus : tout s'arrête. Autre erreur : on garde la meilleure mesure.

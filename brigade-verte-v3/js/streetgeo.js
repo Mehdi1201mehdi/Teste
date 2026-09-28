@@ -124,6 +124,24 @@ export function createStreetIndex(streets, geo = null) {
   };
 }
 
+/** Probabilité minimale pour retenir une rue d'office (sinon : confirmation). */
+export const PROB_CONFIDENT = 0.9;
+
+/**
+ * Plausibilité relative de chaque rue candidate : la position mesurée est à
+ * ± précision (écart-type ≈ 0,7 × précision annoncée) d'un point situé sur le
+ * trottoir (≤ 6 m de l'axe de la rue). Normalisée : la somme vaut 1.
+ */
+export function likelihoods(list, acc) {
+  const sigma = acc * 0.7 + 3;
+  const w = list.map((c) => {
+    const e = Math.max(0, c.d - 6);
+    return Math.exp(-(e * e) / (2 * sigma * sigma));
+  });
+  const sum = w.reduce((a, b) => a + b, 0) || 1;
+  return w.map((x) => x / sum);
+}
+
 /** Précision au-delà de laquelle aucune rue n'est proposée comme détectée. */
 export const MAX_USABLE_ACCURACY = 50;
 /** Précision en deçà de laquelle une rue isolée peut être retenue d'office. */
@@ -134,8 +152,8 @@ export const CONFIDENT_ACCURACY = 30;
  * réel) et, si disponible, de l'adresse renvoyée par le géocodage inverse.
  *
  * Renvoie :
- *  · status "confident"  — une seule rue compatible avec la précision : elle
- *    peut être retenue (l'agent peut toujours la changer) ;
+ *  · status "confident"  — une rue nettement plus plausible que les autres
+ *    (probabilité ≥ 90 %) : elle est retenue (l'agent peut toujours la changer) ;
  *  · status "ambiguous"  — plusieurs rues possibles : confirmation requise ;
  *  · status "imprecise"  — précision insuffisante : aucune rue n'est affirmée.
  *
@@ -153,14 +171,11 @@ export function decideStreet(fix, near, rev = null) {
     list.push({ r: rev.street, d: rev.distance ?? acc, exact: false, fromReverse: true });
   }
   const top = list[0] || null;
-  const second = list[1] || null;
 
   if (!top) return { status: "imprecise", accuracy: acc, street: null, candidates: [], numero: "", reasons: ["no-street"] };
 
-  // Rues compatibles avec la mesure : celles dont le tracé passe dans le
-  // cercle d'incertitude (tolérance : largeur de chaussée + trottoirs).
+  // Portée de la mesure : cercle d'incertitude + largeur de chaussée et trottoirs.
   const reach = acc + 12;
-  const compatible = list.filter((c) => c.d <= Math.max(reach, top.d + 6));
 
   if (acc > MAX_USABLE_ACCURACY) {
     reasons.push("accuracy");
@@ -179,11 +194,19 @@ export function decideStreet(fix, near, rev = null) {
   const revCand = rev?.street ? list.find((c) => c.r.rue === rev.street.rue) : null;
   const revRelevant = !!rev?.street && (rev.distance ?? 999) <= Math.max(25, acc + 15) && (!revCand?.exact || revCand.d <= reach);
   const revAgrees = !revRelevant || rev.street.rue === top.r.rue;
-  const margin = second ? second.d - top.d : Infinity;
-  const clearWinner = compatible.length === 1 || margin >= Math.max(10, acc * 0.6);
+  // Probabilité que chaque rue soit la bonne, vu l'erreur GPS annoncée : une
+  // rue « gagne » seulement si les autres sont nettement moins plausibles.
+  // Réglé par simulation sur les 1 347 tracés d'Amiens (tools : gpssim) :
+  // l'ancienne règle (écart fixe) retenait d'office une MAUVAISE rue dans 5 à
+  // 9 % des cas à ± 10–25 m ; celle-ci dans ~0,1 %, et demande plutôt une
+  // confirmation d'un geste quand deux rues sont possibles.
+  const prob = likelihoods(list, acc);
+  const clearWinner = prob[0] >= PROB_CONFIDENT;
+  // L'adresse officielle (BAN) qui désigne la même rue suffit à trancher un cas serré.
+  const revConfirms = !!rev?.street && revRelevant && rev.street.rue === top.r.rue && prob[0] >= 0.7;
 
   let status = "ambiguous";
-  if (acc <= CONFIDENT_ACCURACY && top.exact && clearWinner && revAgrees && top.d <= reach) status = "confident";
+  if (acc <= CONFIDENT_ACCURACY && top.exact && (clearWinner || revConfirms) && revAgrees && top.d <= reach) status = "confident";
   if (!top.exact) reasons.push("no-geometry");
   if (!clearWinner) reasons.push("close-streets");
   if (!revAgrees) reasons.push("reverse-disagrees");

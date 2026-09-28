@@ -1,25 +1,24 @@
-// Vue Terrain — le composeur de bon de passage en trois temps.
+// Vue Terrain — le composeur de bon de passage en deux temps.
 //   1 · Lieu     rue (recherche, GPS, carte ou « même adresse »), numéro,
 //                secteur (déduit, modifiable), emplacement précis
-//   2 · Déchets  fréquents, recherche, familles
-//   3 · Valider  ticket final + la ligne exacte qui partira dans le message
+//   2 · Déchets  fréquents, recherche, familles — la ligne exacte du rapport
+//                s'affiche au fur et à mesure, puis « Enregistrer »
 // Après enregistrement, on reste sur le terrain : le composeur se remet à zéro
 // pour le dépôt suivant, la balise tombe sur la carte, le compteur avance.
 
-import { $, esc, plural, dateFr } from "./utils.js";
-import { historyAt } from "./ops.js";
-import { state, save, emptyCurrent, ensureTour, nextRef } from "./storage.js";
-import { normalizeBp } from "./model.js";
+import { $, esc } from "./utils.js";
+import { state, save, emptyCurrent } from "./storage.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
 import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk, findDuplicate } from "./bp.js";
 import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
 import { showWasteSuggest, frequent, categories, categoryItems, shortCat, pickButtons } from "./waste.js";
-import { showSuggestions, hideSuggestions, bindComboKeys, renderChips, ticketHtml } from "./components.js";
+import { showSuggestions, hideSuggestions, bindComboKeys, renderChips } from "./components.js";
 import { toast, replay, haptic } from "./ui.js";
 import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
 import * as map from "./map.js";
 import { gpsQuality, fmtDist } from "./geo.js";
 import { resolveStreet, resolveSectorAt } from "./locate.js";
+import { likelihoods } from "./streetgeo.js";
 import { lookupStreet, scheduleFor, shortSchedule, nextPickup, relDay } from "./collecte.js";
 import { openCollecte } from "./collecteView.js";
 
@@ -29,12 +28,9 @@ let hooks = { changed: () => {} };
 
 /* ═════════════ Lieu ═════════════ */
 
-export function chooseRue(rue, { fly = true, keepGps = false, geo = null } = {}) {
+export function chooseRue(rue, { fly = true, keepGps = false } = {}) {
   if (!keepGps) hideGpsPanel(); // rue choisie autrement : le bandeau GPS n'a plus lieu d'être
   const c = state.current;
-  // Position du dépôt : mesure GPS ou point touché sur la carte ; aucune si la
-  // rue vient de la recherche (jamais de position inventée).
-  c.geo = geo;
   c.rue = { rue: rue.rue, lon: rue.lon, lat: rue.lat, secteur: rue.secteur };
   c.secteur = rue.secteur || null;
   c.secteurAuto = true;
@@ -174,6 +170,9 @@ function renderPrecisions() {
 let locating = null; // AbortController de la recherche en cours
 let gpsStatusTimer;
 let lastLocate = null; // dernier résultat (pour la confirmation d'une candidate)
+// Rue la plus probable quand le GPS hésite : proposée sur le bouton principal
+// (« Rue X · Déchets ») — l'agent la valide en lisant son nom, ou touche une autre.
+let suggested = null;
 
 function gpsStatus(text, quality) {
   const el = $("gpsStatus");
@@ -185,6 +184,7 @@ function gpsStatus(text, quality) {
 }
 
 function hideGpsPanel() {
+  suggested = null;
   const p = $("gpsPanel");
   if (p) p.hidden = true;
 }
@@ -209,6 +209,7 @@ function showGpsPanel({ state: st, title, msg, hint = "", accuracy = null, candi
     )
     .join("");
   const settled = st === "confident" || st === "confirmed";
+  p.classList.toggle("is-compact", settled);
   const listLabel = st === "confident" ? "Pas la bonne rue ?" : st === "confirmed" ? "Changer de rue" : st === "imprecise" ? "Rues possibles (à vérifier)" : "Confirmez la rue";
   p.innerHTML = `
     <div class="gpsHead">
@@ -224,13 +225,17 @@ function showGpsPanel({ state: st, title, msg, hint = "", accuracy = null, candi
       candidates.length
         ? settled
           ? `<details class="gpsMore"><summary>${listLabel}</summary><div class="gpsCands" role="group" aria-label="Autres rues proches">${candHtml}</div></details>`
-          : `<p class="gpsListLabel">${listLabel}</p><div class="gpsCands" role="group" aria-label="${listLabel}">${candHtml}</div>`
+          : `${st === "imprecise" ? `<p class="gpsListLabel">${listLabel}</p>` : ""}<div class="gpsCands" role="group" aria-label="${listLabel}">${candHtml}</div>`
         : ""
     }
-    <div class="gpsFoot">
-      ${busy ? "" : `<button type="button" class="linkBtn" id="gpsRetry"><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>Réessayer</button>`}
+    ${
+      busy || (settled && !source)
+        ? ""
+        : `<div class="gpsFoot">
+      ${settled ? "" : `<button type="button" class="linkBtn" id="gpsRetry"><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>Réessayer</button>`}
       ${source ? `<span class="gpsSource">${source}</span>` : ""}
-    </div>`;
+    </div>`
+    }`;
   $("gpsPanelClose").onclick = () => {
     locating?.abort();
     hideGpsPanel();
@@ -251,9 +256,8 @@ function applyNumero(numero) {
 }
 
 /** Rue choisie depuis le GPS (automatiquement ou confirmée par l'agent). */
-function applyGpsStreet(street, secteur, fix) {
-  const geo = fix ? { lat: fix.lat, lon: fix.lon, acc: fix.accuracy, source: "gps" } : null;
-  chooseRue(street, { keepGps: true, geo });
+function applyGpsStreet(street, secteur) {
+  chooseRue(street, { keepGps: true });
   const c = state.current;
   if (secteur && secteur !== c.secteur) {
     c.secteur = secteur;
@@ -266,28 +270,39 @@ function applyGpsStreet(street, secteur, fix) {
 
 function confirmCandidate(cand) {
   if (!cand || !lastLocate) return;
+  suggested = null;
   const { fix, reverse } = lastLocate;
-  applyGpsStreet(cand.r, resolveSectorAt(cand.r, fix, cand.d), fix);
+  applyGpsStreet(cand.r, resolveSectorAt(cand.r, fix, cand.d));
   haptic(10);
   const numero = reverse?.street?.rue === cand.r.rue && reverse.housenumber && (reverse.distance ?? 999) <= Math.max(20, fix.accuracy) ? reverse.housenumber : "";
   showGpsPanel({
     state: "confirmed",
-    title: `Rue confirmée : <b>${esc(cand.r.rue)}</b>`,
-    msg: "Choix enregistré. Vous pouvez encore la changer ci-dessous.",
+    title: "Rue choisie",
     accuracy: fix.accuracy,
-    candidates: lastLocate.decision.candidates,
+    candidates: lastLocate.candidates,
     chosen: cand.r.rue,
     source: lastLocate.sourceText,
     numero: numero && !state.current.numero ? numero : "",
   });
 }
 
+/** Mention affichée seulement quand elle change quelque chose pour l'agent. */
 function sourceText(res) {
-  const parts = [res.geometry ? "Tracé des rues IGN" : "Plan simplifié (tracé non chargé)"];
-  if (res.reverse?.street) parts.push("adresse vérifiée (Base Adresse Nationale)");
-  else if (res.reverseError?.kind === "offline") parts.push("hors connexion : numéro indisponible");
-  else if (res.reverseError) parts.push("service d'adresses indisponible : numéro non proposé");
-  return parts.join(" · ");
+  if (res.reverseError?.kind === "offline") return "Hors connexion : numéro non proposé.";
+  if (res.reverseError) return "Numéro non proposé (service d'adresses indisponible).";
+  if (!res.geometry) return "Plan simplifié : vérifiez la rue.";
+  return "";
+}
+
+/**
+ * Rues proposées : seulement celles qui restent plausibles vu la précision
+ * (au plus 3). Inutile de faire lire « Rue des Jacobins · 135 m » à ± 20 m.
+ */
+function plausible(candidates, acc) {
+  if (!candidates.length) return [];
+  const p = likelihoods(candidates, acc);
+  const keep = candidates.filter((c, i) => i === 0 || p[i] >= 0.03).slice(0, 3);
+  return keep.length >= 2 ? keep : candidates.slice(0, 3);
 }
 
 async function useMyPosition(btn) {
@@ -321,20 +336,20 @@ async function useMyPosition(btn) {
       },
     });
     const { fix, decision } = res;
-    lastLocate = { ...res, sourceText: sourceText(res) };
+    const candidates = decision.status === "imprecise" ? decision.candidates.slice(0, 3) : plausible(decision.candidates, fix.accuracy);
+    lastLocate = { ...res, candidates, sourceText: sourceText(res) };
     const quality = gpsQuality(fix.accuracy);
     gpsStatus(`± ${fix.accuracy} m · ${QUALITY_LABEL[quality]}`, quality);
     gpsStatusTimer = setTimeout(() => gpsStatus(""), 6000);
-    const base = { accuracy: fix.accuracy, candidates: decision.candidates, source: lastLocate.sourceText };
+    const base = { accuracy: fix.accuracy, candidates, source: lastLocate.sourceText };
 
     if (decision.status === "confident") {
-      applyGpsStreet(decision.street, decision.secteur, fix);
+      applyGpsStreet(decision.street, decision.secteur);
       haptic(10);
       showGpsPanel({
         ...base,
         state: "confident",
-        title: `Rue détectée : <b>${esc(decision.street.rue)}</b>`,
-        msg: `Position précise (± ${fix.accuracy} m), aucune autre rue à proximité immédiate.`,
+        title: "Rue trouvée par GPS",
         chosen: decision.street.rue,
         numero: decision.numero && !state.current.numero ? decision.numero : "",
       });
@@ -352,16 +367,18 @@ async function useMyPosition(btn) {
         : decision.reasons.includes("reverse-disagrees")
           ? "L'adresse officielle la plus proche est dans une autre rue : confirmez."
           : decision.reasons.includes("close-streets")
-            ? "Plusieurs rues à proximité : touchez la bonne."
+            ? "Plusieurs rues possibles à cette précision : touchez la vôtre."
             : decision.reasons.includes("no-geometry")
               ? "Tracé exact de cette rue non disponible : confirmez."
               : `Précision GPS ± ${fix.accuracy} m : vérifiez la rue.`;
       showGpsPanel({
         ...base,
         state: "ambiguous",
-        title: decision.street && !decision.reasons.includes("far") ? `Rue détectée : <b>${esc(decision.street.rue)}</b> — à vérifier` : "Rue à confirmer",
+        title: "Quelle rue ?",
         msg: why,
       });
+      suggested = decision.reasons.includes("far") ? null : candidates[0] || null;
+      renderComposer();
       $("gpsPanel").querySelector(".gpsCand")?.focus({ preventScroll: true });
     }
   } catch (e) {
@@ -454,46 +471,20 @@ function renderWastes() {
   $("catWaste").innerHTML = activeCat ? pickButtons(categoryItems(activeCat), list) : "";
 }
 
-/* ═════════════ Valider ═════════════ */
+/* ═════════════ Aperçu (étape Déchets) ═════════════ */
 
 function renderPreview() {
   const c = state.current;
   const bp = buildBp(c);
   const num = state.editing != null ? state.editing + 1 : state.bps.length + 1;
+  $("lineOut").hidden = !bp;
   if (!bp) {
-    $("ticketPreview").innerHTML = "";
     $("linePreview").textContent = "—";
     $("dupNote").hidden = true;
-    $("recurNote").hidden = true;
     return;
   }
-  $("ticketPreview").innerHTML = ticketHtml(bp, { num, address: adresseText(bp), quartier: map.quartierOfStreet(bp.rue), preview: true });
   $("linePreview").textContent = mailLine(bp);
   renderDuplicate(bp);
-  renderRecurrence(bp);
-}
-
-/**
- * Zone potentiellement récurrente : des dépôts ont déjà été relevés ici (même
- * adresse, ou moins de 35 m de la position mesurée) lors d'une AUTRE journée.
- * Information pour l'agent, jamais un blocage.
- */
-function renderRecurrence(bp) {
-  const note = $("recurNote");
-  const editingId = state.editing != null ? state.bps[state.editing]?.id : null;
-  let past = [];
-  try {
-    past = historyAt({ geo: state.current.geo, rue: bp.rue, numero: bp.numero }, editingId).filter(({ bp: b }) => b.date !== state.date);
-  } catch (e) {
-    past = [];
-  }
-  note.hidden = !past.length;
-  if (!past.length) return (note.innerHTML = "");
-  const last = past[0].bp;
-  const dates = [...new Set(past.map((x) => x.bp.date))];
-  note.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg>
-    <p><b>Zone potentiellement récurrente : ${plural(past.length, "dépôt déjà relevé", "dépôts déjà relevés")} ici.</b>
-    <span>Dernier le ${esc(dateFr(last.date))} (${esc(last.ref || "—")}${last.wastes?.length ? " · " + esc(last.wastes.slice(0, 2).join(", ")) : ""})${dates.length > 1 ? ` · ${dates.length} dates différentes` : ""}.</span></p>`;
 }
 
 /** Avertit (sans bloquer) si la même adresse figure déjà dans la tournée. */
@@ -512,25 +503,18 @@ function renderDuplicate(bp) {
 }
 
 function saveBp() {
-  const c = state.current;
-  const base = buildBp(c);
-  if (!base) {
-    toast(blockedMessage(3) || "Saisie incomplète.", null, "warn");
+  const bp = buildBp(state.current);
+  if (!bp) {
+    toast(blockedMessage(2) || "Ajoutez au moins un déchet.", null, "warn");
     return;
   }
   let index;
-  const now = new Date().toISOString();
   const wasEditing = state.editing != null;
   if (wasEditing) {
-    // Modification : identifiant, référence, création et statut conservés.
     index = state.editing;
-    const old = state.bps[index];
-    state.bps[index] = { ...old, ...base, geo: c.geo || old.geo || null, note: (c.note || "").trim(), updatedAt: now };
+    state.bps[index] = bp;
     state.editing = null;
   } else {
-    const tour = ensureTour();
-    if (!tour.startedAt) tour.startedAt = now;
-    const bp = normalizeBp({ ...base, geo: c.geo, note: c.note, createdAt: now, updatedAt: now, date: state.date, tourId: tour.id }, { nextRef });
     state.bps.push(bp);
     index = state.bps.length - 1;
     bp.wastes.forEach((w) => (state.wasteFreq[w] = (state.wasteFreq[w] || 0) + 1));
@@ -544,10 +528,9 @@ function saveBp() {
   setTimeout(() => btn.classList.remove("is-done"), 700);
   replay($("hudCount"), "is-ticking");
   replay($("navCount"), "is-ticking");
-  toast(wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`, {
-    label: "Rapport",
-    onClick: () => go("rapport"),
-  }, "ok");
+  // Confirmation brève, sans bouton : le compteur « Rapport » a déjà avancé,
+  // et l'agent enchaîne tout de suite sur le dépôt suivant.
+  toast(wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`, null, "ok");
 }
 
 export function resetCurrent({ silent = false } = {}) {
@@ -556,7 +539,6 @@ export function resetCurrent({ silent = false } = {}) {
   $("streetInput").value = "";
   $("numeroRue").value = "";
   $("precCustom").value = "";
-  $("bpNote").value = "";
   $("wasteInput").value = "";
   $("sectorPicker").hidden = true;
   $("sectorTag").setAttribute("aria-expanded", "false");
@@ -575,7 +557,6 @@ export function editBp(i) {
   const bp = state.bps[i];
   if (!bp) return;
   const rue = getStreets().find((r) => r.rue === bp.rue);
-  $("bpNote").value = bp.note || "";
   const { keys, custom } = splitPrecisions(bp);
   state.editing = i;
   state.current = {
@@ -586,8 +567,6 @@ export function editBp(i) {
     precisions: keys,
     precisionCustom: custom,
     wastes: [...(bp.wastes || [])],
-    geo: bp.geo || null,
-    note: bp.note || "",
   };
   $("streetInput").value = bp.rue;
   $("numeroRue").value = bp.numero || "";
@@ -621,7 +600,7 @@ export function renderComposer() {
   $("cancelEdit").hidden = !editing;
 
   // Étapes : faite / en cours / verrouillée
-  const done = { 1: addressOk(c), 2: wastesOk(c), 3: false };
+  const done = { 1: addressOk(c), 2: false };
   document.querySelectorAll(".stageBtn").forEach((b) => {
     const n = +b.dataset.stageTarget;
     const current = n === state.stage;
@@ -643,20 +622,24 @@ export function renderComposer() {
   if (state.stage === 1) {
     ready = addressOk(c);
     label = "Déchets";
+    if (!ready && !c.rue && suggested) {
+      ready = true;
+      label = `${suggested.r.rue} · Déchets`;
+      hint = "Rue la plus probable — sinon touchez la bonne ci-dessus.";
+    }
     if (!ready) hint = c.rue ? "Choisissez le secteur pour continuer." : "Choisissez une rue : recherche, position ou carte.";
-  } else if (state.stage === 2) {
-    ready = wastesOk(c);
-    label = "Vérifier";
-    if (!ready) hint = "Ajoutez au moins un déchet pour continuer.";
-    else hint = plural(c.wastes.length, "déchet relevé", "déchets relevés");
   } else {
+    // Déchets : on enregistre directement (la ligne du rapport est affichée au-dessus).
+    ready = wastesOk(c);
     label = editing ? `Mettre à jour le bon n°${num}` : `Enregistrer le bon n°${num}`;
+    if (!ready) hint = "Touchez au moins un déchet.";
   }
+  const saving = state.stage === 2;
   $("stageNextLabel").textContent = label;
   next.setAttribute("aria-disabled", String(!ready));
-  next.classList.toggle("btn--signal", state.stage === 3);
-  next.classList.toggle("btn--primary", state.stage !== 3);
-  next.querySelector("use").setAttribute("href", state.stage === 3 ? "#i-check" : "#i-arrow-right");
+  next.classList.toggle("btn--signal", saving);
+  next.classList.toggle("btn--primary", !saving);
+  next.querySelector("use").setAttribute("href", saving ? "#i-check" : "#i-arrow-right");
   $("stageHint").textContent = hint;
 
   // Même adresse
@@ -666,7 +649,7 @@ export function renderComposer() {
   if (last) $("duplicateLastLabel").textContent = `Même adresse que n°${state.bps.length}`;
 
   $("mapHint").classList.toggle("is-hidden", !!c.rue || state.bps.length > 0);
-  if (state.stage === 3) renderPreview();
+  if (state.stage === 2) renderPreview();
 }
 
 export function renderAllComposer() {
@@ -757,12 +740,6 @@ export function initComposer(opts = {}) {
       save();
     };
   });
-  // Note interne : conservée avec le bon, jamais envoyée dans le message.
-  $("bpNote").addEventListener("input", (e) => {
-    state.current.note = e.target.value.slice(0, 500);
-    save();
-  });
-
   $("precCustom").addEventListener("input", (e) => {
     state.current.precisionCustom = e.target.value;
     save();
@@ -812,7 +789,8 @@ export function initComposer(opts = {}) {
   });
   $("stageBack").onclick = () => go("terrain", Math.max(1, state.stage - 1));
   $("stageNext").onclick = () => {
-    if (state.stage === 3) return saveBp();
+    if (state.stage === 2) return saveBp();
+    if (state.stage === 1 && !state.current.rue && suggested) confirmCandidate(suggested);
     const r = go("terrain", state.stage + 1);
     if (typeof r === "string") showBlocked(r);
   };
@@ -820,7 +798,7 @@ export function initComposer(opts = {}) {
 
   onRoute((view) => {
     renderComposer();
-    if (view === "terrain" && state.stage === 3) renderPreview();
+    if (view === "terrain" && state.stage === 2) renderPreview();
   });
 
   // Mobile : pendant la frappe, la carte se replie pour laisser place au clavier.

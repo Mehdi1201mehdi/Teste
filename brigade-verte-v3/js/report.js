@@ -1,10 +1,8 @@
 // Vue Rapport — le message tel qu'il partira, les bons classés par secteur,
 // l'envoi (copie, Outlook appli, Outlook web) et la clôture de tournée.
 
-import { $, esc, plural, dateFr, todayISO } from "./utils.js";
-import { state, save, nextRef } from "./storage.js";
-import { normalizeBp, withStatus, newTourId } from "./model.js";
-import { putTour, archiveAvailable } from "./archive.js";
+import { $, esc, plural, dateFr } from "./utils.js";
+import { state, save } from "./storage.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
@@ -13,7 +11,6 @@ import { ticketHtml, bindTicketActions } from "./components.js";
 import { toast, confirmDialog, replay } from "./ui.js";
 import { go } from "./router.js";
 import * as map from "./map.js";
-import { currentQuality, currentTourView, summaryOf } from "./ops.js";
 
 let hooks = { changed: () => {}, edit: () => {} };
 
@@ -76,62 +73,10 @@ export function renderReport() {
   const list = $("bpList");
   list.innerHTML = groups;
   bindTicketActions(list, { edit: (i) => hooks.edit(i), duplicate: duplicateBp, delete: delBp });
-  renderCheck();
   list.querySelectorAll(".ticketGroup").forEach((g) => {
     g.addEventListener("mouseenter", () => map.focusSector(g.dataset.sector));
     g.addEventListener("mouseleave", () => map.focusSector(null));
   });
-}
-
-/**
- * Contrôle avant envoi (hors message) : bons à corriger ou à vérifier, et
- * informations manquantes. Il signale, l'agent décide — rien n'est bloqué.
- * Synthèse factuelle pour le responsable (aucune donnée inventée).
- */
-let lastSynth = null;
-function renderCheck() {
-  const card = $("checkCard");
-  if (!state.bps.length) {
-    card.hidden = true;
-    return;
-  }
-  card.hidden = false;
-  let q;
-  try {
-    q = currentQuality();
-  } catch (e) {
-    card.hidden = true;
-    return;
-  }
-  const flagged = q.rows.filter((r) => r.issues.some((i) => i.severity !== "info"));
-  const infos = new Map();
-  q.rows.forEach((r) => r.issues.filter((i) => i.severity === "info").forEach((i) => infos.set(i.code, { text: i.text, n: (infos.get(i.code)?.n || 0) + 1 })));
-  $("checkScore").textContent = q.score != null ? `Complétude ${q.score} %` : "";
-  const items = [
-    ...flagged.map(
-      (r) => `<li class="checkItem" data-sev="${r.issues.some((i) => i.severity === "error") ? "error" : "warn"}">
-        <span class="checkWhat"><b>Bon n°${r.index + 1} · ${esc(adresseText(r.bp))}</b>${r.issues
-          .filter((i) => i.severity !== "info")
-          .map((i) => `<span>${esc(i.text)}</span>`)
-          .join("")}</span>
-        <button type="button" class="chipBtn" data-fix="${r.index}">Corriger</button></li>`,
-    ),
-    ...[...infos.values()].map((x) => `<li class="checkItem" data-sev="info"><span class="checkWhat"><span>${esc(x.text.replace(/\s*\(.*\)$/, ""))} : ${x.n} bon${x.n > 1 ? "s" : ""}</span></span></li>`),
-  ];
-  $("checkList").innerHTML = items.length ? items.join("") : '<li class="checkItem" data-sev="ok"><span class="checkWhat"><span>Aucun point à vérifier : adresses, déchets, numéros, emplacements et positions renseignés.</span></span></li>';
-  $("checkList").querySelectorAll("[data-fix]").forEach((b) => (b.onclick = () => hooks.edit(+b.dataset.fix)));
-  // La synthèse n'est calculée que si elle est dépliée (et à l'ouverture).
-  if ($("synth").open) renderSynth();
-}
-
-function renderSynth() {
-  try {
-    lastSynth = summaryOf(currentTourView());
-    $("synthList").innerHTML = lastSynth.lines.map((l) => `<li>${esc(l)}</li>`).join("");
-  } catch (e) {
-    lastSynth = null;
-    $("synthList").innerHTML = `<li class="recMissing">Synthèse indisponible (${esc(e.message)}).</li>`;
-  }
 }
 
 /** Ouvre le rapport sur un bon précis (mis en évidence, focus pour le lecteur d'écran). */
@@ -147,10 +92,7 @@ export function revealBp(i) {
 }
 
 function duplicateBp(i) {
-  // Copie = nouveau signalement : nouvel identifiant, nouvelle référence, maintenant.
-  const now = new Date().toISOString();
-  const src = JSON.parse(JSON.stringify(state.bps[i]));
-  const bp = normalizeBp({ ...src, id: "", ref: "", createdAt: now, updatedAt: now, status: "releve", statusLog: null }, { nextRef, date: state.date, tourId: state.tour?.id });
+  const bp = JSON.parse(JSON.stringify(state.bps[i]));
   state.bps.splice(i + 1, 0, bp);
   state.mailCustom = "";
   hooks.changed({ fresh: i + 1 });
@@ -179,53 +121,23 @@ function delBp(i) {
   });
 }
 
-/**
- * Clôture : la tournée est ARCHIVÉE dans l'historique, jamais effacée.
- * Les bons passent au statut « Transmis » ; le message envoyé est gardé tel
- * quel. La tournée en cours n'est vidée qu'APRÈS confirmation de l'écriture :
- * si l'historique est indisponible (navigation privée, stockage plein…),
- * rien n'est perdu et l'agent est prévenu.
- */
 async function clearTour() {
   const n = state.bps.length;
-  if (!n) return toast("Aucun bon à clôturer — la tournée est vide.");
-  if (state.editing != null) return toast("Terminez d'abord la modification en cours.", null, "warn");
+  if (!n) return toast("Aucun bon à effacer — la tournée est déjà vide.");
   const ok = await confirmDialog({
     title: "Clôturer la tournée ?",
-    text: `${plural(n, "bon de passage", "bons de passage")} ${n > 1 ? "seront archivés" : "sera archivé"} dans l'historique avec le statut « Transmis ». La saisie repart de zéro.`,
-    check: "J'ai envoyé le rapport au service destinataire.",
-    ok: "Clôturer et archiver",
-    danger: false,
+    text: `${plural(n, "bon de passage", "bons de passage")} ${n > 1 ? "seront supprimés" : "sera supprimé"} de cet appareil. Cette action est définitive.`,
+    check: "J'ai envoyé ou sauvegardé le message.",
+    ok: "Clôturer et tout effacer",
   });
   if (!ok) return;
-  const closedAt = new Date().toISOString();
-  const tour = {
-    id: state.tour?.id || newTourId(state.date),
-    v: 5,
-    date: state.date,
-    startedAt: state.tour?.startedAt || null,
-    closedAt,
-    mailSubject: mailSubject(),
-    mailText: $("mail").getAttribute("contenteditable") === "true" ? $("mail").innerText.trim() : mailText(),
-    mailTo: state.mailTo || "",
-    bps: state.bps.map((b) => withStatus(b, "transmis", closedAt)),
-  };
-  try {
-    if (!archiveAvailable()) throw new Error("historique indisponible sur ce navigateur");
-    await putTour(tour);
-  } catch (e) {
-    toast(`Archivage impossible (${e.message}) — la tournée est conservée. Exportez une sauvegarde (Réglages) avant de réessayer.`, null, "error");
-    return;
-  }
   state.bps = [];
-  state.tour = null;
   state.mailCustom = "";
   state.editing = null;
-  state.date = todayISO(); // la prochaine tournée démarre à la date du jour
   hooks.changed({ reset: true });
   go("terrain", 1);
   save();
-  toast(`Tournée archivée : ${plural(n, "bon")} dans l'historique.`, null, "ok");
+  toast("Tournée clôturée — prêt pour la prochaine.", null, "ok");
 }
 
 /* ─── Envoi ───
@@ -319,7 +231,7 @@ function bindSend() {
     b.querySelector("use").setAttribute("href", "#i-check");
     setTimeout(() => {
       b.classList.remove("is-done");
-      b.querySelector("span").textContent = "Copier le message";
+      b.querySelector("span").textContent = "Copier";
       b.querySelector("use").setAttribute("href", "#i-copy");
     }, 1600);
   };
@@ -388,16 +300,4 @@ function bindSend() {
 export function initReport(opts = {}) {
   hooks = { ...hooks, ...opts };
   bindSend();
-  $("synth").addEventListener("toggle", () => $("synth").open && renderSynth());
-  $("copySynth").onclick = async () => {
-    renderSynth();
-    if (!lastSynth) return;
-    const text = [lastSynth.title, "", ...lastSynth.lines.map((l) => "• " + l)].join("\n");
-    const ok = await copyEmailContent({ text, html: `<p>${esc(text).replace(/\n/g, "<br>")}</p>` });
-    toast(ok ? "Synthèse copiée." : "Copie impossible sur ce navigateur.", null, ok ? "ok" : "error");
-  };
-  $("printReport").onclick = () => {
-    renderSynth();
-    window.print();
-  };
 }

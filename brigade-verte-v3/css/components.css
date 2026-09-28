@@ -1402,17 +1402,17 @@
 .sendBar .btn--line {
   padding: 0 var(--s4);
 }
-@media (max-width: 559px) {
-  .sendBar {
-    flex-wrap: wrap;
-  }
-  .sendBar .btn--primary {
-    flex: 1 1 100%;
-  }
-  .sendBar .btn--line {
-    flex: 1;
-    min-height: var(--tap);
-  }
+/* Toujours sur deux lignes : l'envoi Outlook pleine largeur, puis Copier et
+   Outlook Web côte à côte (le panneau desktop fait 452 px : même besoin). */
+.sendBar {
+  flex-wrap: wrap;
+}
+.sendBar .btn--primary {
+  flex: 1 1 100%;
+}
+.sendBar .btn--line {
+  flex: 1;
+  min-height: var(--tap);
 }
 
 .sectionHead {
@@ -2167,7 +2167,4 @@ dialog::backdrop {
 .gpsPanel.is-compact .gpsMore { margin-top: 0; }
 .gpsPanel.is-compact .gpsMore > summary { min-height: 36px; }
 .gpsPanel.is-compact .gpsNum { margin-top: var(--s1); }
-@media (min-width: 560px) {
-  .sendBar .sendMain { flex: 1 1 auto; }
-}
 #stageNextLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

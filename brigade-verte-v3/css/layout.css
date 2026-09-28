@@ -112,13 +112,11 @@
 
 /* Rapport et Collecte sur mobile : le contenu prend toute la place */
 .app[data-view="rapport"] .territory,
-.app[data-view="collecte"] .territory,
-.app[data-view="historique"] .territory {
+.app[data-view="collecte"] .territory {
   display: none;
 }
 .app[data-view="rapport"] .panel,
-.app[data-view="collecte"] .panel,
-.app[data-view="historique"] .panel {
+.app[data-view="collecte"] .panel {
   margin-top: 0;
   border-radius: 0;
   box-shadow: none;
@@ -127,8 +125,7 @@
 .composerHead,
 .composerBody,
 .reportScroll,
-.collecteScroll,
-.histScroll {
+.collecteScroll {
   padding-inline: var(--s4);
 }
 
@@ -155,8 +152,7 @@
 }
 
 .reportScroll,
-.collecteScroll,
-.histScroll {
+.collecteScroll {
   padding-top: var(--s5);
   padding-bottom: calc(var(--s8) + env(safe-area-inset-bottom));
 }
@@ -173,7 +169,6 @@
   .composerBody,
   .reportScroll,
   .collecteScroll,
-  .histScroll,
   .actionBar {
     padding-inline: max(var(--s6), calc((100% - 680px) / 2));
   }
@@ -198,15 +193,13 @@
     height: auto;
   }
   .app[data-view="rapport"] .territory,
-  .app[data-view="collecte"] .territory,
-  .app[data-view="historique"] .territory {
+  .app[data-view="collecte"] .territory {
     display: block;
   }
   .panel,
   .app.is-typing .panel,
   .app[data-view="rapport"] .panel,
-  .app[data-view="collecte"] .panel,
-  .app[data-view="historique"] .panel {
+  .app[data-view="collecte"] .panel {
     margin: 0;
     border-radius: 0;
     border-left: 1px solid var(--line);
@@ -218,8 +211,7 @@
   }
   .composerBody,
   .reportScroll,
-  .collecteScroll,
-  .histScroll {
+  .collecteScroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -230,7 +222,6 @@
   .composerBody,
   .reportScroll,
   .collecteScroll,
-  .histScroll,
   .actionBar {
     padding-inline: var(--s6);
   }
@@ -280,64 +271,40 @@
     display: none;
   }
 }
-/* Jusqu'à la tablette (≤ 919 px) : 4 onglets → nom affiché pour l'onglet actif seulement. */
-@media (max-width: 919px) {
-  .vsBtn:not([aria-current="page"]) > span:not(.count) {
+
+/* Petits téléphones (≤ 419 px) : 3 onglets + tampon tiennent sur une ligne */
+@media (max-width: 419px) {
+  .stampDay {
+    display: none;
+  }
+  .vsBtn {
+    padding: 0 8px;
+  }
+}
+/* Très petits écrans (≤ 359 px, iPhone SE 1re gén., Android compacts) :
+   onglets en icônes seules — l'onglet actif reste signalé par sa pastille claire. */
+@media (max-width: 359px) {
+  .vsBtn > span:not(.count) {
     display: none;
   }
 }
-/* ≤ 639 px : marque réduite au monogramme ; ≤ 819 px : tampon sans l'étiquette « Tournée ». */
-@media (max-width: 639px) {
-  .wordmark {
+
+/* Téléphones larges (420–599 px) : le tampon perd le jour de la semaine
+   plutôt que d'être coupé (la date suffit : « 27.09 »). */
+@media (max-width: 599px) {
+  .stampDay {
     display: none;
   }
 }
+/* ≤ 819 px : tampon sans l'étiquette « Tournée » ; ≤ 639 px : marque réduite
+   au monogramme — les trois onglets gardent leur nom, rien n'est coupé. */
 @media (max-width: 819px) {
   .stampLabel {
     display: none;
   }
 }
-/* Tampon de tournée sur téléphone : la date seule (le jour de la semaine est dans la date). */
-@media (max-width: 559px) {
-  .stampDay {
+@media (max-width: 639px) {
+  .wordmark {
     display: none;
   }
-}
-
-/* Téléphones (≤ 439 px) : 4 onglets + tampon sur une ligne → onglets en
-   icônes seules ; l'onglet actif reste signalé par sa pastille claire et
-   chaque onglet garde son nom accessible (aria-label). */
-@media (max-width: 439px) {
-  .viewSwitch,
-  .viewSwitch .vsBtn {
-    min-width: 0;
-  }
-  .viewSwitch .vsBtn {
-    flex: 1 1 auto;
-    padding: 0 7px;
-  }
-  .vsBtn > span:not(.count) {
-    display: none;
-  }
-  .stamp {
-    flex: 0 0 auto;
-  }
-}
-
-/* Historique sur mobile : bouton « Carte » → la carte prend l'écran, la liste
-   revient avec « Liste ». Desktop : carte et liste sont toujours côte à côte. */
-@media (max-width: 1023px) {
-  .app[data-view="historique"][data-histmap] .territory {
-    display: block;
-    height: calc(100dvh - var(--bar-h) - 150px);
-  }
-  .app[data-view="historique"][data-histmap] .histFilters,
-  .app[data-view="historique"][data-histmap] .histDash,
-  .app[data-view="historique"][data-histmap] #histList,
-  .app[data-view="historique"][data-histmap] .histMore,
-  .app[data-view="historique"][data-histmap] .histTabs,
-  .app[data-view="historique"][data-histmap] .histCount {
-    display: none !important;
-  }
-  .app[data-view="historique"][data-histmap] .histScroll { padding-top: var(--s3); padding-bottom: var(--s3); }
 }

@@ -74,7 +74,10 @@ export function resolveSectorAt(street, fix, streetDistance = Infinity) {
 export async function resolveStreet({ onFix, onStage, signal } = {}) {
   const geometry = loadStreetGeometry(); // en parallèle du GPS
   onStage?.("position");
-  const fix = await getCurrentPosition({ onFix, signal });
+  // Dès que la mesure suffit à désigner la rue sans ambiguïté, on s'arrête :
+  // pas d'attente inutile quand le GPS plafonne à ± 20 m dans une rue isolée.
+  const enough = (f) => index.hasGeometry && decideStreet(f, findNearestStreets(f.lat, f.lon, 6), null).status === "confident";
+  const fix = await getCurrentPosition({ onFix, signal, enough });
   const hasGeometry = await geometry;
   const near = findNearestStreets(fix.lat, fix.lon, 6);
 

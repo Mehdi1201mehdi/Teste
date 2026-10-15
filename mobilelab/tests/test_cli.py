@@ -45,3 +45,17 @@ def test_cli_duplicates(tmp_path, capsys):
     (tmp_path / "b").write_bytes(b"same")
     assert main(["duplicates", str(tmp_path)]) == 0
     assert "1 groupe(s)" in capsys.readouterr().out
+
+
+def test_cli_survives_legacy_windows_console(monkeypatch):
+    """Régression (CI Windows) : la console cp1252 ne sait pas afficher « → »."""
+    import io
+    import sys
+
+    raw = io.BytesIO()
+    console = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", console)
+    assert main(["--simulation", "diagnose"]) == 0
+    console.flush()
+    assert b"MobileLab" in raw.getvalue()
+    assert console.errors == "replace"  # tout autre caractère non affichable est remplacé

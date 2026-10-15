@@ -55,6 +55,7 @@ def main(argv: list[str] | None = None) -> int:
     d = sub.add_parser("duplicates", help="doublons exacts dans un dossier")
     d.add_argument("folder", type=Path)
     args = p.parse_args(argv)
+    _safe_console()
 
     ctx = build_context(simulation=args.simulation)
     try:
@@ -80,7 +81,7 @@ def _dispatch(ctx, args) -> int:  # noqa: C901 - simple aiguillage
         return 0
     if args.cmd == "diagnose":
         for c in run_checks(ctx.runner, ctx.data_dir):
-            print(f"[{c.level.value.upper():5}] {c.name}: {c.detail}" + (f"\n        → {c.hint}"
+            print(f"[{c.level.value.upper():5}] {c.name}: {c.detail}" + (f"\n        -> {c.hint}"
                                                                           if c.hint else ""))
         return 0
     if args.cmd == "backup":
@@ -90,7 +91,7 @@ def _dispatch(ctx, args) -> int:  # noqa: C901 - simple aiguillage
         res = ctx.backups.backup_android(
             adapter, device, roots, args.destination,
             progress=lambda done, total, msg: print(f"[{done}/{total}] {msg}"))
-        print(f"OK : {res.ok_count} fichier(s), {res.error_count} erreur(s) → {res.destination}")
+        print(f"OK : {res.ok_count} fichier(s), {res.error_count} erreur(s) -> {res.destination}")
         return 0 if not res.error_count else 1
     if args.cmd == "inventory":
         summary = analysis.identify(args.source)
@@ -143,7 +144,7 @@ def _dispatch(ctx, args) -> int:  # noqa: C901 - simple aiguillage
         else:
             rep = ctx.manager.restore_backup(adapter, device, args.backup)
         for local, remote in rep.done:
-            print(f"{local} → {remote}")
+            print(f"{local} -> {remote}")
         for item, reason in rep.skipped:
             print(f"ignoré : {item} ({reason})", file=sys.stderr)
         print(rep.summary)
@@ -162,6 +163,16 @@ def _dispatch(ctx, args) -> int:  # noqa: C901 - simple aiguillage
               f"~{len(d.modified)} modifiés, ={d.unchanged} identiques")
         return 0
     return 1
+
+
+def _safe_console() -> None:
+    """Console Windows (cp1252/cp850) : un caractère non affichable ne doit jamais faire
+    planter la commande ; il est remplacé au lieu de lever UnicodeEncodeError."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError):  # flux remplacé (tests, redirection)
+            pass
 
 
 def _find(ctx, serial: str):

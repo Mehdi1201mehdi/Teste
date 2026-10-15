@@ -55,7 +55,9 @@ jobs:
         run: |
           $cli = "$env:LOCALAPPDATA\MobileLab\venv\Scripts\mobilelab-cli.exe"
           $diag = & $cli diagnose | Out-String
+          $code = $LASTEXITCODE
           Write-Output $diag
+          if ($code -ne 0) { throw "mobilelab-cli diagnose a échoué (code $code)" }
           if ($diag -notmatch '\[OK\s*\] ADB') { throw "ADB non détecté après installation" }
           if (-not (Test-Path "$env:LOCALAPPDATA\MobileLab\tools\platform-tools\adb.exe")) { throw "adb.exe absent" }
           $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'MobileLab\MobileLab.lnk'

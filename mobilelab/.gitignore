@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+*.spec
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+# Données locales : ne jamais committer de sauvegardes ni de journaux
+*.log
+*.ab
+Sauvegardes/

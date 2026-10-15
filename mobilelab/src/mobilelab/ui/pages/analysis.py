@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
 from mobilelab.adapters.leapp import run_leapp
 from mobilelab.core.errors import MobileLabError
 from mobilelab.core.paths import safe_join
-from mobilelab.services import analysis
+from mobilelab.services import analysis, media
 from mobilelab.services.analysis import FileRecord, IosFile, SourceKind, SourceSummary
 from mobilelab.services.compare import compare_backups
 from mobilelab.services.integrity import is_mobilelab_backup, read_manifest
@@ -192,7 +192,14 @@ class AnalysisPage(Page):
         self.compare_btn.clicked.connect(self._compare)
         self.leapp_btn = button("Analyser avec ALEAPP/iLEAPP…")
         self.leapp_btn.clicked.connect(self._leapp)
-        for b in (self.export_btn, self.extract_btn, self.compare_btn, self.leapp_btn):
+        self.dup_btn = button("Doublons")
+        self.dup_btn.setToolTip("Fichiers identiques (SHA-256) et espace récupérable")
+        self.dup_btn.clicked.connect(self._duplicates)
+        self.photo_btn = button("Photos")
+        self.photo_btn.setToolTip("Photos par année, par appareil photo, géolocalisées (EXIF)")
+        self.photo_btn.clicked.connect(self._photos)
+        for b in (self.export_btn, self.extract_btn, self.dup_btn, self.photo_btn,
+                  self.compare_btn, self.leapp_btn):
             b.setEnabled(False)
             tools.addWidget(b)
         tools.addStretch(1)
@@ -303,6 +310,9 @@ class AnalysisPage(Page):
         self._apply_filter()
         self.export_btn.setEnabled(True)
         self.extract_btn.setEnabled(bool(src.records))
+        has_local = any(p is not None for p in src.local)
+        self.dup_btn.setEnabled(has_local)
+        self.photo_btn.setEnabled(has_local)
         self.compare_btn.setEnabled(s.kind is SourceKind.MOBILELAB)
         self.leapp_btn.setEnabled(s.kind in (SourceKind.FOLDER, SourceKind.IOS_BACKUP,
                                              SourceKind.MOBILELAB) and not s.encrypted)
@@ -429,6 +439,60 @@ class AnalysisPage(Page):
         w.signals.failed.connect(lambda msg: show_error(self, msg))
         w.signals.finished.connect(lambda: setattr(self, "worker", None))
         self.worker = start(w)
+
+    def _local_files(self) -> list[tuple[str, Path, str]]:
+        src = self.loaded
+        if src is None:
+            return []
+        return [(r.relative_path, p, r.kind) for r, p in zip(src.records, src.local, strict=False)
+                if p is not None]
+
+    def _duplicates(self) -> None:
+        files = [(label_, p) for label_, p, _k in self._local_files()]
+        w = Worker(lambda worker: media.find_duplicates(files, worker.report))
+        w.signals.done.connect(self._show_duplicates)
+        w.signals.failed.connect(lambda msg: show_error(self, msg))
+        w.signals.finished.connect(lambda: setattr(self, "worker", None))
+        self.note.setText("Recherche de doublons…")
+        self.note.show()
+        self.worker = start(w)
+
+    def _show_duplicates(self, groups: list) -> None:
+        if not groups:
+            self.note.setText("Aucun doublon exact trouvé.")
+            return
+        wasted = sum(g.wasted for g in groups)
+        lines = [f"{len(g.paths)} × {human_size(g.size)} : " + " | ".join(g.paths[:4])
+                 + (" …" if len(g.paths) > 4 else "") for g in groups[:20]]
+        self.note.setText(f"{len(groups)} groupe(s) de doublons, {human_size(wasted)} "
+                          "récupérables.")
+        QMessageBox.information(self, "Doublons", "\n".join(lines)
+                                + ("\n…" if len(groups) > 20 else ""))
+
+    def _photos(self) -> None:
+        files = self._local_files()
+        w = Worker(lambda worker: media.photo_summary(files))
+        w.signals.done.connect(self._show_photos)
+        w.signals.failed.connect(lambda msg: show_error(self, msg))
+        w.signals.finished.connect(lambda: setattr(self, "worker", None))
+        self.note.setText("Lecture des métadonnées photo…")
+        self.note.show()
+        self.worker = start(w)
+
+    def _show_photos(self, s) -> None:
+        years = ", ".join(f"{y} : {n}" for y, n in sorted(s.by_year.items())) or "—"
+        cams = ", ".join(f"{c} ({n})" for c, n in s.by_camera.most_common(8)) or "—"
+        text = (f"{s.images} image(s), {s.videos} vidéo(s)\n"
+                f"Avec métadonnées EXIF : {s.with_exif}\n"
+                f"Par année : {years}\nAppareils photo : {cams}\n"
+                f"Photos géolocalisées (GPS) : {s.with_gps}")
+        if s.with_gps:
+            text += ("\n\nConfidentialité : ces photos révèlent un lieu. Pensez à retirer la "
+                     "position avant de les partager.")
+        if not s.exif_available:
+            text += "\n\nPillow n'est pas installé : métadonnées EXIF non lues."
+        self.note.setText(text.split("\n")[0])
+        QMessageBox.information(self, "Photos", text)
 
     def _compare(self) -> None:
         if self.loaded is None:

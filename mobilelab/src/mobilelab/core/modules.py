@@ -43,19 +43,35 @@ def modules() -> list[FeatureModule]:
 
 
 register(FeatureModule(
+    "manager", "Gestion Android",
+    "Applications (liste, export APK, installation, désinstallation), capture d'écran et "
+    "envoi de fichiers du PC vers le téléphone — sans jamais écraser un fichier existant.",
+    Maturity.STABLE))
+register(FeatureModule(
+    "migration", "Restauration et migration",
+    "Renvoie une sauvegarde MobileLab vers ce téléphone ou un autre appareil Android, dans un "
+    "dossier dédié (/sdcard/MobileLab-Restauration), après vérification SHA-256.",
+    Maturity.STABLE))
+register(FeatureModule(
+    "media-analysis", "Analyse de médias",
+    "Doublons exacts (SHA-256), photos par année et par appareil photo (EXIF), photos "
+    "géolocalisées (information de confidentialité).",
+    Maturity.STABLE))
+register(FeatureModule(
     "compare", "Comparaison de sauvegardes",
     "Fichiers ajoutés, supprimés ou modifiés entre deux sauvegardes MobileLab (par SHA-256).",
-    Maturity.EXPERIMENTAL))
+    Maturity.STABLE))
+register(FeatureModule(
+    "tools", "Installation des outils",
+    "Téléchargement, avec votre accord, d'ADB (Google) et des outils Apple pour Windows "
+    "(libimobiledevice), dans le dossier de MobileLab.",
+    Maturity.STABLE))
 register(FeatureModule(
     "leapp", "ALEAPP / iLEAPP",
     "Lance ces analyseurs open source (installés séparément) sur une sauvegarde.",
     Maturity.EXPERIMENTAL))
 register(FeatureModule(
-    "migration", "Migration entre appareils",
-    "Transfert de fichiers du stockage partagé d'un appareil vers un autre. "
-    "Nécessite une validation technique (droits d'écriture, formats) avant implémentation.",
-    Maturity.PLANNED))
-register(FeatureModule(
-    "media-analysis", "Analyse de fichiers",
-    "Extraction EXIF/métadonnées, aperçus et doublons. À valider (dépendances, licences).",
+    "ios-apps", "Applications iOS",
+    "Liste des applications d'un iPhone (ideviceinstaller). Format de sortie variable selon "
+    "les versions : à valider avant intégration.",
     Maturity.PLANNED))

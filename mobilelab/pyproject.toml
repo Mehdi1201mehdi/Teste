@@ -4,17 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mobilelab"
-version = "0.1.0"
+version = "0.2.0"
 description = "Boîte à outils desktop open source pour appareils mobiles : détection, sauvegarde et analyse de données légitimement accessibles."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "MobileLab contributors" }]
-dependencies = ["PySide6>=6.6"]
+dependencies = ["PySide6>=6.6", "Pillow>=10"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.5"]
-build = ["pyinstaller>=6.6"]
+build = ["pyinstaller>=6.6"]  # Pillow (dépendance principale) sert aussi à l'icône .ico
 
 [project.scripts]
 mobilelab = "mobilelab.app:main"

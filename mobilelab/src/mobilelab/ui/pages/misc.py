@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -12,10 +13,14 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QGridLayout,
     QHBoxLayout,
+    QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
 )
 
+from mobilelab.core.errors import MobileLabError
 from mobilelab.core.modules import Maturity, modules
+from mobilelab.services import tools_install
 from mobilelab.services.devices import ANDROID_SETUP_STEPS
 from mobilelab.services.diagnostics import Check, export_bundle, restart_adb_server, run_checks
 from mobilelab.ui.state import AppState
@@ -86,6 +91,7 @@ class DiagnosticsPage(Page):
         export.clicked.connect(self._export)
         for b in (export, adb, run):
             self.actions.addWidget(b)
+        self.content.addWidget(self._tools_card())
         self.results = Card("Résultats")
         self.content.addWidget(self.results)
         steps = Card("Activer le débogage USB (Android)")
@@ -94,6 +100,113 @@ class DiagnosticsPage(Page):
         self.content.addWidget(steps)
         self.content.addStretch(1)
         self._rows: list = []
+
+    # -- outils ---------------------------------------------------------------
+    def _tools_card(self) -> Card:
+        card = Card("Outils", "Installation automatique dans le dossier de MobileLab, depuis les "
+                    "sources officielles, après votre accord. Ou indiquez un exécutable existant.")
+        row = QHBoxLayout()
+        adb = button("Installer / mettre à jour ADB", primary=True)
+        adb.setToolTip("Télécharge Android Platform-Tools depuis dl.google.com")
+        adb.clicked.connect(self._install_adb)
+        row.addWidget(adb)
+        if sys.platform == "win32":
+            apple = button("Installer les outils Apple (iPhone)")
+            apple.setToolTip("Télécharge libimobiledevice pour Windows (projet open source)")
+            apple.clicked.connect(self._install_apple)
+            row.addWidget(apple)
+        row.addStretch(1)
+        card.body.addLayout(row)
+        self.tool_progress = QProgressBar()
+        self.tool_progress.hide()
+        card.body.addWidget(self.tool_progress)
+        pick = QHBoxLayout()
+        self.tool_combo = QComboBox()
+        self.tool_combo.setAccessibleName("Outil à configurer")
+        for tool in ("adb", "idevice_id", "ideviceinfo", "idevicebackup2", "aleapp", "ileapp"):
+            self.tool_combo.addItem(tool, tool)
+        self.tool_combo.currentIndexChanged.connect(self._show_tool_path)
+        choose = button("Choisir l'exécutable…")
+        choose.clicked.connect(self._choose_tool)
+        reset = button("Détection automatique", flat=True)
+        reset.clicked.connect(lambda: self._set_tool(None))
+        pick.addWidget(self.tool_combo)
+        pick.addWidget(choose)
+        pick.addWidget(reset)
+        pick.addStretch(1)
+        card.body.addLayout(pick)
+        self.tool_path = label("", "muted", wrap=True)
+        card.body.addWidget(self.tool_path)
+        self._show_tool_path()
+        return card
+
+    def _show_tool_path(self) -> None:
+        tool = self.tool_combo.currentData()
+        runner = self.state.ctx.runner
+        found = runner.resolve(tool)
+        origin = "choisi manuellement" if runner.override(tool) else "détection automatique"
+        self.tool_path.setText(f"{tool} : {found or 'introuvable'} ({origin})")
+
+    def _choose_tool(self) -> None:
+        tool = self.tool_combo.currentData()
+        flt = f"{tool}.exe ({tool}.exe);;Tous (*)" if sys.platform == "win32" else "Tous (*)"
+        path, _ = QFileDialog.getOpenFileName(self, f"Exécutable {tool}", str(Path.home()), flt)
+        if path:
+            self._set_tool(path)
+
+    def _set_tool(self, path: str | None) -> None:
+        self.state.ctx.set_tool_path(self.tool_combo.currentData(), path)
+        self._show_tool_path()
+        self.state.scan()
+        self.run()
+
+    def _consent(self, what: str, source: str) -> bool:
+        answer = QMessageBox.question(
+            self, "Téléchargement",
+            f"MobileLab va télécharger {what} depuis {source} et l'installer dans son dossier "
+            f"({self.state.ctx.tools_dir}).\n\nAucune donnée n'est envoyée. Continuer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return answer == QMessageBox.StandardButton.Yes
+
+    def _install_adb(self) -> None:
+        if not self._consent("Android Platform-Tools (ADB) — en l'utilisant, vous acceptez les "
+                             "conditions de licence du SDK Android de Google",
+                             "dl.google.com (site officiel de Google)"):
+            return
+        ctx = self.state.ctx
+
+        def job(worker):
+            if ctx.runner.available("adb"):  # libère adb.exe avant remplacement
+                try:
+                    ctx.runner.run("adb", ["kill-server"], timeout=15)
+                except MobileLabError:
+                    pass
+            return tools_install.install_platform_tools(ctx.tools_dir, consent=True,
+                                                        progress=worker.report)
+        self._run_install(job, "ADB")
+
+    def _install_apple(self) -> None:
+        if not self._consent("les outils libimobiledevice pour Windows (logiciel libre)",
+                             "GitHub (projet libimobiledevice-win32)"):
+            return
+        ctx = self.state.ctx
+        self._run_install(lambda worker: tools_install.install_imobiledevice_windows(
+            ctx.tools_dir, consent=True, progress=worker.report), "Outils Apple")
+
+    def _run_install(self, job, name: str) -> None:
+        w = Worker(job)
+        w.signals.progress.connect(lambda d, t, m: (
+            self.tool_progress.setRange(0, t or 0), self.tool_progress.setValue(d),
+            self.tool_path.setText(m)))
+        w.signals.done.connect(lambda path: (
+            QMessageBox.information(self, "MobileLab", f"{name} installé :\n{path}"),
+            self._show_tool_path(), self.state.scan(), self.run()))
+        w.signals.failed.connect(lambda msg: show_error(self, f"{name} : {msg}"))
+        w.signals.finished.connect(self.tool_progress.hide)
+        self.tool_progress.setRange(0, 0)
+        self.tool_progress.show()
+        self._install_worker = start(w)
 
     def run(self) -> None:
         if self.worker is not None:

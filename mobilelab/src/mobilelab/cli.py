@@ -9,11 +9,12 @@ from pathlib import Path
 from mobilelab import __version__
 from mobilelab.context import build_context
 from mobilelab.core.errors import MobileLabError
-from mobilelab.services import analysis, report
+from mobilelab.services import analysis, report, tools_install
 from mobilelab.services.backup import DEFAULT_ANDROID_FOLDERS
 from mobilelab.services.compare import compare_backups
 from mobilelab.services.diagnostics import run_checks
 from mobilelab.services.integrity import verify_backup
+from mobilelab.services.media import find_duplicates
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -35,6 +36,24 @@ def main(argv: list[str] | None = None) -> int:
     c = sub.add_parser("compare", help="comparer deux sauvegardes MobileLab")
     c.add_argument("old", type=Path)
     c.add_argument("new", type=Path)
+    t = sub.add_parser("install-tools", help="télécharger les outils officiels (avec --yes)")
+    t.add_argument("--apple", action="store_true", help="aussi les outils Apple (Windows)")
+    t.add_argument("--yes", action="store_true", help="j'accepte le téléchargement")
+    a = sub.add_parser("apps", help="lister les applications Android")
+    a.add_argument("serial")
+    a.add_argument("--system", action="store_true")
+    s = sub.add_parser("screenshot", help="capture d'écran Android")
+    s.add_argument("serial")
+    s.add_argument("destination", type=Path)
+    pu = sub.add_parser("push", help="envoyer des fichiers vers Android (sans écraser)")
+    pu.add_argument("serial")
+    pu.add_argument("files", type=Path, nargs="+")
+    pu.add_argument("--to", default="/sdcard/Download/MobileLab")
+    r = sub.add_parser("restore", help="renvoyer une sauvegarde MobileLab vers Android")
+    r.add_argument("serial")
+    r.add_argument("backup", type=Path)
+    d = sub.add_parser("duplicates", help="doublons exacts dans un dossier")
+    d.add_argument("folder", type=Path)
     args = p.parse_args(argv)
 
     ctx = build_context(simulation=args.simulation)
@@ -65,10 +84,7 @@ def _dispatch(ctx, args) -> int:  # noqa: C901 - simple aiguillage
                                                                           if c.hint else ""))
         return 0
     if args.cmd == "backup":
-        scan = ctx.devices.scan()
-        device = next((d for d in scan.devices if d.serial == args.serial), None)
-        if device is None:
-            raise MobileLabError(f"Appareil introuvable : {args.serial}")
+        device = _find(ctx, args.serial)
         adapter = ctx.devices.adapter_for(device)
         roots = args.path or list(DEFAULT_ANDROID_FOLDERS.values())
         res = ctx.backups.backup_android(
@@ -101,12 +117,59 @@ def _dispatch(ctx, args) -> int:  # noqa: C901 - simple aiguillage
         for m in r.mismatched:
             print(f"  altéré   : {m}")
         return 0 if r.valid else 1
+    if args.cmd == "install-tools":
+        if not args.yes:
+            print("Ajoutez --yes pour accepter le téléchargement depuis les sources officielles "
+                  "(ADB : dl.google.com, conditions du SDK Android).")
+            return 1
+        path = tools_install.install_platform_tools(ctx.tools_dir, consent=True)
+        print(f"ADB installé : {path}")
+        if args.apple:
+            path = tools_install.install_imobiledevice_windows(ctx.tools_dir, consent=True)
+            print(f"Outils Apple installés : {path}")
+        return 0
+    if args.cmd in ("apps", "screenshot", "push", "restore"):
+        device = _find(ctx, args.serial)
+        adapter = ctx.devices.adapter_for(device)
+        if args.cmd == "apps":
+            for app in adapter.list_packages(device.serial, args.system):
+                print(f"{app.name:60} {app.version_code}")
+            return 0
+        if args.cmd == "screenshot":
+            print(ctx.manager.screenshot(adapter, device, args.destination))
+            return 0
+        if args.cmd == "push":
+            rep = ctx.manager.push_files(adapter, device, args.files, args.to)
+        else:
+            rep = ctx.manager.restore_backup(adapter, device, args.backup)
+        for local, remote in rep.done:
+            print(f"{local} → {remote}")
+        for item, reason in rep.skipped:
+            print(f"ignoré : {item} ({reason})", file=sys.stderr)
+        print(rep.summary)
+        return 0 if not rep.skipped else 1
+    if args.cmd == "duplicates":
+        files = [(r.relative_path, args.folder / r.relative_path)
+                 for r in analysis.inventory(args.folder)]
+        groups = find_duplicates(files)
+        for g in groups:
+            print(f"{len(g.paths)} × {g.size} o : " + " | ".join(g.paths))
+        print(f"{len(groups)} groupe(s), {sum(g.wasted for g in groups)} octets récupérables")
+        return 0
     if args.cmd == "compare":
         d = compare_backups(args.old, args.new)
         print(f"+{len(d.added)} ajoutés, -{len(d.removed)} supprimés, "
               f"~{len(d.modified)} modifiés, ={d.unchanged} identiques")
         return 0
     return 1
+
+
+def _find(ctx, serial: str):
+    device = next((d for d in ctx.devices.scan().devices if d.serial == serial), None)
+    if device is None:
+        raise MobileLabError(f"Appareil introuvable : {serial}",
+                             "Liste des appareils : mobilelab-cli devices")
+    return device
 
 
 if __name__ == "__main__":

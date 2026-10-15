@@ -126,3 +126,29 @@ def test_sqlite_inspector(window, tmp_path):
     page.tables.setCurrentRow(0)
     assert page.preview_table.rowCount() == 4
     assert page.preview_table.horizontalHeaderItem(1).text() == "body"
+
+
+def test_manager_page(window, tmp_path, monkeypatch):
+    import mobilelab.ui.pages.manager as manager_page
+
+    monkeypatch.setattr(manager_page, "default_capture_dir", lambda: tmp_path / "captures")
+    state = window.state
+    wait_until(lambda: len(state.devices) == 3)
+    window.go("manager")
+    page = window.pages["manager"]
+    wait_until(lambda: page.apps_table.rowCount() == 3 and page.worker is None)
+    page.app_filter.setText("photos")
+    visible = [r for r in range(3) if not page.apps_table.isRowHidden(r)]
+    assert len(visible) == 1
+    page.app_filter.setText("")
+    page._screenshot()
+    wait_until(lambda: page.worker is None and "Capture enregistrée" in page.status.text())
+    assert list((tmp_path / "captures").glob("capture_*.png"))
+    shots = os.environ.get("MOBILELAB_SCREENSHOTS")
+    if shots:
+        QApplication.processEvents()
+        window.grab().save(str(Path(shots) / "06-gestion.png"))
+        window.go("diagnostics")
+        wait_until(lambda: bool(window.pages["diagnostics"].checks))
+        QApplication.processEvents()
+        window.grab().save(str(Path(shots) / "04-diagnostic.png"))

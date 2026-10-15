@@ -69,6 +69,15 @@ class RemoteFile:
 
 
 @dataclass(frozen=True)
+class AppPackage:
+    """Application installée (Android)."""
+
+    name: str
+    version_code: str = ""
+    system: bool = False
+
+
+@dataclass(frozen=True)
 class StorageInfo:
     total_bytes: int
     free_bytes: int

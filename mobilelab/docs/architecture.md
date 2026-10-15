@@ -15,6 +15,7 @@
 mobilelab/
 ├── pyproject.toml            dépendances, scripts, configuration pytest/ruff
 ├── scripts/                  run.sh, run.bat, build_exe.py (PyInstaller)
+├── windows/                  INSTALLER.bat, install.ps1, DESINSTALLER.bat, LISEZMOI.txt
 ├── docs/                     analysis-report.md, architecture.md, security.md
 ├── tests/                    pytest (unitaires, intégration outils réels, UI hors écran)
 └── src/mobilelab/
@@ -28,6 +29,7 @@ mobilelab/
     │   ├── runner.py         exécution contrôlée des outils (liste blanche, sans shell)
     │   ├── logging_setup.py  journal avec rotation, masquage des secrets, tampon UI
     │   ├── db.py             SQLite : opérations et catalogue des sauvegardes
+    │   ├── settings.py       préférences (chemins d'outils, dossier de sauvegarde)
     │   └── modules.py        registre des modules (point d'extension)
     ├── adapters/
     │   ├── base.py           contrats DeviceAdapter / FileTransferAdapter / FullBackupAdapter
@@ -41,6 +43,9 @@ mobilelab/
     │   ├── integrity.py      SHA-256, manifeste mobilelab-backup/1, vérification
     │   ├── analysis.py       détection de type, inventaire, SQLite, iOS, .ab
     │   ├── compare.py        comparaison de sauvegardes
+    │   ├── manager.py        applications, capture, envoi, restauration / migration
+    │   ├── media.py          doublons (SHA-256), résumé photo (EXIF, GPS)
+    │   ├── tools_install.py  téléchargement consenti d'ADB / outils Apple
     │   ├── report.py         rapports JSON / CSV / HTML avec provenance
     │   └── diagnostics.py    vérifications d'environnement, pack de support
     └── ui/
@@ -50,8 +55,8 @@ mobilelab/
         ├── workers.py        tâches longues dans le QThreadPool
         ├── state.py          état partagé, détection périodique
         ├── main_window.py    navigation, bandeau simulation, raccourcis
-        └── pages/            devices, backup, analysis, misc (récupération, diagnostic,
-                              journal, modules)
+        └── pages/            devices, backup, manager, analysis, misc (récupération,
+                              diagnostic, journal, modules)
 ```
 
 ## Flux de données
@@ -91,4 +96,5 @@ documente ses manques.
 | Python + PySide6 | écosystème forensique Python (ALEAPP/iLEAPP), Qt natif sur les 3 OS, LGPL | Electron (lourd, sans gain ici) |
 | Outils CLI externes | protocoles maintenus par leurs projets ; pas de réimplémentation risquée | bibliothèques Python USB bas niveau (pilotes, maintenance) |
 | SQLite stdlib | aucune dépendance, fiable | ORM (inutile pour 2 tables) |
+| Outils dans `<données>/tools` | installation sans droits administrateur, trouvés avant le PATH | modifier le PATH système |
 | Sondage 4 s | portable (aucune API de hot-plug commune aux 3 OS) | `adb track-devices` (Android seul) — piste d'optimisation |

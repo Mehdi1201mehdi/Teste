@@ -24,6 +24,7 @@ from mobilelab.ui.icons import icon
 from mobilelab.ui.pages.analysis import AnalysisPage
 from mobilelab.ui.pages.backup import BackupPage
 from mobilelab.ui.pages.devices import DevicesPage
+from mobilelab.ui.pages.manager import ManagerPage
 from mobilelab.ui.pages.misc import DiagnosticsPage, LogsPage, ModulesPage, RecoveryPage
 from mobilelab.ui.state import AppState
 from mobilelab.ui.widgets import label
@@ -31,6 +32,7 @@ from mobilelab.ui.widgets import label
 NAV = [
     ("devices", "Appareils", "devices"),
     ("backup", "Sauvegarde", "backup"),
+    ("manager", "Gestion", "manager"),
     ("analysis", "Analyse", "analysis"),
     ("recovery", "Récupération", "recovery"),
     ("diagnostics", "Diagnostic", "diagnostics"),
@@ -105,6 +107,7 @@ class MainWindow(QMainWindow):
         self.pages = {
             "devices": DevicesPage(state),
             "backup": BackupPage(state),
+            "manager": ManagerPage(state),
             "analysis": AnalysisPage(state),
             "recovery": RecoveryPage(state),
             "diagnostics": DiagnosticsPage(state),

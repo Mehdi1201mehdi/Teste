@@ -12,7 +12,12 @@ explicite sur l'appareil (débogage USB accepté, « Faire confiance à cet ordi
 - Déchiffrer une sauvegarde chiffrée sans le secret de son propriétaire (et aucune fonction
   de « récupération » de mot de passe n'est fournie).
 - Accéder aux données privées des applications Android (root, exploits).
-- Envoyer des données vers un service externe. **MobileLab ne fait aucune requête réseau.**
+- Envoyer des données vers un service externe. **MobileLab n'envoie rien sur Internet.**
+  Seule exception, à votre demande explicite : le **téléchargement** d'outils officiels
+  (ADB depuis `dl.google.com`, outils Apple pour Windows depuis GitHub), en HTTPS avec
+  vérification des certificats, liste blanche de domaines (y compris après redirection),
+  taille maximale et extraction protégée contre les chemins dangereux
+  (`services/tools_install.py`).
 
 ## Mesures techniques
 
@@ -28,6 +33,12 @@ explicite sur l'appareil (débogage USB accepté, « Faire confiance à cet ordi
 | Secrets dans les journaux | masquage (`password=`, `token:`, `Bearer …`, `api_key`…) avant écriture | `core/logging_setup.py` |
 | Données personnelles collectées inutilement | propriétés d'appareil en liste blanche (pas de nom d'appareil, numéro, IMEI) | `adapters/adb.py`, `adapters/ios.py` |
 | Fichiers sensibles lisibles par d'autres utilisateurs | dossier de données `0700`, base et journaux `0600` (POSIX) | `core/paths.py`, `core/db.py` |
+| Écrasement sur le téléphone | envoi et restauration ne remplacent jamais un fichier : suffixe « (1) », dossier dédié `/sdcard/MobileLab-Restauration` | `services/manager.py` |
+| Restauration de données corrompues | chaque fichier est revérifié (SHA-256) contre le manifeste avant envoi | `services/manager.py` |
+| Démo envoyée sur un vrai appareil | refus d'envoyer une sauvegarde de simulation vers un appareil réel | `services/manager.py` |
+| Injection via nom de paquet / chemin d'APK | validation stricte (`com.exemple.app`, chemins `pm path` uniquement) | `adapters/adb.py` |
+| Installation / désinstallation involontaire | confirmation explicite, bouton par défaut « Annuler » | `ui/pages/manager.py` |
+| Fenêtres console sous Windows | `CREATE_NO_WINDOW` pour tous les outils | `core/runner.py` |
 | Suppression accidentelle | confirmation explicite (bouton par défaut : Annuler) ; refus si le dossier n'a pas de manifeste MobileLab | `services/backup.py`, `ui/widgets.py` |
 | Écrasement | une sauvegarde crée toujours un dossier neuf horodaté | `services/backup.py` |
 | Injection de formule (CSV) / script (HTML) | préfixe `'` ; échappement HTML | `services/report.py` |

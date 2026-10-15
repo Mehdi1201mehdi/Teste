@@ -19,6 +19,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from mobilelab.context import build_context
     from mobilelab.core.logging_setup import get_logger
+    from mobilelab.ui.icons import app_icon
     from mobilelab.ui.main_window import MainWindow
     from mobilelab.ui.state import AppState
     from mobilelab.ui.theme import apply_theme
@@ -28,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     app.setApplicationVersion(__version__)
     app.setOrganizationName(APP_NAME)
     apply_theme(app)
+    app.setWindowIcon(app_icon())
     try:
         app.styleHints().colorSchemeChanged.connect(lambda _s: apply_theme(app))
     except AttributeError:  # Qt < 6.5

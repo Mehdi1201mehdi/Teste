@@ -16,9 +16,11 @@ class FakeRunner(CommandRunner):
     """Rejoue des sorties enregistrées ; trace les argv reçus."""
 
     def __init__(self, responses: dict[tuple[str, ...], CommandResult] | None = None,
-                 tools: set[str] | None = None) -> None:
+                 tools: set[str] | None = None,
+                 binary: dict[tuple[str, ...], bytes] | None = None) -> None:
         super().__init__()
         self.responses = responses or {}
+        self.binary = binary or {}
         self.tools = tools if tools is not None else {"adb", "idevice_id", "ideviceinfo"}
         self.calls: list[tuple[str, ...]] = []
 
@@ -34,6 +36,15 @@ class FakeRunner(CommandRunner):
             if key[: len(k)] == k:
                 return v
         return CommandResult(0, "", "", 0.0)
+
+    def run_bytes(self, tool, args, timeout=30.0):
+        self._build_argv(tool, args)
+        key = (tool, *args)
+        self.calls.append(key)
+        for k, v in self.binary.items():
+            if key[: len(k)] == k:
+                return v
+        return b""
 
 
 def ok(stdout: str = "", rc: int = 0, stderr: str = "") -> CommandResult:

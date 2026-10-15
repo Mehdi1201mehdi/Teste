@@ -1,22 +1,23 @@
-name: MobileLab — tests
+name: MobileLab — tests et paquet Windows
 
 on:
   push:
     paths: ["mobilelab/**", ".github/workflows/mobilelab-ci.yml"]
   pull_request:
     paths: ["mobilelab/**", ".github/workflows/mobilelab-ci.yml"]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   test:
+    name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.12"]
     defaults:
       run:
         working-directory: mobilelab
@@ -26,10 +27,100 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python }}
+          python-version: "3.12"
       - name: Bibliothèques Qt (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libxkbcommon0 libfontconfig1 libgl1
       - run: python -m pip install -e ".[dev]"
       - run: ruff check src tests
       - run: pytest
+
+  windows-package:
+    name: Windows — installation réelle + MobileLab.exe
+    needs: test
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Script d'installation (comme un utilisateur, avec téléchargement d'ADB)
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File mobilelab\windows\install.ps1 -Unattended -WithTools
+
+      - name: Vérifier l'installation (ADB trouvé dans le dossier de MobileLab, raccourcis)
+        run: |
+          $cli = "$env:LOCALAPPDATA\MobileLab\venv\Scripts\mobilelab-cli.exe"
+          $diag = & $cli diagnose | Out-String
+          Write-Output $diag
+          if ($diag -notmatch '\[OK\s*\] ADB') { throw "ADB non détecté après installation" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\MobileLab\tools\platform-tools\adb.exe")) { throw "adb.exe absent" }
+          $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'MobileLab\MobileLab.lnk'
+          if (-not (Test-Path $lnk)) { throw "Raccourci du menu Démarrer absent" }
+          & $cli --simulation devices
+          & "$env:LOCALAPPDATA\MobileLab\tools\platform-tools\adb.exe" kill-server
+
+      - name: Outils Apple pour Windows (téléchargement réel, information)
+        continue-on-error: true
+        run: |
+          & "$env:LOCALAPPDATA\MobileLab\venv\Scripts\mobilelab-cli.exe" install-tools --yes --apple
+          Get-ChildItem "$env:LOCALAPPDATA\MobileLab\tools\libimobiledevice" -Filter *.exe | Select-Object -First 8 Name
+          & "$env:LOCALAPPDATA\MobileLab\tools\libimobiledevice\idevice_id.exe" -l; Write-Output "code=$LASTEXITCODE"
+          & "$env:LOCALAPPDATA\MobileLab\tools\platform-tools\adb.exe" kill-server
+
+      - name: Construire MobileLab.exe
+        working-directory: mobilelab
+        run: |
+          python -m pip install -e ".[build]"
+          python scripts/build_exe.py
+
+      - name: Test de démarrage de MobileLab.exe (mode simulation)
+        working-directory: mobilelab
+        run: |
+          $env:MOBILELAB_HOME = "$env:RUNNER_TEMP\mlhome"
+          $p = Start-Process -FilePath dist\MobileLab\MobileLab.exe -ArgumentList '--simulation' -PassThru
+          Start-Sleep -Seconds 15
+          if ($p.HasExited) { throw "MobileLab.exe s'est arrêté (code $($p.ExitCode))" }
+          Stop-Process -Id $p.Id -Force
+          $log = Get-Content "$env:RUNNER_TEMP\mlhome\logs\mobilelab.log" -Raw
+          Write-Output $log
+          if ($log -notmatch 'Démarrage MobileLab') { throw "Journal de démarrage absent" }
+
+      - name: Préparer l'archive
+        working-directory: mobilelab
+        run: |
+          Copy-Item windows\LISEZMOI.txt dist\MobileLab\LISEZMOI.txt
+          Compress-Archive -Path dist\MobileLab\* -DestinationPath MobileLab-Windows-x64.zip
+          (Get-FileHash MobileLab-Windows-x64.zip -Algorithm SHA256).Hash | Out-File MobileLab-Windows-x64.zip.sha256 -Encoding ascii
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MobileLab-Windows-x64
+          path: |
+            mobilelab/MobileLab-Windows-x64.zip
+            mobilelab/MobileLab-Windows-x64.zip.sha256
+
+  release:
+    name: Publier la version Windows téléchargeable
+    needs: windows-package
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: MobileLab-Windows-x64
+      - name: Publier (pré-version « mobilelab-latest »)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete mobilelab-latest --yes --cleanup-tag || true
+          gh release create mobilelab-latest MobileLab-Windows-x64.zip MobileLab-Windows-x64.zip.sha256 \
+            --target "${{ github.sha }}" --prerelease \
+            --title "MobileLab pour Windows (dernière version de test)" \
+            --notes "Téléchargez MobileLab-Windows-x64.zip, extrayez-le, puis double-cliquez sur MobileLab.exe. Guide : mobilelab/docs/windows.md. Construit à partir de ${{ github.sha }} (branche ${{ github.ref_name }})."

@@ -23,6 +23,8 @@ _PATHS = {
                '<rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/>'
                '<rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/>'
                '<path d="M17 13.5v7M13.5 17h7"/>',
+    "manager": '<rect x="6" y="2.5" width="12" height="19" rx="2.5"/>'
+               '<path d="M9.5 8.5h5M9.5 12h5M9.5 15.5h3"/>',
     "android": '<path d="M6 10h12v7.5a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/>'
                '<path d="M6.5 9a5.5 5.5 0 0 1 11 0"/><path d="m8 4 1.3 2M16 4l-1.3 2"/>',
     "apple": '<path d="M12 7c1.5-1.3 4.5-1.6 6 .8-2.6 1.6-2.2 5.6.7 6.6-.9 2.6-2.6 5.1-4.3 5.1'
@@ -66,3 +68,63 @@ def icon(name: str, color: str = "#C9D3DB", size: int = 20) -> QIcon:
 
 def names() -> list[str]:
     return list(_PATHS)
+
+
+_APP_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">'
+    '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">'
+    '<stop offset="0" stop-color="#0F1B24"/><stop offset="1" stop-color="#0B3B36"/>'
+    "</linearGradient></defs>"
+    '<rect x="8" y="8" width="240" height="240" rx="56" fill="url(#g)"/>'
+    '<rect x="78" y="44" width="100" height="168" rx="20" fill="none" stroke="#2CC5A9" '
+    'stroke-width="14"/>'
+    '<path d="M104 128h18l10-24 14 48 10-24h18" fill="none" stroke="#FFFFFF" stroke-width="12" '
+    'stroke-linecap="round" stroke-linejoin="round" transform="translate(-8 0)"/>'
+    '<circle cx="128" cy="190" r="7" fill="#2CC5A9"/></svg>'
+)
+
+
+def app_icon() -> QIcon:
+    renderer = QSvgRenderer(QByteArray(_APP_SVG.encode()))
+    result = QIcon()
+    for size in (16, 24, 32, 48, 64, 128, 256):
+        pm = QPixmap(size, size)
+        pm.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pm)
+        renderer.render(painter, QRectF(0, 0, size, size))
+        painter.end()
+        result.addPixmap(pm)
+    return result
+
+
+def write_app_icon(path: str) -> str:
+    """Écrit l'icône de l'application (.ico multi-tailles si Pillow est présent, sinon .png)."""
+    import io
+    import os
+
+    from PySide6.QtCore import QBuffer, QIODevice
+    from PySide6.QtGui import QGuiApplication, QImage
+
+    if QGuiApplication.instance() is None:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    app = QGuiApplication.instance() or QGuiApplication([])  # noqa: F841 - requis pour peindre
+    renderer = QSvgRenderer(QByteArray(_APP_SVG.encode()))
+    image = QImage(256, 256, QImage.Format.Format_ARGB32)
+    image.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(image)
+    renderer.render(painter, QRectF(0, 0, 256, 256))
+    painter.end()
+    buf = QBuffer()
+    buf.open(QIODevice.OpenModeFlag.WriteOnly)
+    image.save(buf, "PNG")
+    png = bytes(buf.data())
+    try:
+        from PIL import Image
+    except ImportError:
+        target = os.path.splitext(path)[0] + ".png"
+        with open(target, "wb") as fh:
+            fh.write(png)
+        return target
+    Image.open(io.BytesIO(png)).save(path, sizes=[(16, 16), (24, 24), (32, 32), (48, 48),
+                                                  (64, 64), (128, 128), (256, 256)])
+    return path

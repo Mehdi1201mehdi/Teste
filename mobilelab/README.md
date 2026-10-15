@@ -9,17 +9,26 @@ protection.
 > reprend ni le code, ni les ressources, ni l'interface. Voir
 > [`docs/analysis-report.md`](docs/analysis-report.md) pour l'analyse et ses limites.
 
+## Windows : démarrage rapide
+
+**Guide pas à pas : [`docs/windows.md`](docs/windows.md).** En résumé : téléchargez
+`MobileLab-Windows-x64.zip` depuis la version
+[mobilelab-latest](https://github.com/mehdi1201mehdi/teste/releases/tag/mobilelab-latest),
+extrayez-le, lancez `MobileLab.exe`, puis Diagnostic → « Installer / mettre à jour ADB ».
+Ou double-cliquez sur `windows\INSTALLER.bat` pour une installation automatique avec raccourcis.
+
 ## Fonctionnalités
 
 | Domaine | Disponible |
 |---|---|
 | Appareils | Détection automatique Android (ADB) et Apple (libimobiledevice), état de connexion, modèle, version, aide pas à pas (débogage USB, autorisation, appairage, udev) |
 | Sauvegarde | Android : dossiers du stockage partagé, estimation, contrôle d'espace, SHA-256 par fichier, manifeste scellé, annulation. iOS : sauvegarde complète officielle (`idevicebackup2`) |
-| Analyse | Sauvegardes MobileLab, iOS (Finder/iTunes, non chiffrées), Android `.ab`, dossiers : inventaire, types par signature, filtres, inspecteur SQLite en lecture seule, extraction, rapports HTML/JSON/CSV avec provenance |
+| Gestion (Android) | Applications (liste, export APK, installation, désinstallation), capture d'écran, envoi PC → téléphone sans écrasement, restauration / migration d'une sauvegarde vers un appareil |
+| Analyse | Sauvegardes MobileLab, iOS (Finder/iTunes, non chiffrées), Android `.ab`, dossiers : inventaire, types par signature, filtres, inspecteur SQLite en lecture seule, doublons, photos (EXIF, GPS), extraction, comparaison, rapports HTML/JSON/CSV avec provenance |
 | Récupération | Extraction depuis sauvegardes et fichiers existants, avec ses limites expliquées ; aucune promesse de récupération de fichiers supprimés |
-| Diagnostic | Outils, serveur ADB, usbmuxd, espace disque ; redémarrage ADB ; pack de support ZIP |
+| Diagnostic | Outils, serveur ADB, usbmuxd, espace disque ; installation en un clic d'ADB et des outils Apple (Windows) ; choix manuel d'un exécutable ; redémarrage ADB ; pack de support ZIP |
 | Journal | Journal en direct, filtrable, exportable (secrets masqués) |
-| Modules | Comparaison de sauvegardes et ALEAPP/iLEAPP (expérimental) ; migration et analyse de médias prévues |
+| Modules | Vue d'ensemble des modules et de leur maturité (ALEAPP/iLEAPP expérimental, applications iOS prévu) |
 | Simulation | Appareils factices clairement signalés pour découvrir l'interface sans matériel |
 
 ## Installation
@@ -54,6 +63,12 @@ mobilelab-cli backup <serial> ~/Sauvegardes --path /sdcard/DCIM
 mobilelab-cli verify ~/Sauvegardes/<dossier>
 mobilelab-cli inventory <sauvegarde|dossier|fichier.ab> --report rapport.html
 mobilelab-cli compare <ancienne> <nouvelle>
+mobilelab-cli install-tools --yes [--apple]
+mobilelab-cli apps <serial> [--system]
+mobilelab-cli screenshot <serial> <dossier>
+mobilelab-cli push <serial> fichier1 fichier2 --to /sdcard/Download/MobileLab
+mobilelab-cli restore <serial> <sauvegarde>
+mobilelab-cli duplicates <dossier>
 ```
 
 ## Créer un exécutable
@@ -87,6 +102,7 @@ Documentation : [architecture](docs/architecture.md) · [sécurité](docs/securi
 
 À utiliser uniquement sur vos appareils ou avec une autorisation explicite. MobileLab ne
 contourne ni verrouillage, ni FRP, ni verrouillage d'activation, ni chiffrement, et
-n'envoie aucune donnée sur Internet. Détails : [`docs/security.md`](docs/security.md).
+n'envoie aucune donnée sur Internet (seuls téléchargements : ADB et outils Apple, à votre
+demande, depuis leurs sources officielles). Détails : [`docs/security.md`](docs/security.md).
 
 Licence : MIT.

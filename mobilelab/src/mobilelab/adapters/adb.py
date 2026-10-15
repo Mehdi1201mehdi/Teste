@@ -1,7 +1,9 @@
 """Adaptateur Android via ADB (Android Debug Bridge).
 
 N'utilise que des commandes documentées (`devices -l`, `getprop`, `df`, `find`, `stat`,
-`pull`) et se limite au stockage partagé de l'utilisateur. Aucun accès root.
+`pull`, `push`, `install`, `uninstall`, `pm`, `screencap`). Les fichiers sont limités au
+stockage partagé de l'utilisateur ; les APK sont lus uniquement aux chemins renvoyés par
+`pm path`. Aucun accès root.
 """
 
 from __future__ import annotations
@@ -10,10 +12,17 @@ import re
 import shlex
 from pathlib import Path
 
-from mobilelab.adapters.base import DeviceAdapter, FileTransferAdapter
-from mobilelab.core.errors import CommandError
+from mobilelab.adapters.base import DeviceAdapter, DeviceManagerAdapter, FileTransferAdapter
+from mobilelab.core.errors import CommandError, UnsafePathError
 from mobilelab.core.logging_setup import get_logger
-from mobilelab.core.models import ConnectionState, Device, Platform, RemoteFile, StorageInfo
+from mobilelab.core.models import (
+    AppPackage,
+    ConnectionState,
+    Device,
+    Platform,
+    RemoteFile,
+    StorageInfo,
+)
 from mobilelab.core.paths import validate_android_path
 from mobilelab.core.runner import CommandRunner
 
@@ -45,6 +54,42 @@ _STATE_MAP = {
 
 _SERIAL_RE = re.compile(r"^[\w.:\-\[\]@?]+$")  # « ???? » : appareil sans permission USB
 _PROP_RE = re.compile(r"^\[([^\]]+)\]: \[(.*)\]$")
+_PACKAGE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$")
+_APK_ROOTS = ("/data/app/", "/system/", "/product/", "/vendor/", "/system_ext/", "/apex/")
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def validate_package(name: str) -> str:
+    if not _PACKAGE_RE.match(name or ""):
+        raise UnsafePathError(f"Nom de paquet invalide : {name!r}")
+    return name
+
+
+def validate_apk_path(path: str) -> str:
+    if (not path.startswith(_APK_ROOTS) or not path.endswith(".apk") or ".." in path
+            or any(ord(c) < 32 for c in path)):
+        raise UnsafePathError(f"Chemin d'APK inattendu : {path!r}")
+    return path
+
+
+def parse_packages(output: str, system: bool = False) -> list[AppPackage]:
+    """Analyse `pm list packages [--show-versioncode]`."""
+    apps = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line.startswith("package:"):
+            continue
+        parts = line[len("package:"):].split()
+        name = parts[0]
+        version = next((p.split(":", 1)[1] for p in parts[1:] if p.startswith("versionCode:")), "")
+        if _PACKAGE_RE.match(name):
+            apps.append(AppPackage(name, version, system))
+    return sorted(apps, key=lambda a: a.name)
+
+
+def parse_pm_path(output: str) -> list[str]:
+    return [validate_apk_path(ln.strip()[len("package:"):]) for ln in output.splitlines()
+            if ln.strip().startswith("package:")]
 
 
 def parse_devices(output: str) -> list[tuple[str, str, dict[str, str]]]:
@@ -98,7 +143,7 @@ def parse_df(output: str) -> StorageInfo | None:
     return StorageInfo(total_bytes=total_k * 1024, free_bytes=avail_k * 1024)
 
 
-class AdbAdapter(DeviceAdapter, FileTransferAdapter):
+class AdbAdapter(DeviceAdapter, FileTransferAdapter, DeviceManagerAdapter):
     platform = Platform.ANDROID
 
     def __init__(self, runner: CommandRunner) -> None:
@@ -170,3 +215,71 @@ class AdbAdapter(DeviceAdapter, FileTransferAdapter):
     def storage(self, serial: str) -> StorageInfo | None:
         res = self.runner.run("adb", ["-s", serial, "shell", "df -k /sdcard"], timeout=15)
         return parse_df(res.stdout) if res.ok else None
+
+    # -- gestion (applications, capture, envoi) -------------------------------
+    def list_packages(self, serial: str, include_system: bool = False) -> list[AppPackage]:
+        flag = "-s" if include_system else "-3"
+        res = self.runner.run("adb", ["-s", serial, "shell", f"pm list packages {flag} "
+                                      "--show-versioncode"], timeout=60)
+        if not res.ok or "Unknown option" in res.stdout + res.stderr:  # Android < 9
+            res = self.runner.run("adb", ["-s", serial, "shell", f"pm list packages {flag}"],
+                                  timeout=60)
+        if not res.ok:
+            raise CommandError("Liste des applications indisponible.", res.stderr.strip() or None)
+        return parse_packages(res.stdout, system=include_system)
+
+    def apk_paths(self, serial: str, package: str) -> list[str]:
+        package = validate_package(package)
+        res = self.runner.run("adb", ["-s", serial, "shell", f"pm path {package}"], timeout=30)
+        paths = parse_pm_path(res.stdout)
+        if not paths:
+            raise CommandError(f"APK introuvable pour {package}.")
+        return paths
+
+    def pull_apk(self, serial: str, remote: str, local: Path) -> None:
+        remote = validate_apk_path(remote)
+        local.parent.mkdir(parents=True, exist_ok=True)
+        res = self.runner.run("adb", ["-s", serial, "pull", remote, str(local)], timeout=600)
+        if not res.ok:
+            raise CommandError(f"Export impossible : {remote}", res.stderr.strip() or None)
+
+    def install(self, serial: str, apks: list[Path]) -> str:
+        if not apks or any(p.suffix.lower() != ".apk" or not p.is_file() for p in apks):
+            raise UnsafePathError("Sélectionnez un ou plusieurs fichiers .apk existants.")
+        verb = "install" if len(apks) == 1 else "install-multiple"  # APK scindés
+        res = self.runner.run("adb", ["-s", serial, verb, "-r", *map(str, apks)], timeout=600)
+        out = (res.stdout + res.stderr).strip()
+        if not res.ok or "Success" not in out:
+            raise CommandError("Installation refusée.", out.splitlines()[-1] if out else None)
+        return "Installation réussie."
+
+    def uninstall(self, serial: str, package: str) -> str:
+        package = validate_package(package)
+        res = self.runner.run("adb", ["-s", serial, "uninstall", package], timeout=120)
+        out = (res.stdout + res.stderr).strip()
+        if not res.ok or "Success" not in out:
+            raise CommandError("Désinstallation refusée.", out.splitlines()[-1] if out else None)
+        return f"{package} désinstallée."
+
+    def screenshot(self, serial: str) -> bytes:
+        data = self.runner.run_bytes("adb", ["-s", serial, "exec-out", "screencap", "-p"],
+                                     timeout=30)
+        if not data.startswith(PNG_SIGNATURE):
+            raise CommandError("Capture d'écran invalide.",
+                               "Déverrouillez l'écran puis réessayez.")
+        return data
+
+    def push(self, serial: str, local: Path, remote: str) -> None:
+        remote = validate_android_path(remote)
+        if not local.is_file():
+            raise UnsafePathError(f"Fichier local introuvable : {local}")
+        res = self.runner.run("adb", ["-s", serial, "push", str(local), remote], timeout=900)
+        if not res.ok:
+            raise CommandError(f"Envoi impossible : {local.name}", res.stderr.strip() or None)
+
+    def remote_exists(self, serial: str, remote: str) -> bool:
+        remote = validate_android_path(remote)
+        res = self.runner.run("adb", ["-s", serial, "shell",
+                                      f"test -e {shlex.quote(remote)} && echo EXISTS"],
+                              timeout=15)
+        return "EXISTS" in res.stdout

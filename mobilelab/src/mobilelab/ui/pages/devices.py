@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtWidgets import (
     QFormLayout,
@@ -158,6 +160,16 @@ class DevicesPage(Page):
             body.addWidget(label(f"{i}. {step}", wrap=True))
         body.addWidget(label("Pour iPhone/iPad : déverrouillez l'appareil et acceptez « Faire "
                              "confiance à cet ordinateur ».", "muted", wrap=True))
+        if sys.platform == "win32":
+            body.addWidget(label(
+                "Windows : si le téléphone n'apparaît pas, installez le pilote USB de son "
+                "fabricant (Samsung, Xiaomi…) ou le « Google USB Driver » ; pour un iPhone, "
+                "installez l'application « Appareils Apple » ou iTunes (Microsoft Store).",
+                "muted", wrap=True))
+        if self.state.problems:
+            tools = button("Installer les outils manquants (Diagnostic)", flat=True)
+            tools.clicked.connect(lambda: self.state.navigate.emit("diagnostics"))
+            body.addWidget(tools, 0, Qt.AlignmentFlag.AlignLeft)
         if not self.state.simulation:
             demo = button("Essayer avec des appareils simulés", flat=True)
             demo.clicked.connect(lambda: self.state.set_simulation(True))
@@ -194,10 +206,17 @@ class DevicesPage(Page):
         for tip in help_for(device):
             body.addWidget(label("• " + tip, wrap=True))
         if device.state.usable:
+            row = QHBoxLayout()
             go = button("Sauvegarder cet appareil", primary=True)
             go.clicked.connect(lambda: self.state.navigate.emit("backup"))
+            row.addWidget(go)
+            if device.platform is Platform.ANDROID:
+                manage = button("Applications, capture, transferts")
+                manage.clicked.connect(lambda: self.state.navigate.emit("manager"))
+                row.addWidget(manage)
+            row.addStretch(1)
             body.addSpacing(8)
-            body.addWidget(go, 0, Qt.AlignmentFlag.AlignLeft)
+            body.addLayout(row)
         body.addStretch(1)
 
 

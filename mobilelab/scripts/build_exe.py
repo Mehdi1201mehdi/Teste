@@ -27,8 +27,14 @@ def main() -> int:
     except ImportError:
         print("PyInstaller manquant : pip install -e .[build]", file=sys.stderr)
         return 1
+    sys.path.insert(0, str(ROOT / "src"))
+    from mobilelab.ui.icons import write_app_icon
+
+    (ROOT / "build").mkdir(exist_ok=True)
+    icon = write_app_icon(str(ROOT / "build" / "mobilelab.ico"))
     opts = [
         str(ROOT / "src" / "mobilelab" / "__main__.py"),
+        "--icon", icon,
         "--name", "MobileLab",
         "--noconfirm",
         "--clean",

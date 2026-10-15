@@ -1,0 +1,29 @@
+MobileLab pour Windows - demarrage rapide
+==========================================
+
+1. Double-cliquez sur MobileLab.exe.
+   Si Windows affiche "Windows a protege votre ordinateur" (SmartScreen) :
+   cliquez sur "Informations complementaires" puis "Executer quand meme".
+   (Le programme n'est pas encore signe numeriquement.)
+
+2. Pour essayer sans telephone : cochez "Mode simulation" en bas a gauche.
+
+3. Telephone Android :
+   - Onglet Diagnostic > "Installer / mettre a jour ADB" (une seule fois).
+   - Sur le telephone : Parametres > A propos > touchez 7 fois "Numero de build",
+     puis Options pour les developpeurs > activez "Debogage USB".
+   - Branchez le cable, deverrouillez et acceptez "Autoriser le debogage USB".
+   - Si le telephone n'apparait pas : installez le pilote USB du fabricant
+     (Samsung, Xiaomi...) ou le "Google USB Driver".
+
+4. iPhone / iPad :
+   - Installez l'application "Appareils Apple" (ou iTunes) depuis le Microsoft Store.
+   - Onglet Diagnostic > "Installer les outils Apple (iPhone)".
+   - Branchez, deverrouillez et touchez "Se fier a cet ordinateur".
+
+Vos donnees restent sur votre PC : MobileLab n'envoie rien sur Internet.
+Les seuls telechargements (ADB, outils Apple) se font a votre demande,
+depuis les sources officielles.
+
+Reglages, journaux et outils : %LOCALAPPDATA%\MobileLab
+Sauvegardes par defaut      : %USERPROFILE%\MobileLab\Sauvegardes

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont, QPalette
@@ -50,6 +52,19 @@ SIDEBAR_INK = "#C9D3DB"
 SIDEBAR_MUTED = "#7F8D99"
 
 
+def _chevron(color: str) -> str:
+    """Flèche de liste déroulante (SVG écrit une fois dans le dossier temporaire)."""
+    folder = Path(tempfile.gettempdir()) / "mobilelab-ui"
+    folder.mkdir(exist_ok=True)
+    path = folder / f"chevron-{color.lstrip('#')}.svg"
+    if not path.exists():
+        path.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2.5 4.5 6 8l3.5-3.5"'
+            f' fill="none" stroke="{color}" stroke-width="1.6" stroke-linecap="round" '
+            'stroke-linejoin="round"/></svg>', encoding="utf-8")
+    return path.as_posix()
+
+
 def current_palette(app: QApplication) -> Palette:
     forced = os.environ.get("MOBILELAB_THEME", "").lower()
     if forced in ("dark", "light"):
@@ -62,6 +77,7 @@ def current_palette(app: QApplication) -> Palette:
 
 
 def build_qss(p: Palette) -> str:
+    chevron = _chevron(p.muted)
     return f"""
 * {{ outline: none; }}
 QWidget {{ color: {p.ink}; font-size: 13px; }}
@@ -116,7 +132,10 @@ QPushButton[flat="true"] {{ background: transparent; border: none; color: {p.acc
 QLineEdit, QComboBox, QPlainTextEdit, QSpinBox {{ background: {p.surface}; border: 1px solid {p.line};
     border-radius: 8px; padding: 6px 8px; selection-background-color: {p.accent}; }}
 QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus {{ border: 2px solid {p.focus}; padding: 5px 7px; }}
-QComboBox::drop-down {{ border: none; width: 22px; }}
+QComboBox {{ padding-right: 28px; }}
+QComboBox::drop-down {{ subcontrol-origin: padding; subcontrol-position: center right;
+    border: none; width: 26px; }}
+QComboBox::down-arrow {{ image: url("{chevron}"); width: 12px; height: 12px; }}
 QComboBox QAbstractItemView {{ background: {p.surface}; border: 1px solid {p.line};
     selection-background-color: {p.accent_soft}; selection-color: {p.ink}; }}
 QCheckBox {{ spacing: 8px; }}

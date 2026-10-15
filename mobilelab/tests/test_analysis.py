@@ -120,14 +120,15 @@ def test_android_ab_encrypted(tmp_path: Path):
 @pytest.mark.parametrize("ext", ["json", "csv", "html"])
 def test_reports(tmp_path: Path, ext):
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "=cmd|x.txt").write_text("a")
-    (tmp_path / "src" / "<script>.txt").write_text("b")
+    # noms valides sous Windows (pas de < > | :)
+    (tmp_path / "src" / "=cmd.txt").write_text("a")
+    (tmp_path / "src" / "a&b.txt").write_text("b")
     summary = analysis.identify(tmp_path / "src")
     out = export_report(summary, analysis.inventory(tmp_path / "src"), tmp_path / f"r.{ext}")
     text = out.read_text()
     if ext == "json":
         assert len(json.loads(text)["files"]) == 2
     elif ext == "csv":
-        assert "'=cmd|x.txt" in text  # injection de formule neutralisée
+        assert "'=cmd.txt" in text  # injection de formule neutralisée
     else:
-        assert "<script>" not in text and "&lt;script&gt;" in text
+        assert "a&amp;b.txt" in text and "a&b.txt" not in text

@@ -97,13 +97,23 @@ export function outlookWebUrl({ to = [], subject = "", body = "" }) {
 }
 
 /**
- * Android : lien « intent » vers l'appli Outlook ; si elle n'est pas
- * installée, le navigateur (Chrome, Edge, Samsung Internet) ouvre de lui-même
- * Outlook Web — repli géré par le système, sans minuterie.
+ * Android : ouvre DIRECTEMENT l'appli Outlook, déjà remplie.
+ * C'est un lien de messagerie standard (mailto:) adressé à l'appli Outlook
+ * seule (package com.microsoft.office.outlook) : Outlook pour Android traite
+ * toujours ces liens, contrairement à « ms-outlook://compose » (prévu pour
+ * iPhone), qu'il ne prend pas en charge de façon fiable — Chrome basculait
+ * alors sur Outlook Web.
+ * Outlook non installé : le navigateur ouvre Outlook Web (repli du système).
+ * Forme : intent:dest?subject=…&body=…#Intent;action=SENDTO;scheme=mailto;…
+ * (Android reconstitue « mailto:dest?subject=… »).
  */
 export function androidIntentUrl(msg) {
-  const inner = query({ to: msg.to.join(","), subject: msg.subject, body: msg.body });
-  return `intent://compose?${inner}#Intent;scheme=ms-outlook;package=com.microsoft.office.outlook;S.browser_fallback_url=${enc(outlookWebUrl(msg))};end`;
+  const to = (msg.to || []).map((a) => enc(a).replace(/%40/g, "@")).join(",");
+  const q = query({ subject: msg.subject, body: String(msg.body || "").replace(/\r?\n/g, "\r\n") });
+  return (
+    `intent:${to}?${q}#Intent;action=android.intent.action.SENDTO;scheme=mailto;` +
+    `package=com.microsoft.office.outlook;S.browser_fallback_url=${enc(outlookWebUrl(msg))};end`
+  );
 }
 
 // Longueur maximale d'un lien par canal (au-delà : corps collé depuis le

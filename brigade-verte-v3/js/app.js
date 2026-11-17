@@ -22,6 +22,7 @@ import { fmtDist } from "./geo.js";
 import { initStreetIndex, loadStreetGeometry } from "./locate.js";
 import * as map from "./map.js";
 import { initCollecte } from "./collecteView.js";
+import { initDashboard, renderDashboard } from "./dashboard.js";
 
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
@@ -45,6 +46,7 @@ function renderTour({ fresh = -1 } = {}) {
     { fresh, editing: state.editing },
   );
   renderReport();
+  renderDashboard();
 }
 
 function changed(opts = {}) {
@@ -374,6 +376,7 @@ async function main() {
 
   initComposer({ changed, reveal: revealBp });
   initReport({ changed, edit: editBp });
+  initDashboard({ edit: editBp, reveal: revealBp });
   initCollecte({
     // « Relever un dépôt ici » depuis la vue Collecte : l'adresse passe au Terrain.
     useAddress: (rue, num) => {

@@ -31,7 +31,11 @@
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/map.css">
 <link rel="stylesheet" href="css/animations.css">
-<link rel="stylesheet" href="css/fiche.css">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="css/terrain.css">
+<link rel="stylesheet" href="css/rapport.css">
+<link rel="stylesheet" href="css/collecte.css">
 <link rel="stylesheet" href="css/splash.css">
 </head>
 <body>
@@ -140,6 +144,9 @@
 
     <!-- ═══ Panneau : saisie ou rapport ═══ -->
     <section class="panel" id="panel" tabindex="-1">
+
+      <!-- ─── Vue ACCUEIL : tableau de bord (rendu par js/dashboard.js) ─── -->
+      <div class="view view--accueil" id="viewAccueil" hidden></div>
 
       <!-- ─── Vue TERRAIN : composeur de bon de passage ─── -->
       <div class="view view--terrain" id="viewTerrain">

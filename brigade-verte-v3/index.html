@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#133f2b">
+<meta name="theme-color" content="#0e3b28">
 <meta name="color-scheme" content="light">
 <meta name="robots" content="noindex, nofollow">
 <meta name="description" content="Brigade Verte d'Amiens : relevé des dépôts sauvages pendant la tournée, carte du territoire, rapport prêt à envoyer.">
@@ -81,24 +81,67 @@
   <symbol id="i-corner" viewBox="0 0 24 24"><polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+  <symbol id="i-house" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+  <!-- Familles de déchets (design.md §4) : i-fam-<icône Lucide> -->
+  <symbol id="i-fam-shopping-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+  <symbol id="i-fam-sofa" viewBox="0 0 24 24"><path d="M20 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v3"/><path d="M2 16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z"/><path d="M4 18v2"/><path d="M20 18v2"/><path d="M12 4v9"/></symbol>
+  <symbol id="i-fam-monitor-smartphone" viewBox="0 0 24 24"><path d="M18 8V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h8"/><path d="M10 19v-3.96 3.15"/><path d="M7 19h5"/><rect width="6" height="10" x="16" y="12" rx="2"/></symbol>
+  <symbol id="i-fam-brick-wall" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 9v6"/><path d="M16 15v6"/><path d="M16 3v6"/><path d="M3 15h18"/><path d="M3 9h18"/><path d="M8 15v6"/><path d="M8 3v6"/></symbol>
+  <symbol id="i-fam-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+  <symbol id="i-fam-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+  <symbol id="i-fam-flask-conical" viewBox="0 0 24 24"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></symbol>
+  <symbol id="i-fam-tractor" viewBox="0 0 24 24"><path d="m10 11 11 .9a1 1 0 0 1 .8 1.1l-.665 4.158a1 1 0 0 1-.988.842H20"/><path d="M16 18h-5"/><path d="M18 5a1 1 0 0 0-1 1v5.573"/><path d="M3 4h8.129a1 1 0 0 1 .99.863L13 11.246"/><path d="M4 11V4"/><path d="M7 15h.01"/><path d="M8 10.1V4"/><circle cx="18" cy="18" r="2"/><circle cx="7" cy="15" r="5"/></symbol>
+  <symbol id="i-fam-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/></symbol>
+  <symbol id="i-fam-syringe" viewBox="0 0 24 24"><path d="m18 2 4 4"/><path d="m17 7 3-3"/><path d="M19 9 8.7 19.3c-1 1-2.5 1-3.4 0l-.6-.6c-1-1-1-2.5 0-3.4L15 5"/><path d="m9 11 4 4"/><path d="m5 19-3 3"/><path d="m14 4 6 6"/></symbol>
+  <symbol id="i-fam-car-front" viewBox="0 0 24 24"><path d="m21 8-2 2-1.5-3.7A2 2 0 0 0 15.646 5H8.4a2 2 0 0 0-1.903 1.257L5 10 3 8"/><path d="M7 14h.01"/><path d="M17 14h.01"/><rect width="18" height="8" x="3" y="10" rx="2"/><path d="M5 18v2"/><path d="M19 18v2"/></symbol>
+  <symbol id="i-fam-package-open" viewBox="0 0 24 24"><path d="M12 22v-9"/><path d="M15.17 2.21a1.67 1.67 0 0 1 1.63 0L21 4.57a1.93 1.93 0 0 1 0 3.36L8.82 14.79a1.655 1.655 0 0 1-1.64 0L3 12.43a1.93 1.93 0 0 1 0-3.36z"/><path d="M20 13v3.87a2.06 2.06 0 0 1-1.11 1.83l-6 3.08a1.93 1.93 0 0 1-1.78 0l-6-3.08A2.06 2.06 0 0 1 4 16.87V13"/><path d="M21 12.43a1.93 1.93 0 0 0 0-3.36L8.83 2.2a1.64 1.64 0 0 0-1.63 0L3 4.57a1.93 1.93 0 0 0 0 3.36l12.18 6.86a1.636 1.636 0 0 0 1.63 0z"/></symbol>
+  <symbol id="i-fam-washing-machine" viewBox="0 0 24 24"><path d="M3 6h3"/><path d="M17 6h.01"/><rect width="18" height="20" x="3" y="2" rx="2"/><circle cx="12" cy="13" r="5"/><path d="M12 18a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 1 0-5"/></symbol>
+  <symbol id="i-fam-shirt" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></symbol>
+  <symbol id="i-fam-magnet" viewBox="0 0 24 24"><path d="m6 15-4-4 6.75-6.77a7.79 7.79 0 0 1 11 11L13 22l-4-4 6.39-6.36a2.14 2.14 0 0 0-3-3L6 15"/><path d="m5 8 4 4"/><path d="m12 15 4 4"/></symbol>
+  <symbol id="i-fam-shapes" viewBox="0 0 24 24"><path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/></symbol>
   <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/><path d="M2 8.82a15 15 0 0 1 4.17-2.65"/><path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76"/><path d="M16.85 11.25a10 10 0 0 1 2.22 1.68"/><path d="M5 13a10 10 0 0 1 5.24-2.76"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
 </svg>
 
-<div class="app" id="app" data-view="terrain" data-stage="1">
+<div class="app" id="app" data-view="accueil" data-stage="1">
 
-  <!-- ═══ Barre d'application ═══ -->
+  <!-- ═══ Navigation principale ═══
+       Un seul élément, restylé par css/layout.css :
+       barre basse (mobile) · rail (tablette, téléphone en paysage) · barre latérale (≥ 1024 px). -->
+  <aside class="sidebar" id="sidebar" aria-label="Navigation principale">
+    <a class="brand sideBrand" href="#accueil" aria-label="Brigade Verte — accueil">
+      <svg class="brandMark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#fcfbf8"/><path d="M16 6.5c5.2.5 8.4 4.3 8.4 8.8 0 5.5-4.5 9.5-8.4 10.4-3.9-.9-8.4-4.9-8.4-10.4 0-4.5 3.2-8.3 8.4-8.8Z" fill="#17573a"/><path d="M16 8.2c-1 4.9-1 11.7 0 16.4" stroke="#fcfbf8" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".55"/><circle cx="24.6" cy="7.4" r="3.4" fill="#c4420c" stroke="#fcfbf8" stroke-width="1.6"/></svg>
+      <span class="wordmark" aria-hidden="true"><b>Brigade Verte</b><span>Police municipale · Amiens</span></span>
+    </a>
+
+    <nav class="viewSwitch navbar" aria-label="Vues">
+      <button type="button" class="vsBtn" data-nav data-view-target="accueil" aria-current="page" aria-label="Accueil : tableau de bord de la tournée"><span class="vsIcon"><svg class="icon" aria-hidden="true"><use href="#i-house"></use></svg></span><span class="vsLabel">Accueil</span></button>
+      <button type="button" class="vsBtn" data-nav data-view-target="terrain" aria-label="Terrain : saisie et carte"><span class="vsIcon"><svg class="icon" aria-hidden="true"><use href="#i-map-pin"></use></svg></span><span class="vsLabel">Terrain</span></button>
+      <button type="button" class="vsBtn" data-nav data-view-target="rapport" aria-label="Rapports"><span class="vsIcon"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span class="count navCount" id="navCount" data-zero>0</span></span><span class="vsLabel">Rapports</span></button>
+      <button type="button" class="vsBtn" data-nav data-view-target="collecte" aria-label="Collecte : jour de passage de la benne"><span class="vsIcon"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg></span><span class="vsLabel">Collecte</span></button>
+    </nav>
+
+    <div class="sideFoot">
+      <button type="button" class="sideSettings" data-open-settings aria-haspopup="dialog"><svg class="icon" aria-hidden="true"><use href="#i-sliders"></use></svg><span class="vsLabel">Réglages</span></button>
+      <p class="sideStatus saveStatus" data-save-status data-tone="ok"><svg class="icon" aria-hidden="true"><use href="#i-circle-check"></use></svg><span class="saveText"><span class="saveWord">Enregistré</span><span class="saveTime"></span></span></p>
+    </div>
+  </aside>
+
+  <!-- ═══ En-tête ═══ -->
   <header class="appbar">
     <h1 class="visually-hidden">Brigade Verte Amiens — relevé des dépôts sauvages</h1>
-    <a class="brand" href="#terrain" aria-label="Brigade Verte — accueil de la tournée">
+    <a class="brand" href="#accueil" aria-label="Brigade Verte — accueil">
       <svg class="brandMark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#fcfbf8"/><path d="M16 6.5c5.2.5 8.4 4.3 8.4 8.8 0 5.5-4.5 9.5-8.4 10.4-3.9-.9-8.4-4.9-8.4-10.4 0-4.5 3.2-8.3 8.4-8.8Z" fill="#17573a"/><path d="M16 8.2c-1 4.9-1 11.7 0 16.4" stroke="#fcfbf8" stroke-width="1.6" stroke-linecap="round" fill="none" opacity=".55"/><circle cx="24.6" cy="7.4" r="3.4" fill="#c4420c" stroke="#fcfbf8" stroke-width="1.6"/></svg>
       <span class="wordmark" aria-hidden="true"><b>Brigade Verte</b><span>Amiens</span></span>
     </a>
 
-    <nav class="viewSwitch" aria-label="Vues">
-      <button type="button" class="vsBtn" data-nav data-view-target="terrain" aria-current="page" aria-label="Terrain : saisie et carte"><svg class="icon" aria-hidden="true"><use href="#i-map"></use></svg><span>Terrain</span></button>
-      <button type="button" class="vsBtn" data-nav data-view-target="rapport" aria-label="Rapport de tournée"><svg class="icon" aria-hidden="true"><use href="#i-file"></use></svg><span>Rapport</span><span class="count navCount" id="navCount">0</span></button>
-      <button type="button" class="vsBtn" data-nav data-view-target="collecte" aria-label="Jour de collecte"><svg class="icon" aria-hidden="true"><use href="#i-calendar"></use></svg><span>Collecte</span></button>
-    </nav>
+    <div class="appbar__title">
+      <p class="appbarView" id="appbarView">Accueil</p>
+      <p class="appbarSub" id="appbarSub"></p>
+    </div>
+
+    <p class="appbar__status statusPill saveStatus" data-save-status data-tone="ok"><svg class="icon" aria-hidden="true"><use href="#i-circle-check"></use></svg><span class="saveText"><span class="saveWord">Enregistré</span><span class="saveTime"></span></span></p>
 
     <button type="button" class="stamp" id="openSettings" aria-haspopup="dialog">
       <span class="stampLabel">Tournée</span>
@@ -156,6 +199,7 @@
             <li><button type="button" class="stageBtn" data-stage-target="1"><span class="stageDot">1</span><span class="stageName">Lieu</span></button></li>
             <li><button type="button" class="stageBtn" data-stage-target="2"><span class="stageDot">2</span><span class="stageName">Déchets</span></button></li>
           </ol>
+          <p class="savedFlash" id="savedFlash" aria-hidden="true" hidden><svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg><span id="savedFlashText">Dépôt enregistré</span></p>
         </div>
 
         <div class="composerBody" id="composerBody">
@@ -166,14 +210,16 @@
 
             <div class="field">
               <label class="label" for="streetInput">Rue</label>
-              <div class="combo" id="streetCombo">
-                <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
-                <input id="streetInput" class="input input--combo" autocomplete="off" autocapitalize="off" enterkeyhint="search" spellcheck="false" placeholder="Nom de la rue…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="streetSuggest">
-                <button type="button" class="comboClear" id="streetClear" aria-label="Effacer la rue" hidden><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
-                <div id="streetSuggest" class="suggest" role="listbox" aria-label="Rues correspondantes"></div>
+              <div class="streetRow">
+                <div class="combo" id="streetCombo">
+                  <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
+                  <input id="streetInput" class="input input--combo" autocomplete="off" autocapitalize="off" enterkeyhint="search" spellcheck="false" placeholder="Nom de la rue…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="streetSuggest">
+                  <button type="button" class="comboClear" id="streetClear" aria-label="Effacer la rue" hidden><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+                  <div id="streetSuggest" class="suggest" role="listbox" aria-label="Rues correspondantes"></div>
+                </div>
+                <button type="button" class="chipBtn locateBtn" id="locateBtn"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg><span>Ma position</span></button>
               </div>
               <div class="quickRow">
-                <button type="button" class="chipBtn" id="locateBtn"><svg class="icon" aria-hidden="true"><use href="#i-locate"></use></svg>Ma position</button>
                 <button type="button" class="chipBtn" id="duplicateLast" hidden><svg class="icon" aria-hidden="true"><use href="#i-corner"></use></svg><span id="duplicateLastLabel">Même adresse</span></button>
               </div>
               <div class="gpsPanel" id="gpsPanel" role="region" aria-labelledby="gpsPanelTitle" aria-live="polite" hidden></div>
@@ -201,14 +247,14 @@
 
             <div class="field" id="precField">
               <span class="label" id="precLabel">Emplacement précis <span class="opt">facultatif</span></span>
-              <div class="toggles" role="group" aria-labelledby="precLabel">
-                <button class="toggle" type="button" data-key="angle" aria-pressed="false">À l'angle</button>
-                <button class="toggle" type="button" data-key="face" aria-pressed="false">En face du n°</button>
-                <button class="toggle" type="button" data-key="devant" aria-pressed="false">Devant le n°</button>
-                <button class="toggle" type="button" data-key="entre" aria-pressed="false">Entre deux maisons</button>
-                <button class="toggle" type="button" data-key="trottoir" aria-pressed="false">Trottoir</button>
-                <button class="toggle" type="button" data-key="chaussee" aria-pressed="false">Chaussée</button>
-                <button class="toggle" type="button" data-key="pav" aria-pressed="false">Pied du PAV</button>
+              <div class="toggles precGrid" role="group" aria-labelledby="precLabel">
+                <button class="toggle precBtn" type="button" data-key="angle" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V8a4 4 0 0 1 4-4h12"/><path d="M9 20v-7a4 4 0 0 1 4-4h7"/></svg><span>À l'angle</span></button>
+                <button class="toggle precBtn" type="button" data-key="face" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg><span>En face du n°</span></button>
+                <button class="toggle precBtn" type="button" data-key="devant" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 4h3a2 2 0 0 1 2 2v14"/><path d="M2 20h3"/><path d="M13 20h9"/><path d="M10 12v.01"/><path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5 20V5.562a2 2 0 0 1 1.515-1.94l4-1A2 2 0 0 1 13 4.561Z"/></svg><span>Devant le n°</span></button>
+                <button class="toggle precBtn" type="button" data-key="entre" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21V10l4-3 4 3v11"/><path d="M14 21V10l4-3 4 3v11"/><path d="M12 13v8"/></svg><span>Entre deux maisons</span></button>
+                <button class="toggle precBtn" type="button" data-key="trottoir" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg><span>Trottoir</span></button>
+                <button class="toggle precBtn" type="button" data-key="chaussee" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg><span>Chaussée</span></button>
+                <button class="toggle precBtn" type="button" data-key="pav" aria-pressed="false"><svg class="icon precIcon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="14" rx="2"/><path d="M4 11h16"/><path d="M9 7V4h6v3"/><path d="M10 15h4"/></svg><span>Pied du PAV</span></button>
               </div>
               <label class="visually-hidden" for="precCustom">Autre précision</label>
               <input id="precCustom" class="input input--quiet" autocomplete="off" enterkeyhint="done" maxlength="120" placeholder="Autre précision… (ex. près du portail bleu)">
@@ -220,23 +266,17 @@
             <legend class="stageTitle">Qu'avez-vous constaté&nbsp;?</legend>
 
             <div class="found" id="foundBox" aria-live="polite">
-              <span class="label" id="wasteChipsLabel">Constaté</span>
+              <span class="label" id="wasteChipsLabel">Constaté <span class="foundCount" id="foundCount" hidden></span></span>
               <div id="wasteChips" class="chips" role="group" aria-labelledby="wasteChipsLabel" data-focus-after="wasteInput"></div>
             </div>
 
-            <div class="lineOut" id="lineOut" hidden>
-              <span class="label">Ligne du rapport</span>
-              <p class="lineOutText mono" id="linePreview">—</p>
-            </div>
-            <div class="dupNote" id="dupNote" role="status" hidden></div>
-
             <div class="field">
               <span class="label" id="frequentLabel">Les plus fréquents</span>
-              <div class="pickers" id="frequentWaste" role="group" aria-labelledby="frequentLabel"></div>
+              <div class="pickers pickers--tiles" id="frequentWaste" role="group" aria-labelledby="frequentLabel"></div>
             </div>
 
             <div class="field">
-              <label class="label" for="wasteInput">Autre déchet</label>
+              <label class="label" for="wasteInput">Rechercher un déchet</label>
               <div class="combo" id="wasteCombo">
                 <svg class="icon comboIcon" aria-hidden="true"><use href="#i-search"></use></svg>
                 <input id="wasteInput" class="input input--combo" autocomplete="off" enterkeyhint="done" spellcheck="false" placeholder="ex. mat, sac, grav…" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="wasteSuggest">
@@ -248,16 +288,22 @@
 
             <div class="field">
               <span class="label" id="catLabel">Par famille</span>
-              <div class="catTabs" id="catTabs" role="tablist" aria-labelledby="catLabel"></div>
-              <div class="pickers" id="catWaste" role="tabpanel" aria-labelledby="catLabel"></div>
+              <div class="famGrid" id="catTabs" role="group" aria-labelledby="catLabel"></div>
+              <div class="famPanel" id="catWaste" role="region" aria-labelledby="catLabel" hidden></div>
             </div>
+
+            <div class="lineOut" id="lineOut" hidden>
+              <span class="label">Ligne du rapport</span>
+              <p class="lineOutText mono" id="linePreview">—</p>
+            </div>
+            <div class="dupNote" id="dupNote" role="status" hidden></div>
           </fieldset>
 
         </div>
 
         <div class="actionBar" id="actionBar">
-          <button type="button" class="btn btn--quiet" id="stageBack"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg><span>Retour</span></button>
-          <button type="button" class="btn btn--primary btn--grow" id="stageNext" aria-describedby="stageHint"><span id="stageNextLabel">Continuer</span><svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
+          <button type="button" class="btn btn--quiet" id="stageBack" aria-label="Retour au lieu"><svg class="icon" aria-hidden="true"><use href="#i-arrow-left"></use></svg><span>Retour</span></button>
+          <button type="button" class="btn btn--primary btn--lg btn--grow" id="stageNext" aria-describedby="stageHint"><span id="stageNextLabel">Continuer</span><svg class="icon" aria-hidden="true"><use href="#i-arrow-right"></use></svg></button>
           <p class="actionHint" id="stageHint" role="status" aria-live="polite"></p>
           <button type="button" class="linkBtn cancelEdit" id="cancelEdit" hidden>Annuler la modification</button>
         </div>
@@ -269,8 +315,7 @@
           <header class="reportHead">
             <p class="eyebrow">Rapport de tournée</p>
             <h2 class="viewTitle" id="reportTitle">Îlotage du —</h2>
-            <div class="reportStats" id="reportStats"></div>
-            <div class="reportQuartiers" id="reportQuartiers" hidden></div>
+            <p class="reportLead" id="reportLead">Relisez le message, ouvrez-le dans votre messagerie pour l'envoyer, puis clôturez la tournée.</p>
           </header>
 
           <div class="reportEmpty" id="reportEmpty" hidden>
@@ -280,56 +325,104 @@
             <button type="button" class="btn btn--primary" data-view-target="terrain"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Relever un premier dépôt</button>
           </div>
 
-          <div class="reportBody" id="reportBody">
-            <article class="doc" aria-labelledby="docSubject">
-              <div class="docTo">
-                <label class="docLabel mono" for="mailTo">À</label>
-                <input id="mailTo" class="docToInput" type="text" inputmode="email" enterkeyhint="done" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="Adresse du service destinataire" aria-describedby="mailToNote">
-              </div>
-              <p class="docToNote" id="mailToNote" hidden></p>
-              <div class="docHead">
-                <span class="docLabel mono">Objet</span>
-                <span id="docSubject" class="docSubject">Dépôts sauvages</span>
-                <span class="docState" id="docState" hidden>Modifié à la main</span>
-              </div>
-              <div id="mail" class="docBody mono" spellcheck="false" aria-label="Texte du message"></div>
-              <div class="docTools">
-                <button class="linkBtn" id="editMail" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg><span>Modifier le texte</span></button>
-                <button class="linkBtn" id="resetMail" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg><span>Rétablir le texte automatique</span></button>
-              </div>
-            </article>
+          <div class="reportBody rpLayout" id="reportBody">
+            <!-- Colonne principale (ordinateur : à gauche) -->
+            <div class="rpMain">
+              <section class="rpStats" aria-label="Chiffres de la tournée">
+                <div class="reportStats" id="reportStats"></div>
+                <div class="reportQuartiers" id="reportQuartiers" hidden></div>
+              </section>
 
-            <div class="sendBar">
-              <button class="btn btn--primary sendMain" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Envoyer avec Outlook</span></button>
-              <button class="btn btn--line" id="copyMail" type="button" aria-label="Copier le message"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
-              <button class="btn btn--line" id="openMailWeb" type="button" title="Outlook sur le web, sans application"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Outlook Web</span></button>
+              <section class="ledger" aria-labelledby="ledgerTitle">
+                <div class="sectionHead">
+                  <h2 id="ledgerTitle" tabindex="-1">Bons de passage</h2>
+                  <button type="button" class="linkBtn ledgerNew" data-view-target="terrain" data-new="1"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Nouveau bon</button>
+                </div>
+
+                <!-- Outils de la liste : hors de #bpList (ré-rendu à chaque changement) -->
+                <div class="ledgerTools" id="ledgerTools" role="search" aria-label="Rechercher et filtrer les bons">
+                  <div class="ledgerSearch">
+                    <label class="visually-hidden" for="ledgerSearch">Rechercher un bon par adresse</label>
+                    <svg class="icon ledgerSearch__icon" aria-hidden="true"><use href="#i-search"></use></svg>
+                    <input id="ledgerSearch" class="ledgerSearch__input" type="search" autocomplete="off" autocapitalize="off" enterkeyhint="search" spellcheck="false" placeholder="Rechercher une adresse…" aria-controls="bpList">
+                  </div>
+                  <div class="ledgerFilters">
+                    <div class="segmented ledgerSector" id="ledgerSector" role="group" aria-label="Filtrer par secteur"></div>
+                    <div class="ledgerSort">
+                      <label class="ledgerSort__label" for="ledgerSort">Trier</label>
+                      <select id="ledgerSort" class="ledgerSort__select" aria-controls="bpList">
+                        <option value="sector">Par secteur</option>
+                        <option value="recent">Plus récents</option>
+                        <option value="old">Plus anciens</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <p class="ledgerCount" id="ledgerCount" role="status" aria-live="polite"></p>
+
+                <div id="bpList" class="tickets"></div>
+
+                <div class="empty ledgerEmpty" id="ledgerEmpty" hidden>
+                  <span class="empty__icon" aria-hidden="true"><svg class="icon"><use href="#i-search"></use></svg></span>
+                  <h3>Aucun bon ne correspond</h3>
+                  <p id="ledgerEmptyText">Aucun bon ne correspond à la recherche.</p>
+                  <button type="button" class="btn btn--secondary" id="ledgerReset"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg><span>Effacer la recherche et le filtre</span></button>
+                </div>
+              </section>
             </div>
-            <div class="sendFallback" id="sendFallback" role="region" aria-labelledby="sendFallbackTitle" hidden>
-              <p class="sendFallbackTitle" id="sendFallbackTitle">Outlook ne s'est pas ouvert&nbsp;?</p>
-              <p class="sendFallbackText" id="sendFallbackText">Choisissez une autre façon d'envoyer ce rapport.</p>
-              <div class="sendFallbackActions">
-                <button class="btn btn--line" id="fallbackWeb" type="button"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Outlook Web</span></button>
-                <button class="btn btn--line" id="fallbackMailto" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Autre messagerie</span></button>
-                <button class="btn btn--line" id="fallbackCopy" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
+
+            <!-- Colonne du message (ordinateur : à droite, collante) -->
+            <div class="rpSide">
+              <article class="doc" aria-labelledby="docTitle">
+                <div class="docCardHead">
+                  <h2 class="docTitle" id="docTitle">Message du rapport</h2>
+                  <span class="docState" id="docState" hidden>Modifié à la main</span>
+                </div>
+                <div class="docTo">
+                  <label class="docLabel" for="mailTo">Destinataire</label>
+                  <div class="docToField">
+                    <input id="mailTo" class="docToInput" type="text" inputmode="email" enterkeyhint="done" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="Adresse du service destinataire" aria-describedby="mailToNote mailToHelp">
+                    <svg class="icon docToIcon" aria-hidden="true"><use href="#i-pencil"></use></svg>
+                  </div>
+                  <p class="docToHelp" id="mailToHelp">Mémorisé sur cet appareil. Plusieurs adresses : séparez-les par une virgule.</p>
+                </div>
+                <p class="docToNote" id="mailToNote" hidden></p>
+                <div class="docHead">
+                  <span class="docLabel">Objet</span>
+                  <span id="docSubject" class="docSubject">Dépôts sauvages</span>
+                </div>
+                <div id="mail" class="docBody mono" spellcheck="false" aria-label="Texte du message"></div>
+                <div class="docTools">
+                  <button class="linkBtn" id="editMail" type="button" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#i-pencil"></use></svg><span>Modifier le texte</span></button>
+                  <button class="linkBtn" id="resetMail" type="button" hidden><svg class="icon" aria-hidden="true"><use href="#i-rotate"></use></svg><span>Rétablir le texte automatique</span></button>
+                </div>
+              </article>
+
+              <div class="sendBar" role="group" aria-label="Envoyer le rapport">
+                <button class="btn btn--primary sendMain" id="openMail" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Envoyer avec Outlook</span></button>
+                <button class="btn btn--line" id="openMailWeb" type="button" title="Outlook sur le web, sans application"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Outlook Web</span></button>
+                <button class="btn btn--line" id="copyMail" type="button" aria-label="Copier le message"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
               </div>
+              <p class="sendStatus" id="sendStatus" role="status" aria-live="polite" hidden></p>
+              <div class="sendFallback" id="sendFallback" role="region" aria-labelledby="sendFallbackTitle" hidden>
+                <p class="sendFallbackTitle" id="sendFallbackTitle">Outlook ne s'est pas ouvert&nbsp;?</p>
+                <p class="sendFallbackText" id="sendFallbackText">Choisissez une autre façon d'envoyer ce rapport.</p>
+                <div class="sendFallbackActions">
+                  <button class="btn btn--line" id="fallbackWeb" type="button"><svg class="icon" aria-hidden="true"><use href="#i-globe"></use></svg><span>Outlook Web</span></button>
+                  <button class="btn btn--line" id="fallbackMailto" type="button"><svg class="icon" aria-hidden="true"><use href="#i-mail"></use></svg><span>Autre messagerie</span></button>
+                  <button class="btn btn--line" id="fallbackCopy" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"></use></svg><span>Copier</span></button>
+                </div>
+              </div>
+              <p class="sendNote">Outlook s'ouvre avec le message prérempli, secteurs en <b>gras</b>&nbsp;: vérifiez-le puis envoyez-le depuis Outlook. Le message est aussi copié&nbsp;: collez-le si votre messagerie l'affiche mal.</p>
+
+              <section class="closeTour" aria-labelledby="closeTourTitle">
+                <div>
+                  <h2 id="closeTourTitle">Fin de tournée</h2>
+                  <p>Une fois le message envoyé depuis votre messagerie, clôturez pour repartir de zéro. Les bons seront effacés de cet appareil.</p>
+                </div>
+                <button class="btn btn--danger closeTour__btn" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
+              </section>
             </div>
-            <p class="sendNote">Outlook s'ouvre avec le message prérempli, secteurs en <b>gras</b>. Le message est aussi copié&nbsp;: collez-le si votre messagerie l'affiche mal.</p>
-
-            <section class="ledger" aria-labelledby="ledgerTitle">
-              <div class="sectionHead">
-                <h2 id="ledgerTitle" tabindex="-1">Bons de passage</h2>
-                <button type="button" class="linkBtn" data-view-target="terrain" data-new="1"><svg class="icon" aria-hidden="true"><use href="#i-plus"></use></svg>Nouveau</button>
-              </div>
-              <div id="bpList" class="tickets"></div>
-            </section>
-
-            <section class="closeTour">
-              <div>
-                <h2>Fin de tournée</h2>
-                <p>Une fois le message envoyé, clôturez pour repartir de zéro.</p>
-              </div>
-              <button class="btn btn--danger" id="clearAllBps" type="button"><svg class="icon" aria-hidden="true"><use href="#i-flag"></use></svg>Clôturer la tournée</button>
-            </section>
           </div>
         </div>
       </div>

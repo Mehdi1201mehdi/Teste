@@ -1,42 +1,60 @@
 /* ==========================================================================
-   Structure
-   · Mobile (défaut) : barre d'app → bande de territoire → panneau de saisie,
-     barre d'action collée en bas (zone du pouce). Pendant la frappe, la carte
-     se replie pour laisser la place au clavier.
-   · Tablette portrait (≥ 700 px) : même logique, carte plus haute, panneau
-     centré et plus aéré.
-   · Desktop / tablette paysage (≥ 1024 px) : la carte occupe l'écran, le
-     panneau de saisie est posé à droite comme une planchette de terrain.
+   Structure (refonte 11/2026)
+   --------------------------------------------------------------------------
+   Une seule navigation (aside.sidebar > nav.viewSwitch), restylée selon
+   l'écran :
+   · Mobile (< 768 px)          : en-tête compact en haut, barre fixe en bas.
+   · Rail (768–1023 px, et tout téléphone en paysage ≤ 500 px de haut) :
+                                  rail latéral de --rail-w, icône au-dessus du texte.
+   · Ordinateur (≥ 1024 px)     : barre latérale de --sidebar-w, en-tête blanc.
+   La carte (#territory) n'existe visuellement que dans la vue Terrain :
+   bande en haut sur mobile/tablette, plein cadre sur ordinateur avec le
+   panneau de saisie (#panel) qui flotte à droite.
+   Accueil, Rapports, Collecte : zone de contenu pleine largeur
+   (max --content-max, centrée), le document défile.
+
+   Variables exposées aux modules :
+   · --nav-offset : hauteur occupée en bas par la barre de navigation
+     (0 quand elle n'y est pas) → `bottom` des barres collantes ;
+   · --sticky-top : hauteur de l'en-tête collant → `top` des éléments
+     collants des modules (0 quand l'en-tête ne colle pas).
    ========================================================================== */
 
 .app {
+  --sticky-top: calc(var(--topbar-h) + env(safe-area-inset-top));
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow-x: clip;
+  /* Le contenu ne passe jamais sous la barre basse. */
+  padding-bottom: var(--nav-offset);
 }
 
-/* ─── Barre d'application ─── */
+/* ─────────────────────────── En-tête (mobile) ─────────────────────────── */
 .appbar {
   position: sticky;
   top: 0;
   z-index: 30;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
-  gap: var(--s3);
-  min-height: var(--bar-h);
-  padding: var(--s2) var(--s4);
-  padding-top: calc(var(--s2) + env(safe-area-inset-top));
-  background: var(--slate);
-  color: var(--slate-ink);
+  gap: var(--s2);
+  min-height: calc(var(--topbar-h) + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) var(--s3) 0;
+  padding-left: max(var(--s3), env(safe-area-inset-left));
+  padding-right: max(var(--s3), env(safe-area-inset-right));
+  background: var(--green-900);
+  color: var(--on-dark);
+}
+.appbar > * {
+  min-width: 0;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: var(--s2);
+  flex: 0 1 auto;
   color: inherit;
   text-decoration: none;
   border-radius: var(--r-sm);
@@ -44,29 +62,187 @@
 .brandMark {
   width: 32px;
   height: 32px;
+  flex: 0 0 auto;
 }
 .wordmark {
   display: flex;
   flex-direction: column;
-  line-height: 1;
+  min-width: 0;
+  line-height: 1.1;
 }
 .wordmark b {
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1rem;
-  letter-spacing: -0.02em;
+  font-weight: var(--fw-b);
+  font-size: var(--fs-16);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 .wordmark span {
-  margin-top: 3px;
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: var(--track-label);
-  text-transform: uppercase;
-  color: var(--slate-muted);
+  margin-top: 2px;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-m);
+  color: var(--on-dark-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appbar .wordmark span {
+  display: none;
 }
 
-/* ─── Scène ─── */
+/* Titre de la vue : inutile sur mobile (la barre basse l'indique déjà). */
+.appbar__title {
+  display: none;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.appbarView {
+  font-size: var(--fs-20);
+  font-weight: var(--fw-b);
+  line-height: var(--lh-tight);
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appbarSub {
+  margin-top: 2px;
+  font-size: var(--fs-14);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.appbarSub:empty {
+  display: none;
+}
+
+/* État de sauvegarde (en-tête) : poussé à droite, avant Réglages. */
+.appbar__status {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.stamp {
+  flex: 0 0 auto;
+}
+
+/* ───────────────────── Navigation : barre basse (mobile) ───────────────────── */
+.sidebar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background: var(--surface);
+  box-shadow: var(--sh-nav);
+}
+.sideBrand,
+.sideFoot {
+  display: none;
+}
+.sidebar .viewSwitch {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  height: var(--nav-h);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  overflow: visible;
+}
+.sidebar .vsBtn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 0;
+  height: 100%;
+  padding: 0 2px;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-sb);
+  line-height: 1.2;
+  transition: color var(--t-fast) var(--ease-out);
+}
+.sidebar .vsBtn:hover {
+  background: none;
+  color: var(--text);
+}
+.vsIcon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  transition: background var(--t) var(--ease-out);
+}
+.sidebar .vsBtn .icon {
+  width: 24px;
+  height: 24px;
+}
+.vsLabel {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar .vsBtn[aria-current="page"] {
+  background: none;
+  color: var(--green-700);
+}
+.sidebar .vsBtn[aria-current="page"] .vsIcon {
+  background: var(--green-50);
+}
+.sidebar .vsBtn:active .vsIcon {
+  transform: scale(0.96);
+}
+.sidebar .vsBtn:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--focus-c);
+  border-radius: var(--r-md);
+}
+/* Compteur de bons : pastille orange posée sur l'icône */
+.sidebar .vsBtn .count {
+  position: absolute;
+  top: -2px;
+  left: calc(50% + 6px);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  display: inline-grid;
+  place-items: center;
+  background: var(--warn);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 0.6875rem;
+  font-weight: var(--fw-b);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.sidebar .vsBtn .count[data-zero] {
+  display: none;
+}
+
+/* Saisie au clavier (mobile) : la barre basse s'efface, le clavier prend la place. */
+.app.is-typing {
+  --nav-offset: 0px;
+}
+.app.is-typing .sidebar {
+  display: none;
+}
+
+/* ─────────────────────────────── Scène ─────────────────────────────── */
 .stage {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -75,17 +251,22 @@
 
 .territory {
   position: relative;
-  height: clamp(200px, 30vh, 280px);
-  height: clamp(200px, 30dvh, 280px);
-  background: var(--slate);
+  flex: 0 0 auto;
+  height: var(--map-band);
   overflow: hidden;
   transition: height var(--t-slow) var(--ease-out);
-  flex: 0 0 auto;
 }
-
+/* Bande réduite (posée par le module Terrain au défilement) */
+.territory.is-compact {
+  height: var(--map-band-min);
+}
 /* Frappe au clavier sur mobile : la carte cède la place */
 .app.is-typing .territory {
   height: 0;
+}
+/* La carte n'est visible que dans la vue Terrain. */
+.app:not([data-view="terrain"]) .territory {
+  display: none;
 }
 
 .panel {
@@ -93,14 +274,18 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  margin-top: -18px;
-  border-radius: var(--r-lg) var(--r-lg) 0 0;
-  background: var(--paper);
-  box-shadow: 0 -10px 30px -18px rgba(0, 0, 0, 0.6);
-  z-index: 5;
+  min-width: 0;
   outline: none;
 }
-.app.is-typing .panel {
+/* Terrain (mobile) : feuille blanche qui chevauche légèrement la carte */
+.app[data-view="terrain"] .panel {
+  margin-top: calc(var(--r-lg) * -1);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: var(--surface);
+  box-shadow: 0 -8px 24px -16px rgba(16, 24, 40, 0.35);
+  z-index: 5;
+}
+.app[data-view="terrain"].is-typing .panel {
   margin-top: 0;
   border-radius: 0;
 }
@@ -110,111 +295,391 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
 }
 
-/* Rapport et Collecte sur mobile : le contenu prend toute la place */
-.app[data-view="rapport"] .territory,
-.app[data-view="collecte"] .territory {
-  display: none;
-}
-.app[data-view="rapport"] .panel,
-.app[data-view="collecte"] .panel {
-  margin-top: 0;
-  border-radius: 0;
-  box-shadow: none;
+/* Accueil, Rapports, Collecte : cadre de contenu commun (l'enveloppe porte
+   les marges ; les modules ne remettent pas de marge horizontale). */
+.view--accueil,
+.view--rapport,
+.view--collecte {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding: var(--s5) var(--s4) var(--s8);
+  padding-left: max(var(--s4), env(safe-area-inset-left));
+  padding-right: max(var(--s4), env(safe-area-inset-right));
 }
 
+/* Terrain : marges internes du composeur */
 .composerHead,
-.composerBody,
-.reportScroll,
-.collecteScroll {
+.composerBody {
   padding-inline: var(--s4);
 }
-
 .composerBody {
   flex: 1;
   padding-bottom: var(--s6);
 }
 
-/* Barre d'action : toujours sous le pouce */
+/* Barre d'action : collée au-dessus de la barre basse (zone du pouce) */
 .actionBar {
   position: sticky;
-  bottom: 0;
+  bottom: var(--nav-offset);
   z-index: 10;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--s2);
   padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.app.is-typing .actionBar {
   padding-bottom: calc(var(--s3) + env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--paper) 92%, transparent);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: 1px solid var(--line);
 }
 
-.reportScroll,
-.collecteScroll {
-  padding-top: var(--s5);
-  padding-bottom: calc(var(--s8) + env(safe-area-inset-bottom));
-}
-
-/* ─── Tablette portrait ─── */
-@media (min-width: 700px) {
-  .appbar {
-    padding-inline: var(--s6);
+/* ─── Petits téléphones en portrait : carte un peu plus basse ─── */
+@media (orientation: portrait) and (max-height: 700px) {
+  .app {
+    --map-band: 168px;
   }
-  .territory {
-    height: clamp(260px, 36vh, 420px);
-    height: clamp(260px, 36dvh, 420px);
+}
+@media (max-width: 359px) {
+  .appbar .wordmark {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Rail latéral : tablette (768–1023 px) et téléphone en paysage
+   ========================================================================== */
+@media (min-width: 768px) and (max-width: 1023px), (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
+  .app {
+    --nav-offset: 0px;
+    padding-left: calc(var(--rail-w) + env(safe-area-inset-left));
+  }
+  .sidebar {
+    top: 0;
+    right: auto;
+    width: calc(var(--rail-w) + env(safe-area-inset-left));
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s2);
+    padding: calc(var(--s3) + env(safe-area-inset-top)) var(--s2) calc(var(--s3) + env(safe-area-inset-bottom));
+    padding-left: calc(var(--s2) + env(safe-area-inset-left));
+    background: var(--green-900);
+    box-shadow: none;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .sideBrand {
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+    margin-bottom: var(--s2);
+    color: var(--on-dark);
+  }
+  .sideBrand .wordmark {
+    display: none;
+  }
+  .sidebar .viewSwitch {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    height: auto;
+  }
+  .sidebar .vsBtn,
+  .sideSettings {
+    min-height: 60px;
+    height: auto;
+    padding: var(--s1) 0;
+    border-radius: var(--r-md);
+    color: var(--on-dark-2);
+  }
+  .sidebar .vsBtn:hover,
+  .sideSettings:hover {
+    color: var(--on-dark);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .sidebar .vsBtn[aria-current="page"] {
+    color: #fff;
+  }
+  .sidebar .vsBtn[aria-current="page"] .vsIcon {
+    background: rgba(255, 255, 255, 0.14);
+  }
+  .sidebar .vsBtn .icon {
+    width: 22px;
+    height: 22px;
+  }
+  .sidebar .vsBtn .count {
+    box-shadow: 0 0 0 2px var(--green-900);
+  }
+  .sidebar .vsBtn:focus-visible,
+  .sideSettings:focus-visible {
+    box-shadow: 0 0 0 2px var(--nav-active);
+  }
+  .sideFoot {
+    display: flex;
+    flex-direction: column;
+    margin-top: auto;
+  }
+  .sideSettings {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: var(--fs-12);
+    font-weight: var(--fw-sb);
+  }
+  .sideSettings .icon {
+    width: 22px;
+    height: 22px;
+  }
+  .sideStatus {
+    display: none;
+  }
+
+  /* En-tête : blanc, sans logo (il est dans le rail) */
+  .app {
+    --sticky-top: calc(var(--topbar-h) + env(safe-area-inset-top));
+  }
+  .appbar {
+    gap: var(--s3);
+    padding-inline: var(--s6);
+    padding-right: max(var(--s6), env(safe-area-inset-right));
+    background: var(--surface);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .appbar .brand {
+    display: none;
+  }
+  .appbar__title {
+    display: block;
+  }
+  .appbarView {
+    font-size: var(--fs-18);
+  }
+
+  /* Terrain : bande de carte plus haute, formulaire centré */
+  .app {
+    --map-band: 300px;
   }
   .composerHead,
   .composerBody,
-  .reportScroll,
-  .collecteScroll,
   .actionBar {
-    padding-inline: max(var(--s6), calc((100% - 680px) / 2));
+    padding-inline: max(var(--s6), calc((100% - 640px) / 2));
+  }
+  .view--accueil,
+  .view--rapport,
+  .view--collecte {
+    padding: var(--s6);
   }
 }
 
-/* ─── Desktop et tablette paysage : carte plein écran + planchette ─── */
+/* ==========================================================================
+   Ordinateur (≥ 1024 px) : barre latérale + en-tête blanc
+   ========================================================================== */
 @media (min-width: 1024px) {
   .app {
+    --nav-offset: 0px;
+    --sticky-top: 0px;
+    padding-left: var(--sidebar-w);
+  }
+  .sidebar {
+    top: 0;
+    right: auto;
+    width: var(--sidebar-w);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    padding: var(--s5) var(--s4) var(--s4);
+    background: var(--green-900);
+    color: var(--on-dark);
+    box-shadow: none;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .sideBrand {
+    display: flex;
+    gap: var(--s3);
+    min-height: 48px;
+    margin: 0 0 var(--s5);
+    padding: 0 var(--s2);
+    color: var(--on-dark);
+  }
+  .sideBrand .brandMark {
+    width: 36px;
+    height: 36px;
+  }
+  .sideBrand .wordmark b {
+    font-size: var(--fs-18);
+  }
+  .sidebar .viewSwitch {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    height: auto;
+  }
+  .sidebar .vsBtn,
+  .sideSettings {
+    position: relative;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: var(--s3);
+    min-height: 44px;
+    height: auto;
+    padding: 0 var(--s3);
+    border-radius: var(--r-md);
+    color: var(--on-dark);
+    font-size: 0.9375rem;
+    font-weight: var(--fw-m);
+    text-align: left;
+  }
+  .sidebar .vsBtn:hover,
+  .sideSettings:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .vsIcon {
+    position: static;
+    width: 20px;
+    height: 20px;
+    border-radius: 0;
+  }
+  .sidebar .vsBtn .icon,
+  .sideSettings .icon {
+    width: 20px;
+    height: 20px;
+  }
+  .sidebar .vsBtn[aria-current="page"] {
+    color: #fff;
+    font-weight: var(--fw-sb);
+    background: rgba(255, 255, 255, 0.12);
+  }
+  .sidebar .vsBtn[aria-current="page"] .vsIcon {
+    background: none;
+  }
+  .sidebar .vsBtn[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--nav-active);
+  }
+  .sidebar .vsBtn:active .vsIcon {
+    transform: none;
+  }
+  .sidebar .vsBtn:focus-visible,
+  .sideSettings:focus-visible {
+    box-shadow: 0 0 0 2px var(--green-900), 0 0 0 4px var(--nav-active);
+  }
+  /* Compteur aligné à droite de l'entrée */
+  .sidebar .vsBtn .count,
+  .sidebar .vsBtn .count[data-zero] {
+    position: absolute;
+    top: 50%;
+    left: auto;
+    right: var(--s3);
+    transform: translateY(-50%);
+    display: inline-grid;
+    min-width: 22px;
+    height: 22px;
+    font-size: var(--fs-12);
+    box-shadow: none;
+  }
+  .sidebar .vsBtn .count[data-zero] {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--on-dark-2);
+  }
+  .sideFoot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    margin-top: auto;
+    padding-top: var(--s4);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  .sideSettings {
+    display: flex;
+    align-items: center;
+  }
+  .sideStatus {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    min-height: 32px;
+    padding: 0 var(--s3);
+    font-size: var(--fs-14);
+    color: var(--on-dark-2);
+  }
+
+  /* En-tête : blanc, 72 px, titre de la vue ; il défile avec le contenu. */
+  .appbar {
+    position: relative;
+    gap: var(--s4);
+    min-height: var(--topbar-h-d);
+    padding: 0 var(--s7);
+    background: var(--surface);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .appbar .brand {
+    display: none;
+  }
+  .appbar__title {
+    display: block;
+  }
+
+  .view--accueil,
+  .view--rapport,
+  .view--collecte {
+    padding: var(--s7);
+  }
+
+  /* ─── Terrain : la carte remplit la zone, le panneau flotte à droite ─── */
+  .app[data-view="terrain"] {
+    height: 100vh;
     height: 100dvh;
     overflow: hidden;
   }
-  .appbar {
-    position: relative;
-  }
-  .stage {
-    display: grid;
-    grid-template-columns: 1fr var(--panel-w);
+  .app[data-view="terrain"] .stage {
+    display: block;
     min-height: 0;
   }
-  .territory,
-  .app.is-typing .territory {
+  .app[data-view="terrain"] .territory,
+  .app[data-view="terrain"].is-typing .territory,
+  .app[data-view="terrain"] .territory.is-compact {
+    position: absolute;
+    inset: 0;
     height: auto;
+    border-bottom: 0;
   }
-  .app[data-view="rapport"] .territory,
-  .app[data-view="collecte"] .territory {
-    display: block;
-  }
-  .panel,
-  .app.is-typing .panel,
-  .app[data-view="rapport"] .panel,
-  .app[data-view="collecte"] .panel {
+  .app[data-view="terrain"] .panel,
+  .app[data-view="terrain"].is-typing .panel {
+    position: absolute;
+    top: var(--s4);
+    right: var(--s4);
+    bottom: var(--s4);
+    width: var(--panel-w);
+    max-width: calc(100% - var(--s7));
     margin: 0;
-    border-radius: 0;
-    border-left: 1px solid var(--line);
-    box-shadow: -18px 0 40px -30px rgba(0, 0, 0, 0.5);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--sh-3);
+    overflow: hidden;
+    z-index: 5;
+  }
+  .app[data-view="terrain"] .view--terrain {
     overflow: hidden;
   }
-  .view {
-    overflow: hidden;
-  }
-  .composerBody,
-  .reportScroll,
-  .collecteScroll {
+  .app[data-view="terrain"] .composerBody {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -223,71 +688,77 @@
   }
   .composerHead,
   .composerBody,
-  .reportScroll,
-  .collecteScroll,
   .actionBar {
     padding-inline: var(--s6);
   }
-}
-
-@media (min-width: 1440px) {
-  :root {
-    --panel-w: 500px;
-  }
-}
-/* Grands écrans : le rapport et la saisie gagnent en largeur. */
-@media (min-width: 1600px) {
-  :root {
-    --panel-w: clamp(500px, 32vw, 640px);
+  .actionBar {
+    bottom: 0;
   }
 }
 
-/* ─── Téléphone en paysage (hauteur ≤ 500 px) ───
-   Carte à gauche, saisie à droite (comme sur tablette) : le formulaire et la
-   barre d'action tiennent dans les 375–430 px de hauteur disponibles. */
+/* ==========================================================================
+   Téléphone en paysage (hauteur ≤ 500 px) : rail + carte à gauche + saisie à
+   droite ; le formulaire et la barre d'action tiennent dans la hauteur.
+   ========================================================================== */
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
+  .appbar {
+    min-height: calc(48px + env(safe-area-inset-top));
+  }
   .app {
+    --sticky-top: calc(48px + env(safe-area-inset-top));
+  }
+  .appbarSub {
+    display: none;
+  }
+  .sideBrand {
+    display: none;
+  }
+  .sidebar .vsBtn,
+  .sideSettings {
+    min-height: 52px;
+  }
+  .sidebar .vsBtn .vsIcon {
+    height: 28px;
+  }
+
+  .app[data-view="terrain"] {
+    height: 100vh;
     height: 100dvh;
     overflow: hidden;
+    --sticky-top: 0px;
   }
-  .appbar {
-    position: relative;
-    min-height: 48px;
-    padding-block: 2px;
-    padding-top: calc(2px + env(safe-area-inset-top));
-  }
-  .stage {
+  .app[data-view="terrain"] .stage {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 56%);
     min-height: 0;
   }
-  .app[data-view="rapport"] .stage,
-  .app[data-view="collecte"] .stage {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .territory,
-  .app.is-typing .territory {
+  .app[data-view="terrain"] .territory,
+  .app[data-view="terrain"].is-typing .territory,
+  .app[data-view="terrain"] .territory.is-compact {
     height: auto;
   }
-  .panel,
-  .app.is-typing .panel {
+  .app[data-view="terrain"] .panel,
+  .app[data-view="terrain"].is-typing .panel {
     margin: 0;
     border-radius: 0;
-    border-left: 1px solid var(--line);
-    box-shadow: -18px 0 40px -30px rgba(0, 0, 0, 0.5);
+    border-left: 1px solid var(--border);
+    box-shadow: none;
     overflow: hidden;
     min-height: 0;
   }
-  .view {
+  .app[data-view="terrain"] .view--terrain {
     overflow: hidden;
   }
-  .composerBody,
-  .reportScroll,
-  .collecteScroll {
+  .app[data-view="terrain"] .composerBody {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+  }
+  .composerHead,
+  .composerBody,
+  .actionBar {
+    padding-inline: var(--s4);
   }
   .composerHead {
     padding-top: var(--s2);
@@ -296,139 +767,16 @@
     display: none;
   }
   .actionBar {
+    bottom: 0;
     padding-block: var(--s2);
     padding-bottom: calc(var(--s2) + env(safe-area-inset-bottom));
   }
   .actionHint {
     display: none;
   }
-  .sendBar {
-    position: static;
-  }
   .map .leaflet-bottom {
     bottom: 0;
   }
-}
-
-/* Petits téléphones en portrait (iPhone SE 1re gén., Android compacts) :
-   carte un peu plus basse pour que le champ « Rue » soit visible d'emblée. */
-@media (orientation: portrait) and (max-height: 600px) {
-  .territory {
-    height: clamp(140px, 26dvh, 170px);
-  }
-}
-
-/* Encoche en paysage (iPhone) : rien ne passe dessous. */
-@supports (padding: max(0px)) {
-  .appbar {
-    padding-left: max(var(--s4), env(safe-area-inset-left));
-    padding-right: max(var(--s4), env(safe-area-inset-right));
-  }
-  @media (min-width: 700px) {
-    .appbar {
-      padding-left: max(var(--s6), env(safe-area-inset-left));
-      padding-right: max(var(--s6), env(safe-area-inset-right));
-    }
-  }
-  @media (max-width: 699px) {
-    .composerHead,
-    .composerBody,
-    .reportScroll,
-    .collecteScroll,
-    .actionBar {
-      padding-left: max(var(--s4), env(safe-area-inset-left));
-      padding-right: max(var(--s4), env(safe-area-inset-right));
-    }
-  }
-}
-
-/* ─── Téléphone : barre d'app compacte ───
-   Marque réduite au monogramme, libellé visible seulement pour la vue active,
-   tampon de tournée limité à la date. */
-@media (max-width: 559px) {
-  .appbar {
-    gap: var(--s2);
-    padding-inline: var(--s3);
-  }
-  .wordmark {
-    display: none;
-  }
-  .viewSwitch {
-    justify-self: stretch;
-  }
-  .vsBtn {
-    flex: 1;
-    justify-content: center;
-    padding: 0 10px;
-  }
-  .vsBtn:not([aria-current="page"]) > span:not(.count) {
-    display: none;
-  }
-  .stampDate {
-    white-space: nowrap;
-  }
-  .stamp {
-    padding: 0 var(--s2);
-  }
-  .stampLabel,
-  .stamp .icon {
-    display: none;
-  }
-}
-@media (min-width: 560px) and (max-width: 819px) {
-  .wordmark span {
-    display: none;
-  }
-}
-
-/* Petits téléphones (≤ 419 px) : 3 onglets + tampon tiennent sur une ligne */
-@media (max-width: 419px) {
-  .stampDay {
-    display: none;
-  }
-  .vsBtn {
-    padding: 0 8px;
-  }
-}
-/* Très petits écrans (≤ 359 px, iPhone SE 1re gén., Android compacts) :
-   onglets en icônes seules — l'onglet actif reste signalé par sa pastille claire. */
-@media (max-width: 359px) {
-  .vsBtn > span:not(.count) {
-    display: none;
-  }
-}
-
-/* Téléphones larges (420–599 px) : le tampon perd le jour de la semaine
-   plutôt que d'être coupé (la date suffit : « 27.09 »). */
-@media (max-width: 599px) {
-  .stampDay {
-    display: none;
-  }
-}
-/* ≤ 819 px : tampon sans l'étiquette « Tournée » ; ≤ 639 px : marque réduite
-   au monogramme — les trois onglets gardent leur nom, rien n'est coupé. */
-@media (max-width: 819px) {
-  .stampLabel {
-    display: none;
-  }
-}
-@media (max-width: 639px) {
-  .wordmark {
-    display: none;
-  }
-}
-
-/* Texte agrandi (200 %) : les onglets se réduisent, le bouton Réglages reste à l'écran. */
-.appbar > * {
-  min-width: 0;
-}
-.viewSwitch {
-  min-width: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.stamp {
-  flex-shrink: 0;
 }
 
 /* Retour de la carte après la frappe : instantané (le défilement compense). */

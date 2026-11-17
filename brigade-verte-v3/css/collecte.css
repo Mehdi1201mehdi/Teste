@@ -1,1 +1,911 @@
-/* css/collecte.css — module collecte (refonte 11/2026). Chargé après theme.css. */
+/* css/collecte.css — module collecte (refonte 11/2026). Chargé après theme.css.
+   Surcharge les anciennes règles « Jour de collecte » de components.css.
+   Tout est rangé sous #viewCollecte pour ne rien toucher ailleurs. */
+
+/* ─── Gabarit : colonne centrée, 880 px max ─── */
+#viewCollecte .collecteScroll {
+  --bin-om: var(--text);
+  --bin-tri: #e8b400;
+  padding-left: max(var(--s4), env(safe-area-inset-left));
+  padding-right: max(var(--s4), env(safe-area-inset-right));
+}
+@media (min-width: 700px) {
+  #viewCollecte .collecteScroll {
+    padding-left: max(var(--s6), env(safe-area-inset-left));
+    padding-right: max(var(--s6), env(safe-area-inset-right));
+  }
+}
+#viewCollecte .colWrap {
+  max-width: 880px;
+  margin-inline: auto;
+  container: col / inline-size;
+}
+
+/* ─── En-tête de vue ─── */
+#viewCollecte .collecteHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3) var(--s4);
+}
+#viewCollecte .collecteHead .eyebrow {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  color: var(--green-700);
+}
+#viewCollecte .collecteHead .viewTitle {
+  margin-top: var(--s1);
+  font-size: var(--fs-24);
+  font-weight: var(--fw-b);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+#viewCollecte .collecteLead {
+  margin-top: var(--s2);
+  max-width: none;
+  font-size: var(--fs-16);
+  line-height: var(--lh);
+  color: var(--text-2);
+}
+#viewCollecte .colWeekNow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 32px;
+  padding: var(--s1) var(--s3);
+  border-radius: var(--r-pill);
+  background: var(--green-50);
+  color: var(--green-700);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  white-space: nowrap;
+}
+#viewCollecte .colWeekNow .icon {
+  width: 16px;
+  height: 16px;
+}
+@container col (min-width: 640px) {
+  #viewCollecte .collecteHead .viewTitle {
+    font-size: var(--fs-30);
+  }
+}
+
+/* ─── Formulaire : rue pleine largeur, n° + bouton dessous ; en ligne au large ─── */
+#viewCollecte .colForm {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-areas:
+    "rue rue"
+    "help help"
+    "num go";
+  gap: var(--s3);
+  align-items: end;
+  margin-top: var(--s5);
+  padding: var(--s4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-1);
+}
+#viewCollecte .colRueField {
+  grid-area: rue;
+}
+#viewCollecte .colNumField {
+  grid-area: num;
+}
+#viewCollecte .colSubmit {
+  grid-area: go;
+}
+#viewCollecte .colHelp {
+  grid-area: help;
+  margin: calc(var(--s1) * -1) 0 0;
+}
+#viewCollecte .colHelp[hidden] {
+  display: none;
+}
+@container col (min-width: 640px) {
+  #viewCollecte .colForm {
+    grid-template-columns: minmax(0, 1fr) 160px auto;
+    grid-template-areas:
+      "rue num go"
+      "help help help";
+    padding: var(--s5);
+  }
+  #viewCollecte .colHelp {
+    margin: 0;
+  }
+}
+#viewCollecte .colForm .field {
+  margin: 0;
+  min-width: 0;
+}
+#viewCollecte .colForm .label {
+  display: block;
+  margin-bottom: var(--s2);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  color: var(--text);
+}
+#viewCollecte .colForm .label .opt {
+  font-weight: var(--fw-r);
+  color: var(--muted);
+}
+#viewCollecte .colForm .input {
+  min-height: 52px;
+  height: 52px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 1.0625rem;
+  color: var(--text);
+}
+#viewCollecte .colForm .input:hover {
+  border-color: var(--text-2);
+}
+#viewCollecte .colForm .input:focus,
+#viewCollecte .colForm .input:focus-visible {
+  outline: 2px solid transparent;
+  border-color: var(--green-700);
+  box-shadow: var(--focus);
+}
+#viewCollecte .colForm .input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+#viewCollecte .colForm .input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+#viewCollecte .colForm .comboIcon {
+  top: 16px;
+  width: 20px;
+  height: 20px;
+}
+#viewCollecte .colForm .comboClear {
+  top: 4px;
+  right: 4px;
+}
+/* Le champ de recherche natif ajoute sa propre croix : on garde seulement la nôtre. */
+#colInput::-webkit-search-cancel-button,
+#colInput::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+#viewCollecte .colNumField .input--num {
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-mono);
+}
+#viewCollecte .suggest {
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-3);
+}
+#viewCollecte .suggest .sug {
+  min-height: var(--tap);
+}
+#viewCollecte .help--error {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-m);
+  color: var(--danger-ink);
+}
+
+/* ─── Boutons de la vue (48 px, vert profond pour l'action) ─── */
+#viewCollecte .btn {
+  min-height: var(--tap);
+  padding: 0 var(--s5);
+  border-radius: var(--r-md);
+  font-size: var(--fs-16);
+  font-weight: var(--fw-sb);
+  gap: var(--s2);
+}
+#viewCollecte .btn .icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+#viewCollecte .btn--primary {
+  background: var(--green-700);
+  color: #fff;
+  border-color: var(--green-700);
+  box-shadow: var(--sh-1);
+}
+#viewCollecte .btn--secondary {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+#viewCollecte .btn--ghost {
+  background: transparent;
+  color: var(--green-700);
+  border-color: transparent;
+  padding-inline: var(--s3);
+}
+@media (hover: hover) {
+  #viewCollecte .btn--primary:hover {
+    background: var(--green-800);
+    border-color: var(--green-800);
+  }
+  #viewCollecte .btn--secondary:hover {
+    background: var(--bg);
+  }
+  #viewCollecte .btn--ghost:hover {
+    background: var(--green-50);
+  }
+}
+#viewCollecte .btn:active {
+  transform: scale(0.98);
+}
+#viewCollecte .colSubmit {
+  min-height: 52px;
+  width: 100%;
+}
+@container col (min-width: 640px) {
+  #viewCollecte .colSubmit {
+    width: auto;
+  }
+}
+
+/* ─── Recherches récentes ─── */
+#viewCollecte .colRecent {
+  margin-top: var(--s4);
+}
+#viewCollecte .colRecent .label {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  color: var(--text-2);
+}
+#viewCollecte .colRecentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+#viewCollecte .colChip {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 0 var(--s4) 0 var(--s3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: var(--fw-m);
+}
+#viewCollecte .colChip span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#viewCollecte .colChip .icon {
+  color: var(--muted);
+}
+#viewCollecte .colChip small {
+  font-size: var(--fs-12);
+  font-weight: var(--fw-sb);
+  color: var(--text-2);
+}
+@media (hover: hover) {
+  #viewCollecte .colChip:hover {
+    border-color: var(--green-700);
+    background: var(--green-50);
+  }
+}
+
+/* ─── État d'accueil ─── */
+#viewCollecte .colEmpty {
+  margin-top: var(--s5);
+  padding: var(--s7) var(--s4);
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--border-strong);
+  text-align: center;
+  animation: colFade var(--t) var(--ease-out);
+}
+#viewCollecte .colEmpty[hidden] {
+  display: none;
+}
+#viewCollecte .colEmpty > * {
+  max-width: 400px;
+  margin-inline: auto;
+}
+#viewCollecte .empty__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green-50);
+  color: var(--green-700);
+}
+#viewCollecte .empty__icon .icon {
+  width: 32px;
+  height: 32px;
+}
+#viewCollecte .colEmpty h3 {
+  margin-top: var(--s4);
+  font-size: var(--fs-18);
+  font-weight: var(--fw-b);
+  color: var(--text);
+}
+#viewCollecte .colEmpty p {
+  margin-top: var(--s2);
+  font-size: var(--fs-16);
+  color: var(--text-2);
+}
+#viewCollecte .colLegend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s2) var(--s5);
+  margin-top: var(--s4);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  color: var(--text);
+}
+#viewCollecte .colLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+#viewCollecte .colEmptyNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-m);
+  text-align: left;
+}
+#viewCollecte .colEmptyNote[hidden] {
+  display: none;
+}
+#viewCollecte .colEmptyNote .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+/* ─── Résultat ─── */
+#viewCollecte .colResult {
+  margin-top: var(--s5);
+}
+#viewCollecte .colResult:empty {
+  margin-top: 0;
+}
+#viewCollecte .colCard {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  animation: colFade var(--t) var(--ease-out);
+}
+#viewCollecte .colCard--error,
+#viewCollecte .colCard--empty {
+  padding: var(--s4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+}
+@container col (min-width: 640px) {
+  #viewCollecte .colCard--error,
+  #viewCollecte .colCard--empty {
+    padding: var(--s6);
+  }
+}
+#viewCollecte .colCard__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+#viewCollecte .colCard h3 {
+  font-family: var(--font-ui);
+  font-size: var(--fs-20);
+  font-weight: var(--fw-b);
+  line-height: var(--lh-tight);
+  letter-spacing: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+#viewCollecte .colCard h3 .colNum {
+  font-size: 0.95em;
+  font-weight: var(--fw-b);
+  color: var(--green-700);
+}
+#viewCollecte .colCard .sectorChip {
+  flex: none;
+}
+#viewCollecte .colTag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunken);
+  color: var(--text-2);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-sb);
+}
+#viewCollecte .colCard > p {
+  margin-top: var(--s2);
+  font-size: var(--fs-16);
+  color: var(--text-2);
+}
+#viewCollecte .colMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+  margin-top: var(--s2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  letter-spacing: 0;
+  color: var(--muted);
+}
+#viewCollecte .colAll {
+  margin-top: var(--s3) !important;
+  color: var(--text-2);
+}
+#viewCollecte .colAll b {
+  color: var(--text);
+}
+#viewCollecte .colNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  margin-top: var(--s3) !important;
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--warn-tint);
+  color: var(--warn-ink) !important;
+  font-size: var(--fs-14) !important;
+  font-weight: var(--fw-m);
+}
+#viewCollecte .colNote .icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+/* Une carte par flux ; côte à côte dès que la place le permet */
+#viewCollecte .colStreams {
+  display: grid;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+@container col (min-width: 560px) {
+  #viewCollecte .colStreams {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s4);
+  }
+}
+#viewCollecte .colStream {
+  --stream: var(--bin-om);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s2);
+  margin: 0;
+  padding: var(--s5) var(--s4) var(--s4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+}
+#viewCollecte .colStream::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--stream);
+}
+#viewCollecte .colStream--tri {
+  --stream: var(--bin-tri);
+}
+#viewCollecte .colStream.is-today {
+  background: var(--surface);
+  border-color: var(--ok);
+  box-shadow: 0 0 0 1px var(--ok), var(--sh-1);
+}
+@container col (min-width: 640px) {
+  #viewCollecte .colStream {
+    padding: var(--s6) var(--s5) var(--s5);
+  }
+}
+#viewCollecte .colStream__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+#viewCollecte .colStream__title {
+  font-size: 0.9375rem;
+  font-weight: var(--fw-sb);
+  color: var(--text-2);
+}
+#viewCollecte .colStream__head .colBadge {
+  margin-left: auto;
+}
+#viewCollecte .colDays {
+  margin-top: var(--s1);
+  font-size: var(--fs-18);
+  font-weight: var(--fw-sb);
+  line-height: 1.3;
+  color: var(--text);
+}
+#viewCollecte .colDays--none {
+  color: var(--text-2);
+  font-weight: var(--fw-m);
+}
+#viewCollecte .colParity {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+#viewCollecte .colNext {
+  display: block;
+  margin-top: var(--s1);
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  font-weight: var(--fw-m);
+  line-height: 1.4;
+  text-align: left;
+  white-space: normal;
+  color: var(--green-700);
+}
+#viewCollecte .colNext b {
+  font-weight: var(--fw-b);
+}
+#viewCollecte .colNext--unsure {
+  color: var(--warn-ink);
+}
+#viewCollecte .colNext--none {
+  color: var(--text-2);
+}
+#viewCollecte .colWarn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+  font-size: var(--fs-14);
+  color: var(--warn-ink);
+}
+
+/* Badges */
+#viewCollecte .colBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  font-size: 0.8125rem;
+  font-weight: var(--fw-sb);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+#viewCollecte .colBadge .icon {
+  width: 14px;
+  height: 14px;
+}
+#viewCollecte .colBadge--today {
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+}
+#viewCollecte .colBadge--warn {
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+/* Pastille de bac : ordures ménagères foncée, poubelle jaune à contour */
+#viewCollecte .bin {
+  flex: none;
+  width: 18px;
+  height: 21px;
+  margin: 4px 3px 0;
+  clip-path: none;
+  border-radius: 2px 2px 5px 5px;
+  background: var(--bin-om);
+}
+#viewCollecte .bin::before {
+  inset: -4px -3px auto;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text);
+}
+#viewCollecte .bin--tri {
+  background: var(--bin-tri);
+  box-shadow: inset 0 0 0 1.5px var(--text);
+}
+
+/* Plusieurs calendriers dans la même rue */
+#viewCollecte .colGroup {
+  margin-top: var(--s5);
+  padding-top: 0;
+  border-top: 0;
+}
+#viewCollecte .colRanges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+#viewCollecte .colRanges__label {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  color: var(--text);
+}
+#viewCollecte .colRanges .colRange {
+  padding: 2px 10px;
+  border-radius: var(--r-xs);
+  background: var(--bg-sunken);
+  font-size: var(--fs-14);
+  color: var(--text);
+}
+#viewCollecte .colGroup .colStreams {
+  margin-top: var(--s2);
+}
+
+/* Pied : action principale + lien officiel */
+#viewCollecte .colCard__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  margin-top: var(--s4);
+}
+#viewCollecte .colUse {
+  flex: 1 1 100%;
+  margin: 0;
+}
+@container col (min-width: 560px) {
+  #viewCollecte .colUse {
+    flex: 0 1 auto;
+  }
+}
+#viewCollecte .colNear {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+}
+#viewCollecte .colNear .chipBtn {
+  min-height: 44px;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* Erreur / hors connexion : message honnête, jamais de jour affiché */
+#viewCollecte .colCard--error {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+}
+#viewCollecte .colCard--offline {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+}
+#viewCollecte .colState {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+}
+#viewCollecte .colState__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+#viewCollecte .colCard--offline .colState__icon {
+  background: var(--warn-tint);
+  color: var(--warn);
+}
+#viewCollecte .colState__icon .icon {
+  width: 24px;
+  height: 24px;
+}
+#viewCollecte .colState h3 {
+  font-size: var(--fs-18);
+}
+#viewCollecte .colState p {
+  margin-top: var(--s1);
+  font-size: var(--fs-16);
+  color: var(--text);
+}
+#viewCollecte .colState .colState__hint {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+#viewCollecte .colActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+#viewCollecte .colActions .btn {
+  flex: 1 1 180px;
+}
+
+/* Chargement : squelette honnête (la requête est réellement en cours) */
+#viewCollecte .colStream--sk::before {
+  background: var(--bg-sunken);
+}
+#viewCollecte .colCard.is-loading .sk {
+  height: 14px;
+  margin: 0;
+  border-radius: var(--r-xs);
+  background: var(--bg-sunken);
+  animation: colPulse 1.2s ease-in-out infinite alternate;
+}
+#viewCollecte .colCard.is-loading .sk--line {
+  width: 55%;
+}
+#viewCollecte .colCard.is-loading .sk--big {
+  height: 22px;
+  width: 80%;
+  margin-block: var(--s1);
+}
+#viewCollecte .colSpinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-sunken);
+  border-top-color: var(--green-700);
+  animation: spin 0.8s linear infinite;
+}
+
+/* ─── Règles : accordéon ─── */
+#viewCollecte .colRules {
+  margin-top: var(--s6);
+  padding: 0;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+  font-size: var(--fs-16);
+  color: var(--text-2);
+}
+#viewCollecte .colRules summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2) var(--s3);
+  min-height: 56px;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-lg);
+  list-style: none;
+  font-weight: var(--fw-sb);
+  color: var(--text);
+  cursor: pointer;
+}
+#viewCollecte .colRules summary::-webkit-details-marker {
+  display: none;
+}
+#viewCollecte .colRules summary:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+#viewCollecte .colRules__title {
+  flex: 1 1 auto;
+}
+#viewCollecte .colRules__week {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--green-50);
+  color: var(--green-700);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+}
+#viewCollecte .colRules__chev {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--text-2);
+  transition: transform var(--t) var(--ease-out);
+}
+#viewCollecte .colRules[open] .colRules__chev {
+  transform: rotate(180deg);
+}
+#viewCollecte .colRules__body {
+  padding: 0 var(--s4) var(--s4);
+  border-top: 1px solid var(--border);
+}
+#viewCollecte .colRules p {
+  margin-top: var(--s3);
+}
+#viewCollecte .colRules b,
+#viewCollecte #colWeek {
+  color: var(--text);
+  font-weight: var(--fw-sb);
+}
+#viewCollecte .colSource a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  min-height: 44px;
+  color: var(--green-700);
+  font-weight: var(--fw-sb);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+#viewCollecte .colSource .icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Focus visible sur tout ce qui se touche */
+#viewCollecte .btn:focus-visible,
+#viewCollecte .colChip:focus-visible,
+#viewCollecte .colNear .chipBtn:focus-visible,
+#viewCollecte .comboClear:focus-visible,
+#viewCollecte .colSource a:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: var(--focus);
+}
+
+@keyframes colFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes colPulse {
+  from {
+    opacity: 0.6;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #viewCollecte .colCard,
+  #viewCollecte .colEmpty {
+    animation: colFadeOnly 120ms linear;
+  }
+  #viewCollecte .colCard.is-loading .sk,
+  #viewCollecte .colSpinner {
+    animation: none;
+  }
+  #viewCollecte .colRules__chev,
+  #viewCollecte .btn {
+    transition: none;
+  }
+  #viewCollecte .btn:active {
+    transform: none;
+  }
+}
+@keyframes colFadeOnly {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (forced-colors: active) {
+  #viewCollecte .colStream,
+  #viewCollecte .colBadge,
+  #viewCollecte .colChip {
+    border: 1px solid CanvasText;
+  }
+  #viewCollecte .bin,
+  #viewCollecte .bin::before {
+    forced-color-adjust: none;
+  }
+}

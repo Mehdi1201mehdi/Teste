@@ -1,28 +1,15 @@
 /* ==========================================================================
-   Brigade Verte — Design tokens « Fiche de constat »
+   Brigade Verte — Design tokens (refonte 11/2026, style « SaaS sobre »)
    --------------------------------------------------------------------------
-   Inspirés de l'objet réel : le bon de passage papier de la police
-   municipale. Papier blanc, encre bleu-noir, filets fins, angles nets,
-   un vert brigade institutionnel, l'orange réservé aux dépôts constatés.
-   (Version précédente « Relevé de terrain » : voir l'historique git.)
-   --------------------------------------------------------------------------
-   Deux matières :
-   · le PAPIER (calcaire chaud) pour tout ce qui se lit et se saisit — lisible
-     en plein soleil, jamais de gris sur gris ;
-   · l'ARDOISE (vert-schiste profond) pour le territoire : la carte, où les
-     rues d'Amiens s'allument par secteur et où chaque dépôt est un signal
-     orange.
-   Toutes les paires texte/fond ci-dessous dépassent 4.5:1 (WCAG AA).
+   Fond gris clair, cartes blanches à coins arrondis, ombres courtes et
+   neutres. Vert profond = action et page active ; orange = alerte
+   uniquement ; rouge = erreur / suppression.
+   Contrastes vérifiés (WCAG 2.x) : voir design.md §1.
+   Les anciens noms de variables (--paper, --ink, --brand, --signal…) restent
+   définis plus bas comme ALIAS : components.css et map.css continuent de
+   fonctionner sans modification.
    ========================================================================== */
 
-@font-face {
-  font-family: "Bricolage Grotesque";
-  src: url("../assets/fonts/BricolageGrotesque-var.woff2") format("woff2-variations"),
-    url("../assets/fonts/BricolageGrotesque-var.woff2") format("woff2");
-  font-weight: 200 800;
-  font-style: normal;
-  font-display: swap;
-}
 @font-face {
   font-family: "Instrument Sans";
   src: url("../assets/fonts/InstrumentSans-var.woff2") format("woff2-variations"),
@@ -40,90 +27,61 @@
 }
 
 :root {
-  /* — Typographie — */
-  --font-display: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
-
-  /* Échelle (mobile d'abord, fluide jusqu'au desktop) */
-  --fs-micro: 0.6875rem;                                  /* 11 — étiquettes mono */
-  --fs-xs: 0.75rem;                                       /* 12 */
-  --fs-sm: 0.8125rem;                                     /* 13 */
-  --fs-base: 0.9375rem;                                   /* 15 */
-  --fs-md: 1.0625rem;                                     /* 17 — champs */
-  --fs-lg: clamp(1.25rem, 1.15rem + 0.4vw, 1.5rem);       /* titres d'étape */
-  --fs-xl: clamp(1.625rem, 1.4rem + 0.9vw, 2.125rem);     /* titres de vue */
-  --fs-hero: clamp(2.5rem, 2rem + 2vw, 3.5rem);           /* compteurs */
-
-  --lh-tight: 1.1;
-  --lh: 1.45;
-  --track-label: 0.01em;
-
-  /* — Papier (surfaces de lecture) — */
-  --paper: #f4f3ee;        /* fond d'application : papier de liasse */
-  --paper-2: #e8e6de;      /* creux, pistes, segments */
-  --sheet: #ffffff;        /* feuilles et champs */
-  --sheet-raised: #ffffff;
-  --line: #d3d0c6;         /* filet */
-  --line-strong: #9f9b8f;  /* filet de champ (3:1 sur papier) */
-
-  /* — Encre — */
-  --ink: #16212b;          /* encre bleu-noir : 15:1 sur --paper */
-  --ink-2: #34414d;        /* 9.6:1 */
-  --muted: #56626d;        /* 5.6:1 sur --paper */
-  --faint: #8b929a;        /* décoratif uniquement, jamais pour du texte utile */
-
-  /* — Marque — */
-  --brand: #17573a;        /* vert brigade — blanc dessus : 8.1:1 */
-  --brand-strong: #0f4029;
-  --brand-tint: #e1ede5;
-  --brand-ink: #ffffff;
-
-  /* — Signal (dépôt constaté) — orange de signalisation — */
-  --signal: #c4420c;       /* blanc dessus : 4.9:1 */
-  --signal-strong: #b53a0a;
-  --signal-tint: #fbe4d6;
-  --signal-ink: #ffffff;
-
-  /* — Lumière (accent sur ardoise uniquement) — */
-  --glow: #a9dcbb;         /* vert pâle sur fond sombre (jamais fluo) */
-  --appbar: #133f2b;       /* barre d'application : vert brigade profond */
-
-  /* — États — */
-  --ok: #1f7a4d;
-  --ok-tint: #dff0e4;
+  /* — Couleurs — */
+  --green-900: #0e3b28;   /* barre latérale, en-tête mobile */
+  --green-800: #114530;   /* survol du bouton primaire */
+  --green-700: #17573a;   /* PRINCIPAL : boutons, page active, liens */
+  --green-50: #e7f1eb;    /* fond de la page active, teintes */
+  --ok: #1e7b47;
+  --ok-ink: #166a3b;
+  --ok-tint: #ddf3e5;     /* vert clair : validations */
+  --warn: #b84a0e;
+  --warn-ink: #8a3a0b;
+  --warn-tint: #fff1e5;   /* orange : alertes */
   --danger: #b42318;
-  --danger-tint: #fbe3e0;
-  --info: #1f5fa8;
+  --danger-ink: #912018;
+  --danger-tint: #fdecea; /* rouge : erreurs, suppressions */
+  --surface: #ffffff;
+  --bg: #f3f5f4;
+  --bg-sunken: #e9edeb;
+  --border: #e2e7e4;          /* séparateur décoratif */
+  --border-strong: #8a9590;   /* bord de champ, 3,1:1 */
+  --text: #1f2933;
+  --text-2: #4b5563;
+  --muted: #5b6670;
+  --on-dark: #e7f1eb;
+  --on-dark-2: #a9c7b5;
+  --focus-c: #1f5fa8;
+  --nav-active: #86d3a3;      /* filet de la page active (barre latérale), action du toast */
 
-  /* — Ardoise (territoire) — */
-  --slate: #0f1c17;
-  --slate-2: #16271f;
-  --slate-line: rgba(199, 242, 107, 0.07);
-  --slate-ink: #e8efe9;
-  --slate-muted: #9fb1a6;
-
-  /* — Secteurs : teintes minérales, distinctes en daltonisme courant — */
-  --sec-centre: #6b4fc8;   /* améthyste */
-  --sec-ouest: #2563a8;    /* bleu Somme */
-  --sec-nord: #2e7d4f;     /* mousse */
-  --sec-est: #b8412f;      /* brique */
-  --sec-sud: #9a6210;      /* ocre */
+  /* Secteurs (≥ 4,8:1 sur blanc) */
+  --sec-centre: #6b4fc8;
+  --sec-ouest: #2563a8;
+  --sec-nord: #2e7d4f;
+  --sec-est: #b8412f;
+  --sec-sud: #9a6210;
   --sec-none: #6b7280;
 
-  /* — Forme — */
-  --r-xs: 3px;
-  --r-sm: 5px;
-  --r: 7px;
-  --r-lg: 12px;
-  --r-pill: 7px;           /* plus de pilules : angles de formulaire */
+  /* — Typographie — */
+  --font-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  --fs-12: 0.75rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-20: 1.25rem;
+  --fs-24: 1.5rem;
+  --fs-30: clamp(1.625rem, 1.4rem + 0.8vw, 2rem);
+  --fs-stat: clamp(2rem, 1.7rem + 1vw, 2.5rem);
+  --lh-tight: 1.15;
+  --lh: 1.5;
+  --fw-r: 400;
+  --fw-m: 500;
+  --fw-sb: 600;
+  --fw-b: 700;
 
-  /* — Élévation (ombres chaudes, courtes) — */
-  --e1: 0 1px 0 rgba(22, 33, 43, 0.06);
-  --e2: 0 1px 2px rgba(22, 33, 43, 0.08), 0 4px 12px -6px rgba(22, 33, 43, 0.18);
-  --e3: 0 2px 4px rgba(22, 33, 43, 0.06), 0 16px 36px -14px rgba(22, 33, 43, 0.35);
-
-  /* — Espacement : grille de 4 px — */
+  /* — Espacements (pas de 4 px) — */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -131,23 +89,110 @@
   --s5: 20px;
   --s6: 24px;
   --s7: 32px;
-  --s8: 48px;
+  --s8: 40px;
+  --s9: 48px;
+  --s10: 64px;
 
-  /* — Ergonomie terrain — */
-  --tap: 48px;             /* cible minimale */
-  --tap-lg: 56px;          /* action principale (pouce, gants) */
-  --panel-w: 452px;        /* panneau latéral desktop */
-  --bar-h: 60px;
+  /* — Rayons — */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-pill: 999px;
 
-  /* — Focus — */
-  --focus: 0 0 0 3px var(--sheet), 0 0 0 5px var(--info);
+  /* — Ombres (neutres, courtes) — */
+  --sh-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --sh-2: 0 1px 3px rgba(16, 24, 40, 0.08), 0 4px 12px -2px rgba(16, 24, 40, 0.08);
+  --sh-3: 0 4px 8px -2px rgba(16, 24, 40, 0.08), 0 16px 32px -8px rgba(16, 24, 40, 0.18);
+  --sh-nav: 0 -1px 0 var(--border), 0 -6px 16px rgba(16, 24, 40, 0.06);
+  --focus: 0 0 0 2px var(--surface), 0 0 0 4px var(--focus-c);
+
+  /* — Gabarits — */
+  --tap: 48px;
+  --tap-lg: 56px;
+  --nav-h: 64px;
+  --topbar-h: 56px;
+  --topbar-h-d: 72px;
+  --rail-w: 84px;
+  --sidebar-w: 248px;
+  --panel-w: 440px;
+  --content-max: 1200px;
+  --map-band: 220px;
+  --map-band-min: 112px;
+  /* Hauteur réellement occupée en bas de l'écran par la barre de navigation
+     (0 quand elle n'est pas en bas : rail, barre latérale, clavier ouvert).
+     Sert aux barres collantes (#actionBar, .sendBar) et au toast. */
+  --nav-offset: calc(var(--nav-h) + env(safe-area-inset-bottom));
 
   /* — Mouvement — */
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-io: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.3, 0.64, 1);
   --t-fast: 120ms;
-  --t: 200ms;
-  --t-slow: 320ms;
+  --t: 180ms;
+  --t-slow: 260ms;
+  --t-toast: 5000ms;
 
   color-scheme: light;
+}
+
+/* ─── Alias : anciens noms (components.css, map.css, splash.css…) ───
+   À ne plus utiliser dans le code neuf : préférer les noms ci-dessus. */
+:root {
+  /* surfaces */
+  --paper: var(--bg);
+  --paper-2: var(--bg-sunken);
+  --sheet: var(--surface);
+  --sheet-raised: var(--surface);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  /* encre */
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --faint: #8b929a; /* décoratif uniquement */
+  /* marque */
+  --brand: var(--green-700);
+  --brand-strong: var(--green-800);
+  --brand-tint: var(--green-50);
+  --brand-ink: #ffffff;
+  --appbar: var(--green-900);
+  /* signal = alerte (orange), plus jamais couleur d'action */
+  --signal: var(--warn);
+  --signal-strong: var(--warn-ink);
+  --signal-tint: var(--warn-tint);
+  --signal-ink: #ffffff;
+  /* accent clair sur fond sombre (toast, barre latérale) */
+  --glow: var(--nav-active);
+  --info: var(--focus-c);
+  /* ardoise : anciennes surfaces sombres (toast, HUD…) */
+  --slate: var(--text);
+  --slate-2: #2a3642;
+  --slate-line: rgba(255, 255, 255, 0.08);
+  --slate-ink: #ffffff;
+  --slate-muted: #c3cbd2;
+  /* typographie */
+  --fs-micro: 0.6875rem;  /* 11 */
+  --fs-xs: var(--fs-12);
+  --fs-sm: 0.8125rem;     /* 13 */
+  --fs-base: 0.9375rem;   /* 15 */
+  --fs-md: 1.0625rem;     /* 17 — champs */
+  --fs-lg: var(--fs-20);
+  --fs-xl: var(--fs-30);
+  --fs-hero: var(--fs-stat);
+  --track-label: 0.01em;
+  /* forme et élévation */
+  --r: var(--r-md);
+  --e1: var(--sh-1);
+  --e2: var(--sh-2);
+  --e3: var(--sh-3);
+  /* gabarit */
+  --bar-h: var(--topbar-h);
+}
+
+/* Grands écrans : le panneau de saisie s'élargit (design.md §3, Terrain). */
+@media (min-width: 1600px) {
+  :root {
+    --panel-w: 480px;
+  }
 }

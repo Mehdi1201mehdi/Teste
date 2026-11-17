@@ -131,9 +131,9 @@
   border-radius: 7px;
   background: var(--ink);
   color: var(--sheet);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
   white-space: nowrap;
   max-width: 220px;
   overflow: hidden;
@@ -193,9 +193,10 @@
   right: 0;
   top: 7px;
   text-align: center;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #fff;
 }
@@ -214,7 +215,7 @@
   margin: 0 !important;
   padding: 1px 6px;
   border-radius: 6px 0 0 0;
-  background: rgba(252, 251, 248, 0.82);
+  background: rgba(255, 255, 255, 0.85);
   font-family: var(--font-ui);
   font-size: 9.5px;
   color: var(--muted);
@@ -222,10 +223,10 @@
 .map .leaflet-control-attribution a {
   color: var(--muted);
 }
-/* Mobile : le panneau remonte de 18 px sur la carte — l'attribution passe au-dessus. */
+/* Mobile et tablette : le panneau chevauche la carte de --r-lg — l'attribution passe au-dessus. */
 @media (max-width: 1023px) {
   .map .leaflet-bottom {
-    bottom: 18px;
+    bottom: var(--r-lg);
   }
 }
 
@@ -240,8 +241,8 @@
   gap: 8px;
   min-width: 132px;
   padding: 10px 12px;
-  border-radius: var(--r-sm);
-  background: rgba(252, 251, 248, 0.94);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid var(--line);
   box-shadow: var(--e2);
   backdrop-filter: blur(8px);
@@ -255,19 +256,18 @@
   gap: 8px;
 }
 .hudCount b {
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-weight: 700;
   font-size: 1.75rem;
   line-height: 0.9;
-  color: var(--signal);
+  color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 .hudCount span {
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
-  color: var(--ink-2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  color: var(--muted);
 }
 .mapHud .sectorBar {
   height: 5px;
@@ -290,8 +290,8 @@
   height: 44px;
   display: grid;
   place-items: center;
-  border-radius: var(--r-sm);
-  background: rgba(252, 251, 248, 0.94);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid var(--line);
   box-shadow: var(--e2);
   color: var(--ink);
@@ -371,9 +371,9 @@
   padding: 5px 12px;
   border-radius: var(--r-pill);
   background: var(--ink);
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  letter-spacing: 0.04em;
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
   color: var(--sheet);
   white-space: nowrap;
   pointer-events: none;
@@ -396,7 +396,7 @@
   display: flex;
   flex-direction: column;
   margin-inline: auto;
-  border-radius: var(--r);
+  border-radius: var(--r-lg);
   background: var(--sheet-raised);
   border: 1px solid var(--line);
   box-shadow: var(--e3);
@@ -410,23 +410,27 @@
   gap: var(--s2);
   padding: 4px 4px 4px var(--s4);
   border-bottom: 1px solid var(--line);
-  font-family: var(--font-mono);
-  font-size: var(--fs-micro);
-  text-transform: uppercase;
-  letter-spacing: var(--track-label);
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
   color: var(--ink-2);
 }
 .mapPickHead b {
   color: var(--ink);
-  font-weight: 500;
+  font-weight: 700;
 }
 .mapPickList {
   overflow-y: auto;
   padding: var(--s1);
 }
 
-/* Desktop : plus de place */
+/* Ordinateur : le panneau de saisie flotte à droite de la carte (layout.css).
+   Tout ce qui est posé à droite ou au centre se cale sur la zone libre. */
 @media (min-width: 1024px) {
+  .territory {
+    --free-right: calc(var(--panel-w) + var(--s4) * 2);
+    border-bottom: 0;
+  }
   .mapHud {
     left: var(--s5);
     top: var(--s5);
@@ -437,17 +441,22 @@
     font-size: 2.5rem;
   }
   .mapTools {
-    right: var(--s5);
+    right: calc(var(--free-right) + var(--s2));
     top: var(--s5);
   }
-  .mapHint {
+  .mapHint,
+  .gpsStatus {
+    left: calc((100% - var(--free-right)) / 2);
     bottom: var(--s6);
   }
   .mapPick {
     left: auto;
-    right: var(--s5);
+    right: calc(var(--free-right) + var(--s2));
     bottom: var(--s6);
     width: 340px;
+  }
+  .map .leaflet-bottom.leaflet-right {
+    right: var(--free-right);
   }
 }
 

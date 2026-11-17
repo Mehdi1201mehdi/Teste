@@ -11,7 +11,7 @@ import { state, save, emptyCurrent, newBpId } from "./storage.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
 import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk, findDuplicate } from "./bp.js";
 import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
-import { showWasteSuggest, resolveTypedWaste, frequent, categories, categoryItems, shortCat, pickButtons } from "./waste.js";
+import { showWasteSuggest, resolveTypedWaste, frequent, categories, categoryItems, shortCat, pickButtons, familyIcon, familyGroups } from "./waste.js";
 import { showSuggestions, hideSuggestions, bindComboKeys, renderChips } from "./components.js";
 import { toast, replay, haptic } from "./ui.js";
 import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
@@ -23,7 +23,9 @@ import { lookupStreet, scheduleFor, shortSchedule, nextPickup, relDay } from "./
 import { openCollecte } from "./collecteView.js";
 import { invalidateMail } from "./report.js";
 
-let activeCat = null;
+let activeCat = null; // famille ouverte (null : toutes repliées)
+let othersOpen = false; // cartes « Autres familles » affichées
+let famCols = 2; // colonnes de la grille des familles (lues sur la mise en page)
 let freshWaste = null;
 let hooks = { changed: () => {} };
 
@@ -465,6 +467,9 @@ function toggleWaste(w) {
 function renderWastes() {
   const list = state.current.wastes;
   $("foundBox").classList.toggle("has-items", list.length > 0);
+  const count = $("foundCount");
+  count.hidden = !list.length;
+  count.textContent = list.length ? String(list.length) : "";
   renderChips(
     $("wasteChips"),
     list,
@@ -479,15 +484,115 @@ function renderWastes() {
   );
   freshWaste = null;
   $("frequentWaste").innerHTML = pickButtons(frequent(state.wasteFreq), list);
+  renderFamilies(list);
+}
+
+/* ─── Familles : grandes cartes illustrées ───
+   Toucher une carte ouvre ses déchets juste sous sa rangée (#catWaste est
+   déplacé dans la grille) ; un second toucher la referme. Chaque carte
+   compte les déchets déjà choisis dans sa famille. */
+const famCount = (c, list) => categoryItems(c).filter((w) => list.includes(w)).length;
+const choisis = (n) => `${n} ${n > 1 ? "déchets choisis" : "déchet choisi"}`;
+
+function famCountHtml(n) {
+  return `<span class="wasteFam__count"${n ? "" : " hidden"}><span aria-hidden="true">${n}</span><span class="visually-hidden">, ${choisis(n)}</span></span>`;
+}
+
+function famCard(c, list) {
+  const n = famCount(c, list);
+  return `<button type="button" class="wasteFam" data-cat="${esc(c)}" aria-expanded="${c === activeCat}" aria-controls="catWaste">
+    <span class="wasteFam__icon">${familyIcon(c)}</span>
+    <span class="wasteFam__name">${esc(shortCat(c))}</span>${famCountHtml(n)}
+  </button>`;
+}
+
+/** Colonnes réelles de la grille (lue AVANT toute écriture : pas de saut de défilement). */
+function readFamCols() {
+  const grid = $("catTabs");
+  if (!grid.offsetParent) return famCols;
+  const t = getComputedStyle(grid).gridTemplateColumns;
+  if (t && t !== "none") famCols = Math.max(1, t.trim().split(/\s+/).length);
+  return famCols;
+}
+
+function renderFamilies(list) {
+  const grid = $("catTabs");
+  const panel = $("catWaste");
   const cats = categories();
-  if (!activeCat || !cats.includes(activeCat)) activeCat = cats[0] || null;
-  $("catTabs").innerHTML = cats
-    .map(
-      (c) =>
-        `<button type="button" class="catTab" role="tab" data-cat="${esc(c)}" aria-selected="${c === activeCat}" tabindex="${c === activeCat ? 0 : -1}">${esc(shortCat(c))}</button>`,
-    )
-    .join("");
-  $("catWaste").innerHTML = activeCat ? pickButtons(categoryItems(activeCat), list) : "";
+  if (activeCat && !cats.includes(activeCat)) activeCat = null;
+  const { main, others } = familyGroups();
+  // Sans carte principale reconnue (liste renommée), toutes les familles s'affichent.
+  const grouped = main.length > 0 && others.length > 0;
+  if (activeCat && others.includes(activeCat)) othersOpen = true;
+  const cols = readFamCols();
+
+  const cards = (grouped ? main : cats).map((c) => famCard(c, list));
+  if (grouped) {
+    const n = others.reduce((s, c) => s + famCount(c, list), 0);
+    cards.push(`<button type="button" class="wasteFam wasteFam--more" data-more aria-expanded="${othersOpen}">
+      <span class="wasteFam__icon">${familyIcon("*others")}</span>
+      <span class="wasteFam__name">${othersOpen ? "Moins de familles" : "Autres familles"}<small>${others.length} familles</small></span>${famCountHtml(othersOpen ? 0 : n)}
+    </button>`);
+    if (othersOpen) others.forEach((c) => cards.push(famCard(c, list)));
+  }
+
+  // Emplacement du panneau : après la dernière carte de la rangée de la famille ouverte.
+  const keys = (grouped ? [...main, "*more", ...(othersOpen ? others : [])] : cats);
+  const idx = activeCat ? keys.indexOf(activeCat) : -1;
+  if (idx >= 0) {
+    const end = Math.min(cards.length - 1, Math.floor(idx / cols) * cols + cols - 1);
+    cards[end] += '<div class="famSlot"></div>';
+  }
+  grid.innerHTML = cards.join("");
+
+  if (idx < 0) {
+    panel.hidden = true;
+    panel.innerHTML = "";
+    grid.after(panel);
+    return;
+  }
+  const items = categoryItems(activeCat);
+  const n = famCount(activeCat, list);
+  panel.innerHTML = `<div class="famPanel__head">
+      <span class="famPanel__icon">${familyIcon(activeCat)}</span>
+      <p class="famPanel__title"><b id="catWasteTitle">${esc(activeCat)}</b><span>${items.length} déchets${n ? " · " + choisis(n) : ""} · plusieurs choix possibles</span></p>
+      <button type="button" class="iconBtn famPanel__close" data-close aria-label="Refermer « ${esc(shortCat(activeCat))} »"><svg class="icon" aria-hidden="true"><use href="#i-x"></use></svg></button>
+    </div>
+    <div class="pickers famPanel__picks">${pickButtons(items, list)}</div>`;
+  panel.setAttribute("aria-labelledby", "catWasteTitle");
+  panel.hidden = false;
+  grid.querySelector(".famSlot").replaceWith(panel);
+}
+
+/** Changement de largeur (rotation, panneau) : le panneau suit sa rangée. */
+function placeFamPanel() {
+  const grid = $("catTabs");
+  const panel = $("catWaste");
+  if (panel.hidden || !activeCat) return;
+  const before = famCols;
+  if (readFamCols() === before && panel.parentNode === grid) return;
+  const cards = [...grid.querySelectorAll(".wasteFam")];
+  const idx = cards.findIndex((b) => b.dataset.cat === activeCat);
+  if (idx < 0) return;
+  cards[Math.min(cards.length - 1, Math.floor(idx / famCols) * famCols + famCols - 1)].after(panel);
+}
+
+/** Famille ouverte : sa carte et le début de ses déchets passent à l'écran, sous « Constaté ». */
+function revealFamily(card) {
+  const body = $("composerBody");
+  const inner = /(auto|scroll)/.test(getComputedStyle(body).overflowY);
+  // « Constaté » colle en haut du panneau (ordinateur) ou sous l'en-tête (mobile).
+  const base = inner ? body.getBoundingClientRect().top : parseFloat(getComputedStyle($("foundBox")).top) || 0;
+  const topLimit = base + $("foundBox").offsetHeight + 12;
+  const bottomLimit = Math.min(window.innerHeight, $("actionBar").getBoundingClientRect().top) - 12;
+  const r = card.getBoundingClientRect();
+  const p = $("catWaste").getBoundingClientRect();
+  const wantBottom = Math.min(p.bottom, p.top + 180);
+  let delta = 0;
+  if (r.top < topLimit) delta = r.top - topLimit;
+  else if (wantBottom > bottomLimit) delta = Math.min(wantBottom - bottomLimit, r.top - topLimit);
+  if (Math.abs(delta) < 2) return;
+  (inner ? body : window).scrollBy({ top: delta, behavior: scrollBehavior() });
 }
 
 /* ═════════════ Aperçu (étape Déchets) ═════════════ */
@@ -521,12 +626,51 @@ function renderDuplicate(bp) {
   $("dupSee").onclick = () => hooks.reveal?.(dup.index);
 }
 
+let saveTimer = 0;
+let flashTimer = 0;
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Bandeau « Dépôt n°X enregistré » en tête de l'étape 1 (le toast l'annonce déjà). */
+function showSavedFlash(text) {
+  const el = $("savedFlash");
+  $("savedFlashText").textContent = text;
+  el.hidden = false;
+  replay(el, "is-in");
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => (el.hidden = true), 4500);
+}
+
+/** « Annuler » du toast : le bon créé est retiré et la saisie revient telle quelle. */
+function undoSave(id, before) {
+  const i = state.bps.findIndex((b) => b.id === id);
+  if (i < 0) return toast("Ce bon a déjà été modifié ou supprimé.", null, "warn");
+  const [bp] = state.bps.splice(i, 1);
+  (bp.wastes || []).forEach((w) => {
+    if (state.wasteFreq[w] > 1) state.wasteFreq[w]--;
+    else delete state.wasteFreq[w];
+  });
+  invalidateMail();
+  state.editing = null;
+  state.current = before;
+  $("streetInput").value = before.rue?.rue || "";
+  $("numeroRue").value = before.numero || "";
+  $("precCustom").value = before.precisionCustom || "";
+  map.setTarget(before.rue?.rue || null, { fly: false });
+  $("savedFlash").hidden = true;
+  hooks.changed({});
+  go("terrain", before.rue ? 2 : 1);
+  save();
+  toast(`Enregistrement du dépôt n°${i + 1} annulé — saisie rétablie.`);
+}
+
 function saveBp() {
+  if (saveTimer) return;
   const bp = buildBp(state.current);
   if (!bp) {
     toast(blockedMessage(2) || "Ajoutez au moins un déchet.", null, "warn");
     return;
   }
+  const before = JSON.parse(JSON.stringify(state.current));
   let index;
   const wasEditing = state.editing != null;
   if (wasEditing) {
@@ -545,16 +689,34 @@ function saveBp() {
     bp.wastes.forEach((w) => (state.wasteFreq[w] = (state.wasteFreq[w] || 0) + 1));
   }
   const note = invalidateMail();
-  resetCurrent({ silent: true });
-  hooks.changed({ fresh: wasEditing ? -1 : index });
-  go("terrain", 1);
-  // Le bouton visible est désormais « Déchets » (désactivé) : l'animation de
-  // succès passe par les compteurs, pas par ce bouton.
-  replay($("hudCount"), "is-ticking");
-  document.querySelectorAll(".navCount").forEach((el) => replay(el, "is-ticking"));
-  // Confirmation brève, sans bouton : le compteur « Rapport » a déjà avancé,
-  // et l'agent enchaîne tout de suite sur le dépôt suivant.
-  toast((wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`) + note, null, note ? "warn" : "ok");
+  // Le bon est sauvegardé tout de suite (rien ne peut se perdre) ; seul
+  // l'affichage marque une courte pause pour montrer la coche sur le bouton.
+  state.current = emptyCurrent();
+  state.editing = null;
+  save();
+  const id = bp.id || state.bps[index]?.id;
+  const finish = () => {
+    saveTimer = 0;
+    const next = $("stageNext");
+    next.classList.remove("is-done");
+    resetCurrent({ silent: true });
+    hooks.changed({ fresh: wasEditing ? -1 : index });
+    go("terrain", 1);
+    replay($("hudCount"), "is-ticking");
+    document.querySelectorAll(".navCount").forEach((el) => replay(el, "is-ticking"));
+    const what = wasEditing ? `Bon n°${index + 1} mis à jour` : `Dépôt n°${index + 1} enregistré`;
+    showSavedFlash(wasEditing ? `${what}.` : `${what} — prêt pour le suivant.`);
+    // « Annuler » seulement pour une création (une modification se refait par « Modifier »).
+    toast(`${what}.${note}`, wasEditing ? null : { label: "Annuler", onClick: () => undoSave(id, before) }, note ? "warn" : "ok");
+    // Prêt pour le dépôt suivant : curseur dans « Rue » (sans ouvrir le clavier de force sur mobile).
+    if (!window.matchMedia("(pointer: coarse)").matches) $("streetInput").focus({ preventScroll: true });
+  };
+  if (reducedMotion()) return finish();
+  const next = $("stageNext");
+  next.classList.add("is-done");
+  $("stageNextLabel").textContent = wasEditing ? "Mis à jour" : "Enregistré";
+  next.querySelector("use").setAttribute("href", "#i-check");
+  saveTimer = setTimeout(finish, 380);
 }
 
 export function resetCurrent({ silent = false } = {}) {
@@ -655,15 +817,22 @@ export function renderComposer() {
   } else {
     // Déchets : on enregistre directement (la ligne du rapport est affichée au-dessus).
     ready = wastesOk(c);
-    label = editing ? `Mettre à jour le bon n°${num}` : `Enregistrer le bon n°${num}`;
+    label = editing ? `Mettre à jour le bon n°${num}` : "Enregistrer le dépôt";
     if (!ready) hint = "Touchez au moins un déchet.";
   }
   const saving = state.stage === 2;
-  $("stageNextLabel").textContent = label;
+  // Pendant la coche de confirmation, le bouton garde son état « Enregistré ».
+  if (!saveTimer) {
+    $("stageNextLabel").textContent = label;
+    next.querySelector("use").setAttribute("href", saving ? "#i-check" : "#i-arrow-right");
+  }
+  if (saving) next.setAttribute("aria-label", editing ? label : `Enregistrer le dépôt n°${num}`);
+  else next.removeAttribute("aria-label");
   next.setAttribute("aria-disabled", String(!ready));
-  next.classList.toggle("btn--signal", saving);
-  next.classList.toggle("btn--primary", !saving);
-  next.querySelector("use").setAttribute("href", saving ? "#i-check" : "#i-arrow-right");
+  next.classList.remove("btn--signal");
+  next.classList.add("btn--primary");
+  next.classList.toggle("btn--save", saving && !editing);
+  next.classList.toggle("btn--update", saving && editing);
   $("stageHint").textContent = hint;
 
   // Même adresse
@@ -780,28 +949,43 @@ export function initComposer(opts = {}) {
     }
     addWaste(resolveTypedWaste(wasteInput.value));
   };
+  // Déchet touché (fréquents ou famille ouverte) : le focus reste sur le même
+  // bouton après le nouveau rendu (clavier, lecteur d'écran).
   const pickHandler = (e) => {
     const b = e.target.closest(".pick");
-    if (b) toggleWaste(b.dataset.w);
+    if (!b) return;
+    e.stopPropagation();
+    const w = b.dataset.w;
+    const box = e.currentTarget;
+    const hadFocus = document.activeElement === b;
+    toggleWaste(w);
+    if (hadFocus) box.querySelector(`.pick[data-w="${CSS.escape(w)}"]`)?.focus({ preventScroll: true });
   };
   $("frequentWaste").addEventListener("click", pickHandler);
-  $("catWaste").addEventListener("click", pickHandler);
-  $("catTabs").addEventListener("click", (e) => {
-    const t = e.target.closest(".catTab");
-    if (!t) return;
-    activeCat = t.dataset.cat;
+  $("catWaste").addEventListener("click", (e) => {
+    if (!e.target.closest("[data-close]")) return pickHandler(e);
+    e.stopPropagation();
+    const cat = activeCat;
+    activeCat = null;
     renderWastes();
-    $("catTabs").querySelector(`[data-cat="${CSS.escape(activeCat)}"]`)?.focus();
+    $("catTabs").querySelector(`.wasteFam[data-cat="${CSS.escape(cat)}"]`)?.focus({ preventScroll: true });
   });
-  $("catTabs").addEventListener("keydown", (e) => {
-    const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-    if (!d) return;
-    const cats = categories();
-    activeCat = cats[(cats.indexOf(activeCat) + d + cats.length) % cats.length];
+  $("catTabs").addEventListener("click", (e) => {
+    const t = e.target.closest(".wasteFam");
+    if (!t) return;
+    if (t.hasAttribute("data-more")) {
+      othersOpen = !othersOpen;
+      if (!othersOpen && activeCat && familyGroups().others.includes(activeCat)) activeCat = null;
+      renderWastes();
+      $("catTabs").querySelector(".wasteFam--more")?.focus({ preventScroll: true });
+      return;
+    }
+    const cat = t.dataset.cat;
+    activeCat = activeCat === cat ? null : cat;
     renderWastes();
-    const tab = $("catTabs").querySelector(`[data-cat="${CSS.escape(activeCat)}"]`);
-    tab?.focus();
-    tab?.scrollIntoView({ inline: "nearest", block: "nearest" });
+    const card = $("catTabs").querySelector(`.wasteFam[data-cat="${CSS.escape(cat)}"]`);
+    card?.focus({ preventScroll: true });
+    if (activeCat && card) requestAnimationFrame(() => revealFamily(card));
   });
 
   // Étapes & barre d'action
@@ -822,10 +1006,27 @@ export function initComposer(opts = {}) {
 
   onRoute((view) => {
     renderComposer();
-    if (view === "terrain" && state.stage === 2) renderPreview();
+    // Étape Déchets (mobile, tablette) : la bande de carte se réduit, la
+    // place va aux cartes de déchets. Sans effet sur ordinateur (carte en fond).
+    $("territory").classList.toggle("is-compact", view === "terrain" && state.stage === 2);
+    if (view !== "terrain") return;
+    if (state.stage === 2) {
+      renderPreview();
+      placeFamPanel();
+    }
   });
 
-  // Mobile : pendant la frappe, la carte se replie pour laisser place au clavier.
+  // Changement de largeur (rotation, panneau) : le panneau des déchets suit sa rangée.
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(placeFamPanel, 120);
+  });
+
+  // Mobile et tablette (< 1024 px) : la carte est une bande au-dessus du
+  // formulaire, elle se replie pendant la frappe pour laisser place au clavier.
+  // Sur ordinateur (≥ 1024 px), la carte est en fond et le panneau à droite :
+  // rien à replier. Même seuil que css/layout.css et js/router.js.
   const small = window.matchMedia("(max-width: 1023px)");
   const panel = $("panel");
   panel.addEventListener("focusin", (e) => {

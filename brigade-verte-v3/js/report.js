@@ -1,18 +1,28 @@
 // Vue Rapport — le message tel qu'il partira, les bons classés par secteur,
 // l'envoi (copie, Outlook appli, Outlook web) et la clôture de tournée.
+// La liste des bons a sa barre d'outils (recherche, filtre secteur, tri) : son
+// état vit ici, hors du DOM, et survit donc aux re-rendus de renderReport().
 
-import { $, esc, plural, dateFr, scrollBehavior } from "./utils.js";
+import { $, esc, norm, plural, dateFr, scrollBehavior } from "./utils.js";
 import { state, save, newBpId } from "./storage.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
 import { buildEmailBody, parseRecipients, openEmailClient, copyEmailContent, rememberAndroidMailto } from "./email.js";
-import { ticketHtml, bindTicketActions } from "./components.js";
+import { ticketHtml, bindTicketActions, sectorName } from "./components.js";
 import { toast, confirmDialog, replay } from "./ui.js";
 import { go } from "./router.js";
 import * as map from "./map.js";
 
 let hooks = { changed: () => {}, edit: () => {} };
+
+/* ─── État de la liste (recherche, filtre, tri, détails dépliés) ─── */
+const ledger = { q: "", sector: "all", sort: "sector" };
+const SORTS = ["sector", "recent", "old"];
+/** Bons dont la consultation détaillée est dépliée (par identifiant stable). */
+const openKeys = new Set();
+const keyOf = (bp, i) => (bp && bp.id) || `idx-${i}`;
+const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Répartition par secteur, dans l'ordre du message. */
 export function sectorCounts() {
@@ -23,20 +33,32 @@ export function sectorBarHtml(counts) {
   return counts.map(({ s, n }) => `<i class="s-${s}" style="--n:${n};${secStyle(s)}" title="${esc(TITRE[s])} : ${n}"></i>`).join("");
 }
 
+function statHtml(label, value, meta = "") {
+  return `<div class="stat"><span class="stat__label">${label}</span><b class="stat__value">${value}</b>${meta ? `<span class="stat__meta">${meta}</span>` : ""}</div>`;
+}
+
 export function renderReport() {
   const n = state.bps.length;
   $("reportTitle").textContent = state.date ? `Îlotage du ${dateFr(state.date)}` : "Îlotage du jour";
   $("reportEmpty").hidden = n > 0;
   $("reportBody").hidden = n === 0;
+  $("reportLead").hidden = n === 0;
 
+  // Indicateurs honnêtes : 1 bon = 1 dépôt = 1 ligne du rapport.
   const counts = sectorCounts();
   const streets = new Set(state.bps.map((b) => b.rue)).size;
+  const wastes = state.bps.reduce((sum, b) => sum + (b.wastes || []).length, 0);
   $("reportStats").innerHTML = n
-    ? `<div class="stat stat--signal"><b>${n}</b><span>${n > 1 ? "dépôts" : "dépôt"}</span></div>
-       <div class="stat"><b>${streets}</b><span>${streets > 1 ? "rues" : "rue"}</span></div>
+    ? `<div class="statGrid">
+         ${statHtml("Dépôts relevés", n, n > 1 ? "bons de passage" : "bon de passage")}
+         ${statHtml("Rues distinctes", streets)}
+         ${statHtml("Secteurs concernés", `${counts.length}<small> / 5</small>`)}
+         ${statHtml("Déchets relevés", wastes)}
+       </div>
        <div class="sectorBreak">
-         <ul>${counts.map(({ s, n: k }) => `<li style="${secStyle(s)}">${esc(s)} ${k}</li>`).join("")}</ul>
+         <span class="sectorBreak__label">Répartition par secteur</span>
          <div class="sectorBar" aria-hidden="true">${sectorBarHtml(counts)}</div>
+         <ul>${counts.map(({ s, n: k }) => `<li style="${secStyle(s)}">${esc(sectorName(s))} <b>${k}</b></li>`).join("")}</ul>
        </div>`
     : "";
 
@@ -62,30 +84,169 @@ export function renderReport() {
   $("docState").hidden = !state.mailCustom;
   $("resetMail").hidden = !state.mailCustom;
 
-  // Tickets groupés par secteur (même ordre que le message)
-  const groups = SECTEURS.map((s) => {
-    const items = state.bps.map((bp, i) => ({ bp, i })).filter(({ bp }) => bp.secteur === s);
-    if (!items.length) return "";
-    return `<div class="ticketGroup" data-sector="${s}"><div class="ticketGroupHead" style="${secStyle(s)}"><span class="sectorChip">${esc(TITRE[s])}</span><span>${items.length}</span></div>${items
-      .map(({ bp, i }) => ticketHtml(bp, { num: i + 1, index: i, address: adresseText(bp), quartier: map.quartierOfStreet(bp.rue), actions: true, editing: state.editing === i }))
-      .join("")}</div>`;
-  }).join("");
+  renderLedger();
+}
+
+/* ─── Liste des bons ─── */
+
+/** Le bon correspond-il à la recherche et au filtre en cours ? */
+function matches(bp) {
+  if (ledger.sector !== "all" && bp.secteur !== ledger.sector) return false;
+  const q = norm(ledger.q);
+  if (!q) return true;
+  // Insensible aux accents et à la casse ; tous les mots doivent figurer.
+  const hay = norm(`${adresseText(bp)} ${map.quartierOfStreet(bp.rue) || ""}`);
+  return q.split(" ").every((w) => hay.includes(w));
+}
+
+const stamp = (bp) => Date.parse((bp && bp.createdAt) || "") || null;
+
+/**
+ * Ordre chronologique croissant. Les bons sans horodatage (versions
+ * antérieures) sont les plus anciens et suivent l'ordre de saisie ; aucune
+ * heure n'est inventée.
+ */
+function chrono(a, b) {
+  const ta = stamp(a.bp);
+  const tb = stamp(b.bp);
+  if (ta == null && tb == null) return a.i - b.i;
+  if (ta == null) return -1;
+  if (tb == null) return 1;
+  return ta - tb || a.i - b.i;
+}
+
+function tickets(items, level) {
+  return items
+    .map(({ bp, i }) =>
+      ticketHtml(bp, {
+        num: i + 1, // ordre de saisie : le numéro du rapport
+        index: i,
+        address: adresseText(bp),
+        quartier: map.quartierOfStreet(bp.rue),
+        actions: true,
+        editing: state.editing === i,
+        open: openKeys.has(keyOf(bp, i)),
+        level,
+      }),
+    )
+    .join("");
+}
+
+function buildSegment() {
+  const box = $("ledgerSector");
+  if (box.childElementCount) return;
+  box.innerHTML = ["all", ...SECTEURS]
+    .map(
+      (s) =>
+        `<button type="button" class="segBtn" data-sector="${s}" aria-pressed="false"${s === "all" ? "" : ` style="${secStyle(s)}"`}><span class="segBtn__name">${s === "all" ? "Tous" : esc(sectorName(s))}</span><span class="segBtn__n" aria-hidden="true"></span></button>`,
+    )
+    .join("");
+  box.querySelectorAll(".segBtn").forEach((b) => {
+    b.onclick = () => {
+      ledger.sector = b.dataset.sector;
+      renderLedger();
+    };
+  });
+}
+
+/** Met à jour le segment sans le reconstruire (le focus clavier est conservé). */
+function syncSegment() {
+  buildSegment();
+  const counts = new Map(SECTEURS.map((s) => [s, state.bps.filter((b) => b.secteur === s).length]));
+  // Le secteur choisi n'a plus de bon (suppression, clôture) : retour à « Tous ».
+  if (ledger.sector !== "all" && !counts.get(ledger.sector)) ledger.sector = "all";
+  $("ledgerSector")
+    .querySelectorAll(".segBtn")
+    .forEach((b) => {
+      const s = b.dataset.sector;
+      const k = s === "all" ? state.bps.length : counts.get(s) || 0;
+      b.querySelector(".segBtn__n").textContent = k;
+      b.disabled = s !== "all" && !k;
+      b.setAttribute("aria-pressed", String(ledger.sector === s));
+      b.setAttribute("aria-label", `${s === "all" ? "Tous les secteurs" : TITRE[s]} : ${plural(k, "bon")}`);
+    });
+}
+
+function renderLedger() {
+  syncSegment();
+  const search = $("ledgerSearch");
+  if (document.activeElement !== search && search.value !== ledger.q) search.value = ledger.q;
+  $("ledgerSort").value = ledger.sort;
+
+  const total = state.bps.length;
+  const items = state.bps.map((bp, i) => ({ bp, i })).filter(({ bp }) => matches(bp));
+  let html = "";
+  if (ledger.sort === "sector") {
+    // Groupés par secteur, dans l'ordre du message ; ordre de saisie dans chaque groupe.
+    const known = SECTEURS.map((s) => ({ s, list: items.filter(({ bp }) => bp.secteur === s) }));
+    const other = items.filter(({ bp }) => !SECTEURS.includes(bp.secteur));
+    if (other.length) known.push({ s: "", list: other });
+    html = known
+      .filter((g) => g.list.length)
+      .map(
+        ({ s, list }) =>
+          `<div class="ticketGroup" data-sector="${s}"><h3 class="ticketGroupHead" style="${secStyle(s)}"><span class="sectorChip">${esc(TITRE[s] || "Secteur non renseigné")}</span><span class="ticketGroupCount">${plural(list.length, "bon")}</span></h3>${tickets(list, 4)}</div>`,
+      )
+      .join("");
+  } else {
+    const sorted = [...items].sort(chrono);
+    if (ledger.sort === "recent") sorted.reverse();
+    html = `<div class="ticketGroup ticketGroup--flat">${tickets(sorted, 3)}</div>`;
+  }
+
   const list = $("bpList");
-  list.innerHTML = groups;
-  bindTicketActions(list, { edit: (i) => hooks.edit(i), duplicate: duplicateBp, delete: delBp });
-  list.querySelectorAll(".ticketGroup").forEach((g) => {
-    g.addEventListener("mouseenter", () => map.focusSector(g.dataset.sector));
+  list.innerHTML = items.length ? html : "";
+  bindTicketActions(list, { edit: (i) => hooks.edit(i), duplicate: duplicateBp, delete: deleteWithFold, details: toggleDetails });
+  list.querySelectorAll(".ticketGroup[data-sector]").forEach((g) => {
+    g.addEventListener("mouseenter", () => map.focusSector(g.dataset.sector || null));
     g.addEventListener("mouseleave", () => map.focusSector(null));
   });
+
+  const shown = items.length;
+  $("ledgerCount").textContent = `${shown} ${shown > 1 ? "bons affichés" : "bon affiché"} sur ${total}`;
+  const filtered = !!norm(ledger.q) || ledger.sector !== "all";
+  $("ledgerCount").classList.toggle("is-filtered", filtered);
+  const empty = $("ledgerEmpty");
+  empty.hidden = !(total && !shown);
+  if (!empty.hidden) {
+    const where = ledger.sector !== "all" ? ` dans le secteur ${sectorName(ledger.sector)}` : "";
+    $("ledgerEmptyText").textContent = norm(ledger.q) ? `Aucun bon ne correspond à « ${ledger.q.trim()} »${where}.` : `Aucun bon${where}.`;
+  }
+  $("ledgerTools").hidden = total === 0;
+}
+
+function toggleDetails(i) {
+  const bp = state.bps[i];
+  const t = $("bp-" + i);
+  if (!bp || !t) return;
+  const key = keyOf(bp, i);
+  const open = !openKeys.has(key);
+  if (open) openKeys.add(key);
+  else openKeys.delete(key);
+  t.classList.toggle("is-open", open);
+  const panel = $(`bp-${i}-details`);
+  if (panel) panel.hidden = !open;
+  t.querySelector('[data-action="details"]')?.setAttribute("aria-expanded", String(open));
+}
+
+/** Remet la recherche et le filtre à zéro (le tri choisi est conservé). */
+function resetLedgerFilters() {
+  ledger.q = "";
+  ledger.sector = "all";
+  $("ledgerSearch").value = "";
 }
 
 /** Ouvre le rapport sur un bon précis (mis en évidence, focus pour le lecteur d'écran). */
 export function revealBp(i) {
+  // Un filtre ou une recherche le masquerait : la liste est remise à zéro.
+  const bp = state.bps[i];
+  if (bp && !matches(bp)) resetLedgerFilters();
+  if (bp && !$("bp-" + i)) renderLedger();
   go("rapport");
   requestAnimationFrame(() => {
     const t = $("bp-" + i);
     if (!t) return;
-    t.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    t.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
     t.focus({ preventScroll: true });
     replay(t, "is-flash");
   });
@@ -120,7 +281,23 @@ function duplicateBp(i) {
   const note = invalidateMail();
   hooks.changed({ fresh: i + 1 });
   save();
+  replay($("bp-" + (i + 1)), "is-flash");
   toast(`Bon n°${i + 1} dupliqué en n°${i + 2}.${note}`, null, note ? "warn" : "ok");
+}
+
+/** Suppression : la carte se replie (220 ms), puis le bon est retiré. */
+function deleteWithFold(i) {
+  const t = $("bp-" + i);
+  const id = state.bps[i]?.id;
+  if (!t || !id || reducedMotion()) return delBp(i);
+  if (t.classList.contains("is-removing")) return;
+  t.style.height = t.offsetHeight + "px";
+  void t.offsetHeight;
+  t.classList.add("is-removing");
+  setTimeout(() => {
+    const k = state.bps.findIndex((b) => b.id === id);
+    if (k >= 0) delBp(k);
+  }, 220);
 }
 
 function delBp(i) {
@@ -141,6 +318,7 @@ function delBp(i) {
       invalidateMail();
       hooks.changed({ fresh: i });
       save();
+      replay($("bp-" + Math.min(i, state.bps.length - 1)), "is-flash");
       toast("Suppression annulée.");
     },
   });
@@ -159,6 +337,9 @@ async function clearTour() {
   state.bps = [];
   invalidateMail();
   state.editing = null;
+  openKeys.clear();
+  resetLedgerFilters();
+  $("sendStatus").hidden = true;
   hooks.changed({ reset: true });
   go("terrain", 1);
   save();
@@ -184,6 +365,7 @@ function checkRecipients({ warnEmpty = false } = {}) {
   const input = $("mailTo");
   const { valid, invalid } = parseRecipients(state.mailTo);
   input.setAttribute("aria-invalid", String(invalid.length > 0));
+  clearTimeout(note._t);
   if (invalid.length) {
     note.textContent = `Adresse à corriger : ${invalid.join(", ")}`;
     note.dataset.tone = "error";
@@ -194,6 +376,34 @@ function checkRecipients({ warnEmpty = false } = {}) {
     note.hidden = false;
   } else note.hidden = true;
   return { valid, invalid };
+}
+
+/**
+ * Retour visuel sur un bouton (icône → check, nouveau libellé) pendant 2 s,
+ * puis retour à l'état initial.
+ */
+function flashButton(btn, label, ms = 2000) {
+  if (!btn) return;
+  const span = btn.querySelector("span");
+  const use = btn.querySelector("use");
+  if (!btn.dataset.idleLabel) {
+    btn.dataset.idleLabel = span?.textContent || "";
+    btn.dataset.idleIcon = use?.getAttribute("href") || "";
+  }
+  clearTimeout(btn._flash);
+  btn.classList.add("is-done");
+  if (span) span.textContent = label;
+  use?.setAttribute("href", "#i-check");
+  btn._flash = setTimeout(() => restoreButton(btn), ms);
+}
+
+function restoreButton(btn) {
+  if (!btn?.dataset.idleLabel) return;
+  clearTimeout(btn._flash);
+  btn.classList.remove("is-done");
+  const span = btn.querySelector("span");
+  if (span) span.textContent = btn.dataset.idleLabel;
+  btn.querySelector("use")?.setAttribute("href", btn.dataset.idleIcon);
 }
 
 /** Copie avec mise en forme ; repli : texte sélectionné pour un appui long. */
@@ -229,13 +439,28 @@ export function showOutlookAndroidFailed() {
   );
 }
 
+/** Message d'état sous la barre d'envoi : jamais « envoyé », seulement « ouvert ». */
+function showSendStatus(text) {
+  const st = $("sendStatus");
+  clearTimeout(st._t);
+  st.textContent = text;
+  st.hidden = !text;
+  if (text) st._t = setTimeout(() => (st.hidden = true), 15000);
+}
+
+const OPENED = {
+  app: { btn: "Messagerie ouverte", text: "Messagerie ouverte avec le message prérempli : vérifiez-le puis envoyez-le depuis Outlook. Pensez ensuite à clôturer la tournée." },
+  web: { btn: "Outlook Web ouvert", text: "Outlook Web ouvert avec le message prérempli : vérifiez-le puis envoyez-le depuis Outlook. Pensez ensuite à clôturer la tournée." },
+  mailto: { btn: "Messagerie ouverte", text: "Messagerie ouverte avec le message prérempli : vérifiez-le puis envoyez-le. Pensez ensuite à clôturer la tournée." },
+};
+
 /**
  * Ouvre la messagerie. Tout se fait dans le geste de l'agent, sans attente :
  * Safari et Chrome n'autorisent l'ouverture d'une appli ou d'un onglet que
  * pendant ce geste. La copie mise en forme est lancée juste avant (bonus pour
  * obtenir les secteurs en gras souligné par un collage).
  */
-async function sendVia(channel, { fromFallback = false } = {}) {
+async function sendVia(channel, { fromFallback = false, btn = null } = {}) {
   const { invalid } = checkRecipients({ warnEmpty: true });
   if (invalid.length) {
     $("mailTo").focus();
@@ -246,13 +471,19 @@ async function sendVia(channel, { fromFallback = false } = {}) {
   const m = currentMessage();
   const copying = copyEmail({ silent: true });
   const plan = openEmailClient(channel, m, {
-    onNotOpened: (p) =>
+    onNotOpened: (p) => {
+      restoreButton(btn);
+      showSendStatus("");
       showFallback(
         p.kind === "app"
           ? "L'appli Outlook ne semble pas installée (ou le lien a été bloqué). Essayez Outlook Web ou une autre messagerie."
           : "La messagerie ne s'est pas ouverte. Essayez Outlook Web, ou copiez le message.",
-      ),
+      );
+    },
   });
+  const o = OPENED[channel] || OPENED.app;
+  flashButton(btn, o.btn);
+  showSendStatus(o.text);
   if (plan.truncated) {
     const copied = await copying;
     toast(copied ? "Rapport trop long pour un lien : il est copié — collez-le dans le corps du message." : "Rapport trop long pour un lien : copiez-le puis collez-le dans le message.", null, "warn");
@@ -260,29 +491,23 @@ async function sendVia(channel, { fromFallback = false } = {}) {
 }
 
 function bindSend() {
-  $("copyMail").onclick = async () => {
+  const doCopy = async (extra) => {
     const res = await copyEmail();
     if (!res) return;
     toast(res === "rich" ? "Message copié avec la mise en forme — collez-le dans votre messagerie." : "Message copié (texte simple) — collez-le dans votre messagerie.", null, "ok");
-    const b = $("copyMail");
-    b.classList.add("is-done");
-    b.querySelector("span").textContent = "Copié";
-    b.querySelector("use").setAttribute("href", "#i-check");
-    setTimeout(() => {
-      b.classList.remove("is-done");
-      b.querySelector("span").textContent = "Copier";
-      b.querySelector("use").setAttribute("href", "#i-copy");
-    }, 1600);
+    flashButton($("copyMail"), "Copié ✓");
+    if (extra) flashButton(extra, "Copié ✓");
   };
+  $("copyMail").onclick = () => doCopy();
 
   // Outlook : appli sur téléphone (repli Outlook Web géré par Android, ou
   // proposé à l'écran), messagerie installée sur ordinateur.
-  $("openMail").onclick = () => sendVia("app");
+  $("openMail").onclick = () => sendVia("app", { btn: $("openMail") });
   // Outlook sur le web : aucune appli requise (PC partagé en mairie…).
-  $("openMailWeb").onclick = () => sendVia("web");
-  $("fallbackWeb").onclick = () => sendVia("web", { fromFallback: true });
-  $("fallbackMailto").onclick = () => sendVia("mailto", { fromFallback: true });
-  $("fallbackCopy").onclick = () => $("copyMail").click();
+  $("openMailWeb").onclick = () => sendVia("web", { btn: $("openMailWeb") });
+  $("fallbackWeb").onclick = () => sendVia("web", { fromFallback: true, btn: $("fallbackWeb") });
+  $("fallbackMailto").onclick = () => sendVia("mailto", { fromFallback: true, btn: $("fallbackMailto") });
+  $("fallbackCopy").onclick = () => doCopy($("fallbackCopy"));
 
   // Destinataire(s) : mémorisé sur l'appareil, conservé d'une tournée à l'autre.
   const to = $("mailTo");
@@ -291,7 +516,16 @@ function bindSend() {
     save();
     if (!$("mailToNote").hidden) checkRecipients();
   });
-  to.addEventListener("change", () => checkRecipients());
+  to.addEventListener("change", () => {
+    const { valid, invalid } = checkRecipients();
+    if (!invalid.length && valid.length) {
+      const note = $("mailToNote");
+      note.textContent = `Destinataire mémorisé sur cet appareil ✓`;
+      note.dataset.tone = "ok";
+      note.hidden = false;
+      note._t = setTimeout(() => (note.hidden = true), 2500);
+    }
+  });
 
   // Édition manuelle : un appui ouvre, un second enregistre. Survit au rechargement.
   $("editMail").onclick = () => {
@@ -336,7 +570,30 @@ function bindSend() {
   $("clearAllBps").onclick = clearTour;
 }
 
+/** Barre d'outils de la liste : recherche, filtre secteur (segment), tri. */
+function bindLedgerTools() {
+  const search = $("ledgerSearch");
+  const onSearch = () => {
+    if (ledger.q === search.value) return;
+    ledger.q = search.value;
+    renderLedger();
+  };
+  search.addEventListener("input", onSearch);
+  search.addEventListener("search", onSearch);
+  $("ledgerSort").addEventListener("change", (e) => {
+    ledger.sort = SORTS.includes(e.target.value) ? e.target.value : "sector";
+    renderLedger();
+  });
+  $("ledgerReset").onclick = () => {
+    resetLedgerFilters();
+    renderLedger();
+    search.focus();
+  };
+  buildSegment();
+}
+
 export function initReport(opts = {}) {
   hooks = { ...hooks, ...opts };
   bindSend();
+  bindLedgerTools();
 }

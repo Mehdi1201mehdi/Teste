@@ -58,15 +58,10 @@ function bindSettings() {
     dlg.showModal();
   };
   $("date").addEventListener("change", (e) => {
-    const before = state.date;
-    state.date = e.target.value || todayISO();
-    // Texte retouché à la main : sa date suit (sinon objet et corps divergent).
-    if (state.mailCustom && before && before !== state.date) {
-      state.mailCustom = state.mailCustom
-        .split(dateLongue(before)).join(dateLongue(state.date))
-        .split(dateFr(before)).join(dateFr(state.date));
-    }
-    renderTour();
+    // Choix manuel : gardé jusqu'à la fin de la journée (le lendemain, la
+    // date repasse d'elle-même au jour courant).
+    setTourDate(e.target.value || todayISO());
+    state.dateDay = todayISO();
     save();
   });
   const gps = $("gpsToggle");
@@ -162,6 +157,53 @@ function bindSettings() {
   document.addEventListener("bv:quota", () =>
     toast("Stockage plein : exportez vos bons de passage (Réglages) pour ne rien perdre.", null, "error"),
   );
+}
+
+/* ─── Date de tournée : toujours la date du jour ─── */
+
+/** Texte retouché à la main : sa date suit (sinon objet et corps divergent). */
+function retimeCustomMail(before, after) {
+  if (!state.mailCustom || !before || before === after) return;
+  state.mailCustom = state.mailCustom
+    .split(dateLongue(before)).join(dateLongue(after))
+    .split(dateFr(before)).join(dateFr(after));
+}
+
+/** Change la date de la tournée ; un texte retouché à la main suit. */
+function setTourDate(date) {
+  const before = state.date;
+  if (date === before) return;
+  state.date = date;
+  // Texte retouché à la main : sa date suit (sinon objet et corps divergent).
+  retimeCustomMail(before, date);
+  if ($("settingsDlg")?.open) $("date").value = date;
+  renderTour();
+}
+
+/**
+ * Nouveau jour (ouverture de l'appli, retour dessus, ou minuit passé appli
+ * ouverte) : la date de tournée passe automatiquement à la date du jour.
+ * Les bons déjà enregistrés sont conservés ; l'agent est prévenu.
+ */
+function syncTourDate({ announce = true } = {}) {
+  const today = todayISO();
+  if (state.dateDay === today && state.date) return;
+  const changed = state.date && state.date !== today;
+  state.dateDay = today;
+  setTourDate(today);
+  save();
+  if (changed && announce) {
+    const left = state.bps.length ? ` ${plural(state.bps.length, "bon de passage", "bons de passage")} de la veille ${state.bps.length > 1 ? "sont toujours enregistrés" : "est toujours enregistré"}.` : "";
+    toast(`Date de tournée mise à jour : ${dateLongue(today)}.${left}`, null, left ? "warn" : "");
+  }
+}
+
+function watchDay() {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") syncTourDate();
+  });
+  window.addEventListener("focus", () => syncTourDate());
+  setInterval(() => syncTourDate(), 60 * 1000);
 }
 
 /* ─── Carte : toucher → rues proches ─── */
@@ -272,10 +314,15 @@ async function main() {
   registerServiceWorker();
   navigator.storage?.persist?.().catch(() => {});
   load();
-  // Date de tournée : le jour courant pour une NOUVELLE tournée. Une tournée
-  // commencée (bons déjà relevés) garde sa date, même rouverte le lendemain —
-  // sinon le rapport partirait avec une fausse date d'îlotage.
-  if (!state.bps.length || !state.date) state.date = todayISO();
+  // Date de tournée : toujours la date du jour (mise à jour à l'ouverture,
+  // au retour dans l'appli et à minuit). Un choix manuel dans les Réglages
+  // vaut pour la journée en cours.
+  const reopenedNextDay = state.date && state.dateDay !== todayISO() && state.date !== todayISO();
+  if (state.dateDay !== todayISO() || !state.date) {
+    retimeCustomMail(state.date, todayISO());
+    state.date = todayISO();
+    state.dateDay = todayISO();
+  }
 
   const [streets] = await Promise.all([
     loadStreets().then((r) => {
@@ -330,6 +377,7 @@ async function main() {
   bindSettings();
   bindShell();
   syncTabs();
+  watchDay();
   initOfflineBanner();
   initToast();
 
@@ -345,6 +393,13 @@ async function main() {
   loadSectorContours();
   // Interface prête : la séquence de démarrage peut s'effacer.
   splash.step("ui");
+  if (reopenedNextDay && state.bps.length) {
+    const n = state.bps.length;
+    const msg = `Date de tournée : ${dateLongue(state.date)}. ${plural(n, "bon de passage", "bons de passage")} d'une tournée précédente ${n > 1 ? "sont toujours enregistrés" : "est toujours enregistré"}.`;
+    // Après l'écran de démarrage, pour que le message soit lu.
+    if ($("splash")) document.addEventListener("bv:splashdone", () => toast(msg, null, "warn"), { once: true });
+    else toast(msg, null, "warn");
+  }
   // Tracé réel des rues (pour « Ma position ») : chargé hors du chemin critique,
   // une fois la séquence de démarrage terminée (aucune saccade pendant l'animation).
   // « Ma position » le charge de toute façon à la demande s'il n'est pas prêt.

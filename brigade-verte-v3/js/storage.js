@@ -16,6 +16,7 @@ function defaultState() {
   return {
     version: SCHEMA,
     date: "",
+    dateDay: "", // jour où la date a été fixée (passage auto au jour suivant)
     view: "terrain", // "terrain" | "rapport" | "collecte"
     stage: 1, // 1 Lieu · 2 Déchets (enregistrement)
     current: emptyCurrent(),

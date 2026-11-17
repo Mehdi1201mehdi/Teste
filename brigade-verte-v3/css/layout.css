@@ -10,6 +10,7 @@
    ========================================================================== */
 
 .app {
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -75,6 +76,7 @@
 .territory {
   position: relative;
   height: clamp(200px, 30vh, 280px);
+  height: clamp(200px, 30dvh, 280px);
   background: var(--slate);
   overflow: hidden;
   transition: height var(--t-slow) var(--ease-out);
@@ -164,6 +166,7 @@
   }
   .territory {
     height: clamp(260px, 36vh, 420px);
+    height: clamp(260px, 36dvh, 420px);
   }
   .composerHead,
   .composerBody,
@@ -230,6 +233,112 @@
 @media (min-width: 1440px) {
   :root {
     --panel-w: 500px;
+  }
+}
+/* Grands écrans : le rapport et la saisie gagnent en largeur. */
+@media (min-width: 1600px) {
+  :root {
+    --panel-w: clamp(500px, 32vw, 640px);
+  }
+}
+
+/* ─── Téléphone en paysage (hauteur ≤ 500 px) ───
+   Carte à gauche, saisie à droite (comme sur tablette) : le formulaire et la
+   barre d'action tiennent dans les 375–430 px de hauteur disponibles. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
+  .app {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  .appbar {
+    position: relative;
+    min-height: 48px;
+    padding-block: 2px;
+    padding-top: calc(2px + env(safe-area-inset-top));
+  }
+  .stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 56%);
+    min-height: 0;
+  }
+  .app[data-view="rapport"] .stage,
+  .app[data-view="collecte"] .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .territory,
+  .app.is-typing .territory {
+    height: auto;
+  }
+  .panel,
+  .app.is-typing .panel {
+    margin: 0;
+    border-radius: 0;
+    border-left: 1px solid var(--line);
+    box-shadow: -18px 0 40px -30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    min-height: 0;
+  }
+  .view {
+    overflow: hidden;
+  }
+  .composerBody,
+  .reportScroll,
+  .collecteScroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .composerHead {
+    padding-top: var(--s2);
+  }
+  .composerHead .eyebrow {
+    display: none;
+  }
+  .actionBar {
+    padding-block: var(--s2);
+    padding-bottom: calc(var(--s2) + env(safe-area-inset-bottom));
+  }
+  .actionHint {
+    display: none;
+  }
+  .sendBar {
+    position: static;
+  }
+  .map .leaflet-bottom {
+    bottom: 0;
+  }
+}
+
+/* Petits téléphones en portrait (iPhone SE 1re gén., Android compacts) :
+   carte un peu plus basse pour que le champ « Rue » soit visible d'emblée. */
+@media (orientation: portrait) and (max-height: 600px) {
+  .territory {
+    height: clamp(140px, 26dvh, 170px);
+  }
+}
+
+/* Encoche en paysage (iPhone) : rien ne passe dessous. */
+@supports (padding: max(0px)) {
+  .appbar {
+    padding-left: max(var(--s4), env(safe-area-inset-left));
+    padding-right: max(var(--s4), env(safe-area-inset-right));
+  }
+  @media (min-width: 700px) {
+    .appbar {
+      padding-left: max(var(--s6), env(safe-area-inset-left));
+      padding-right: max(var(--s6), env(safe-area-inset-right));
+    }
+  }
+  @media (max-width: 699px) {
+    .composerHead,
+    .composerBody,
+    .reportScroll,
+    .collecteScroll,
+    .actionBar {
+      padding-left: max(var(--s4), env(safe-area-inset-left));
+      padding-right: max(var(--s4), env(safe-area-inset-right));
+    }
   }
 }
 
@@ -307,4 +416,23 @@
   .wordmark {
     display: none;
   }
+}
+
+/* Texte agrandi (200 %) : les onglets se réduisent, le bouton Réglages reste à l'écran. */
+.appbar > * {
+  min-width: 0;
+}
+.viewSwitch {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.stamp {
+  flex-shrink: 0;
+}
+
+/* Retour de la carte après la frappe : instantané (le défilement compense). */
+.app.no-anim .territory,
+.app.no-anim .panel {
+  transition: none;
 }

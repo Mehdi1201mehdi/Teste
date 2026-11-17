@@ -3,7 +3,7 @@
 // elles passent directement au réseau et l'application retombe déjà, côté JS,
 // sur le secteur embarqué dans data/streets.json si le réseau est indisponible.
 
-const VERSION = "v4.8.1";
+const VERSION = "v4.9.0";
 const SHELL_CACHE = `brigade-verte-shell-${VERSION}`;
 const DATA_CACHE = `brigade-verte-data-${VERSION}`;
 // Tuiles du Plan IGN : cache persistant entre versions, borné (~700 tuiles ≈ 20 Mo).
@@ -26,6 +26,7 @@ const SHELL_ASSETS = [
   "./js/vendor/leaflet.js",
   "./js/app.js",
   "./js/api.js",
+  "./js/backup.js",
   "./js/bp.js",
   "./js/collecte.js",
   "./js/collecteView.js",
@@ -49,6 +50,8 @@ const SHELL_ASSETS = [
   "./js/utils.js",
   "./js/waste.js",
   "./assets/logo/logo.svg",
+  "./assets/icons/icon-32.png",
+  "./assets/icons/icon-180.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/fonts/BricolageGrotesque-var.woff2",
@@ -95,7 +98,11 @@ async function staleWhileRevalidate(request, cacheName) {
   const cached = await cache.match(request);
   const network = fetch(request)
     .then((response) => {
-      cache.put(request, response.clone());
+      // Seules les réponses valides remplacent la copie hors ligne : une page
+      // d'erreur (404 pendant un déploiement, portail Wi-Fi) ne doit jamais
+      // écraser la liste des rues gardée pour le terrain.
+      const type = response.headers.get("content-type") || "";
+      if (response.ok && /json/.test(type)) cache.put(request, response.clone());
       return response;
     })
     .catch(() => null);
@@ -111,10 +118,14 @@ async function cacheFirst(request, cacheName) {
   const cached = await caches.match(request);
   if (cached) return cached;
   const response = await fetch(request);
-  const cache = await caches.open(cacheName);
-  cache.put(request, response.clone());
+  if (response.ok) {
+    const cache = await caches.open(cacheName);
+    cache.put(request, response.clone()).catch(() => {});
+  }
   return response;
 }
+
+let tilesSinceTrim = 25;
 
 async function tileCacheFirst(request) {
   const cache = await caches.open(TILE_CACHE);
@@ -124,10 +135,18 @@ async function tileCacheFirst(request) {
     const response = await fetch(request);
     // Uniquement des réponses CORS lisibles (jamais d'opaques : elles gonflent le quota).
     if (response.ok && response.type === "cors") {
-      await cache.put(request, response.clone());
-      const keys = await cache.keys();
-      if (keys.length > TILE_MAX) {
-        await Promise.all(keys.slice(0, keys.length - TILE_MAX).map((k) => cache.delete(k)));
+      // Stockage plein : la tuile reçue est quand même affichée.
+      try {
+        await cache.put(request, response.clone());
+        if (++tilesSinceTrim >= 25) {
+          tilesSinceTrim = 0;
+          const keys = await cache.keys();
+          if (keys.length > TILE_MAX) {
+            await Promise.all(keys.slice(0, keys.length - TILE_MAX).map((k) => cache.delete(k)));
+          }
+        }
+      } catch (e) {
+        /* quota atteint : tuile servie sans être gardée */
       }
     }
     return response;
@@ -158,13 +177,20 @@ self.addEventListener("fetch", (event) => {
     if (url.pathname.includes("/suivi")) {
       event.respondWith(
         (async () => {
+          const cached = await caches.match("./suivi/");
           try {
-            const fresh = await fetch(request);
-            const cache = await caches.open(SHELL_CACHE);
-            cache.put("./suivi/", fresh.clone());
+            // Réseau faible : au-delà de 3 s, la copie hors ligne est servie.
+            const fresh = await Promise.race([
+              fetch(request),
+              new Promise((_, reject) => setTimeout(() => cached && reject(new Error("lent")), 3000)),
+            ]);
+            if (fresh.ok) {
+              const cache = await caches.open(SHELL_CACHE);
+              cache.put("./suivi/", fresh.clone());
+            }
             return fresh;
           } catch (e) {
-            return (await caches.match("./suivi/")) || Response.error();
+            return cached || Response.error();
           }
         })(),
       );

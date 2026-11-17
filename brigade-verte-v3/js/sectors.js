@@ -29,15 +29,25 @@ export const TITRE = {
 };
 
 let secteursGeo = null;
+let secteursReq = null;
+
+/** Contours officiels des 5 secteurs, chargés une seule fois (partagés avec la carte). */
+export function secteursData() {
+  if (!secteursReq) {
+    secteursReq = fetch("data/secteurs.geojson")
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((j) => {
+        if (!j) secteursReq = null; // nouvel essai au prochain appel
+        return j;
+      });
+  }
+  return secteursReq;
+}
 
 /** Contours officiels des 5 secteurs (Amiens Métropole), embarqués : hors ligne. */
 export async function loadSectorContours() {
-  try {
-    const r = await fetch("data/secteurs.geojson");
-    secteursGeo = r.ok ? await r.json() : null;
-  } catch (e) {
-    secteursGeo = null;
-  }
+  secteursGeo = await secteursData();
 }
 
 function pointInRing(pt, ring) {
@@ -72,16 +82,14 @@ export function secteurDuPoint(lon, lat) {
 
 /**
  * Secteur réel d'une adresse : géocodage du numéro (en ligne) puis contour
- * officiel ; sinon secteur de référence de la rue (hors ligne / sans numéro).
+ * officiel. Renvoie null quand rien de plus précis n'est connu (sans numéro,
+ * hors ligne, adresse introuvable) : le secteur déjà retenu — celui de la rue,
+ * ou celui mesuré par GPS — n'est alors jamais remplacé.
  */
 export async function resolveSector(rue, numero) {
-  if (!rue) return null;
-  if (!numero) return rue.secteur || null;
+  if (!rue || !numero) return null;
   const coords = await geocodeAddress(numero, rue.rue);
-  if (coords) {
-    const [lon, lat] = coords;
-    const sec = secteurDuPoint(lon, lat);
-    if (sec) return sec;
-  }
-  return rue.secteur || null;
+  if (!coords) return null;
+  const [lon, lat] = coords;
+  return secteurDuPoint(lon, lat);
 }

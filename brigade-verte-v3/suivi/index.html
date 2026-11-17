@@ -264,7 +264,7 @@ tr.grp-rue td{background:var(--card-2); font-weight:700; font-size:12.5px}
 
   <!-- VUE 1 : SECTEURS -->
   <section id="view-sectors" class="view active" aria-label="Choix du secteur">
-    <p class="hello">Match France / Maroc — dispositif préventif. Choisissez un secteur, puis une rue.</p>
+    <p class="hello">Tournée préventive. Choisissez un secteur, puis une rue.</p>
     <div class="search-wrap">
       <input id="globalSearch" class="search-input" type="search" placeholder="🔎 Rechercher une rue (tous secteurs)…" autocomplete="off" aria-label="Rechercher une rue">
       <div id="globalSuggest" class="suggest" hidden></div>
@@ -318,6 +318,10 @@ tr.grp-rue td{background:var(--card-2); font-weight:700; font-size:12.5px}
     <div class="agent-field">
       <label for="agentInput">Agent / équipage</label>
       <input id="agentInput" placeholder="Ex. : Brigade 2 — M. Dupont" autocomplete="off">
+    </div>
+    <div class="agent-field">
+      <label for="motifInput">Motif de la tournée <span style="text-transform:none;font-weight:600">(facultatif)</span></label>
+      <input id="motifInput" placeholder="Ex. : Match du soir — dispositif préventif" autocomplete="off" maxlength="120">
     </div>
 
     <div class="exports">
@@ -392,7 +396,7 @@ function numKey(v) {
 
 // ── État + persistance (hors ligne) ──────────────────────────────────
 function fresh() {
-  return { agent: "", date: new Date().toISOString().slice(0, 10),
+  return { agent: "", motif: "", date: new Date().toISOString().slice(0, 10),
     startedAt: null, lastAt: null, streets: {} };
 }
 var state = fresh();
@@ -410,7 +414,7 @@ function touch() {
   if (!state.startedAt) state.startedAt = iso;
   state.lastAt = iso;
 }
-function resetAll() { var a = state.agent; state = fresh(); state.agent = a; save(); }
+function resetAll() { var a = state.agent, mo = state.motif; state = fresh(); state.agent = a; state.motif = mo; save(); }
 function streetState(name) {
   var d = state.streets[name];
   if (!d) { d = { fetched: false, nums: [], note: "", firstAt: null, lastAt: null }; state.streets[name] = d; }
@@ -530,7 +534,7 @@ function buildModel() {
 function renderReport(elm) {
   var m = buildModel(), s = m.stats, h = "";
   h += '<div class="doc-head"><h2>Compte rendu de tournée préventive</h2>' +
-    '<p class="doc-sub">Match France / Maroc (22 h 00) — dispositif classé à risque</p>' +
+    (state.motif ? '<p class="doc-sub">' + esc(state.motif) + '</p>' : '') +
     '<p class="doc-meta">' + esc(dateLong()) + (state.agent ? " · " + esc(state.agent) : "") + '</p></div>';
   h += '<div class="kpis">' +
     '<div class="kpi"><b>' + s.rues + '</b><span>rues contrôlées</span></div>' +
@@ -587,7 +591,7 @@ function rowsForExport() {
 function reportText() {
   var m = buildModel(), s = m.stats, L = [];
   L.push("COMPTE RENDU — TOURNÉE PRÉVENTIVE");
-  L.push("Match France / Maroc (22h00) — classé à risque");
+  if (state.motif) L.push(state.motif);
   L.push(dateLong() + (state.agent ? " · " + state.agent : ""));
   L.push("");
   L.push("Rues contrôlées : " + s.rues + " | Numéros : " + s.numsSeen + " | Anomalies : " + s.numsPb + " | Durée : " + s.duration);
@@ -921,6 +925,9 @@ function bindChrome() {
   var agent = $("agentInput");
   agent.value = state.agent || "";
   agent.oninput = function () { state.agent = agent.value; saveSoon(); };
+  var motif = $("motifInput");
+  motif.value = state.motif || "";
+  motif.oninput = function () { state.motif = motif.value.trim(); saveSoon(); };
 
   $("resetBtn").onclick = function () {
     if (!confirm("Effacer toute la tournée en cours ?")) return;

@@ -203,8 +203,12 @@
   color: var(--ink);
   background-image: none;
 }
+/* Étape verrouillée : lisible (5,3:1), signalée par un contour pointillé. */
 .stageBtn[aria-disabled="true"] {
-  opacity: 0.55;
+  color: var(--muted);
+}
+.stageBtn[aria-disabled="true"] .stageDot {
+  border-style: dashed;
 }
 
 /* ───────────────────────────────── Étapes ────────────────────────────────── */
@@ -1043,14 +1047,19 @@
 }
 .btn--grow {
   flex: 1;
+  min-width: 0; /* le libellé long ne repousse plus « Retour » sur une 2e ligne */
 }
 .btn--primary {
   background: var(--brand);
   color: var(--brand-ink);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 6px 16px -8px rgba(11, 93, 59, 0.7);
 }
-.btn--primary:hover:not(:disabled) {
-  background: var(--brand-strong);
+/* Survol réservé aux souris, et jamais sur un bouton désactivé (sinon il
+   paraît actif : fond foncé + texte gris illisible). */
+@media (hover: hover) {
+  .btn--primary:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: var(--brand-strong);
+  }
 }
 .btn--primary:disabled,
 .btn--primary[aria-disabled="true"] {
@@ -2168,3 +2177,83 @@ dialog::backdrop {
 .gpsPanel.is-compact .gpsMore > summary { min-height: 36px; }
 .gpsPanel.is-compact .gpsNum { margin-top: var(--s1); }
 #stageNextLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+
+/* ==========================================================================
+   Ergonomie terrain (audit 11/2026)
+   · cibles tactiles ≥ 44 px partout (gants, pouce) — 48 px pour les actions ;
+   · champs à 16 px minimum : iOS ne zoome plus la page à la saisie ;
+   · petits écrans : rien n'est coupé.
+   ========================================================================== */
+.vsBtn,
+.stamp,
+.chipBtn,
+.chip,
+.catTab,
+.linkBtn,
+.ticketActions .linkBtn,
+.gpsMore > summary,
+.colRules summary,
+.placeCollecte,
+.toastAction,
+.sectorTag {
+  min-height: 44px;
+}
+.switch {
+  position: relative;
+}
+/* Interrupteur : zone de toucher agrandie sans changer son dessin. */
+.switch::after {
+  content: "";
+  position: absolute;
+  inset: -8px -4px;
+}
+.docToInput,
+.input--quiet,
+.docBody[contenteditable="true"] {
+  font-size: max(16px, 1em);
+}
+.ticketActions {
+  flex-wrap: wrap;
+}
+.ticketActions .linkBtn--danger {
+  min-width: 44px;
+  justify-content: center;
+}
+.docTo {
+  scroll-margin-top: calc(var(--bar-h) + 16px);
+}
+@media (max-width: 359px) {
+  #stageBack span {
+    display: none;
+  }
+}
+
+/* Focus clavier visible aussi sur les boutons qui portent déjà une ombre. */
+.btn:focus-visible,
+.mapBtn:focus-visible,
+.vsBtn:focus-visible,
+.stamp:focus-visible {
+  box-shadow: var(--focus);
+}
+.chips .chip {
+  min-height: 44px;
+}
+.docTo {
+  min-height: 52px;
+}
+.docToInput {
+  min-height: 44px;
+}
+.brand {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+/* Contraste forcé (Windows) : l'étape et la vue en cours restent repérables. */
+@media (forced-colors: active) {
+  [aria-current] {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}

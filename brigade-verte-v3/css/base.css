@@ -119,8 +119,11 @@ svg {
 :focus {
   outline: none;
 }
+/* Contour transparent : invisible d'ordinaire, mais affiché par Windows en
+   contraste élevé (qui supprime les ombres) — le focus reste toujours visible. */
 :focus-visible {
-  outline: none;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
   box-shadow: var(--focus);
   border-radius: var(--r-sm);
 }

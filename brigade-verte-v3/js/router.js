@@ -31,9 +31,16 @@ function hashFor(view, stage) {
   return view === "terrain" ? `#terrain-${stage}` : `#${view}`;
 }
 
+const ROUTE_LABEL = { rapport: "Rapport de tournée", collecte: "Jour de collecte" };
+
 function apply(view, stage, dir) {
   stage = clampStage(stage);
   const app = $("app");
+  // Lecteur d'écran : le changement de vue ou d'étape est annoncé.
+  const live = $("routeAnnounce");
+  if (live && (view !== state.view || stage !== state.stage)) {
+    live.textContent = view === "terrain" ? `Étape ${stage} sur 2 : ${stage === 1 ? "lieu du dépôt" : "déchets constatés"}` : ROUTE_LABEL[view] || "";
+  }
   state.view = view;
   state.stage = stage;
   app.dataset.view = view;
@@ -62,6 +69,7 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
   if (view === "terrain" && stage > state.stage && !canEnterStage(stage)) {
     return blockedMessage(stage) || false;
   }
+  const prevView = state.view;
   const dir = view === state.view ? Math.sign(stage - state.stage) : 0;
   const entry = { view, stage };
   const url = hashFor(view, stage);
@@ -72,8 +80,9 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
   apply(view, stage, dir);
   // La saisie remonte en haut ; sur desktop seul le panneau défile.
   const scroller = view === "terrain" ? $("composerBody") : document.querySelector(view === "rapport" ? ".reportScroll" : ".collecteScroll");
-  if (window.matchMedia("(min-width: 1024px)").matches) scroller?.scrollTo({ top: 0 });
-  else if (dir !== 0 || view !== "terrain") window.scrollTo({ top: 0 });
+  // Disposition côte à côte (ordinateur, tablette ou téléphone en paysage) : seul le panneau défile.
+  if (window.matchMedia("(min-width: 1024px), (orientation: landscape) and (max-height: 500px)").matches) scroller?.scrollTo({ top: 0 });
+  else if (dir !== 0 || view !== prevView || view !== "terrain") window.scrollTo({ top: 0 });
   return true;
 }
 

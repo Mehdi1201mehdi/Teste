@@ -47,5 +47,4 @@ export function showStreetSuggest(query, onChoose) {
     ? "Liste des rues indisponible. Vérifiez la connexion puis rouvrez l'application."
     : "Aucune rue trouvée — vérifiez l'orthographe, ou touchez la carte.";
   showSuggestions(box, list.map((r) => streetEntry(r, query, onChoose)), emptyMsg);
-  input.setAttribute("aria-expanded", "true");
 }

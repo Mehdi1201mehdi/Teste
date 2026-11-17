@@ -10,6 +10,7 @@
 
 import { esc } from "./utils.js";
 import { findNearestStreets } from "./locate.js";
+import { secteursData } from "./sectors.js";
 
 const L = window.L;
 const reduceMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -216,7 +217,7 @@ export async function loadAreas() {
   try {
     const [q, s] = await Promise.all([
       fetch("data/quartiers.geojson").then((r) => r.json()),
-      fetch("data/secteurs.geojson").then((r) => r.json()),
+      secteursData().then((j) => j || Promise.reject(new Error("secteurs"))),
     ]);
     // Limites de secteur : trait pointillé plus marqué
     L.geoJSON(s, {
@@ -466,7 +467,8 @@ export function setMe(lat, lon, { fly = true, accuracy = null, quality = "good" 
     };
     meTween = requestAnimationFrame(step);
   }
-  if (fly) flyTo(lat, lon, accuracy > 120 ? 15 : 16.5);
+  // Hors du territoire couvert : la carte reste sur Amiens (sinon fond vide).
+  if (fly && map.options.maxBounds?.contains([lat, lon])) flyTo(lat, lon, accuracy > 120 ? 15 : 16.5);
 }
 
 /** État « recherche du signal » : anneau sur le bouton et message sur la carte. */

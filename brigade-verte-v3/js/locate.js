@@ -86,7 +86,7 @@ export async function resolveStreet({ onFix, onStage, signal } = {}) {
   if (validatePositionAccuracy(fix.accuracy).usable) {
     onStage?.("adresse");
     try {
-      reverse = readReverse(await reverseGeocode(fix.lat, fix.lon), index);
+      reverse = readReverse(await reverseGeocode(fix.lat, fix.lon, { signal }), index);
     } catch (e) {
       reverseError = e; // hors ligne / service indisponible : on continue sans
     }

@@ -177,7 +177,8 @@ const isOffDay = (d) => (d.getMonth() === 0 && d.getDate() === 1) || (d.getMonth
 /**
  * Prochain passage à partir de `from` (inclus), report des jours fériés compris :
  * Amiens → le mercredi de la même semaine ; autres communes → le lendemain.
- * → { date, moved: bool } ou null si le calendrier est illisible.
+ * → { date, moved: bool, unsure?: bool } ou null si le calendrier est illisible.
+ * `unsure` : jour férié non collecté dont le report n'est pas défini par la règle.
  */
 export function nextPickup(schedule, from = new Date(), { commune = false } = {}) {
   const { days, parity } = parseSchedule(schedule);
@@ -189,6 +190,9 @@ export function nextPickup(schedule, from = new Date(), { commune = false } = {}
     if (!days.includes(d.getDay())) continue;
     if (parity && (isoWeek(d) % 2 === 0 ? "paire" : "impaire") !== parity) continue;
     if (!isOffDay(d)) return { date: d, moved: false };
+    // Férié tombant un mercredi à Amiens (ou un dimanche) : la règle publiée ne
+    // dit pas où va la collecte — on ne l'invente pas, l'agent est invité à vérifier.
+    if (!commune && (d.getDay() === 3 || d.getDay() === 0)) return { date: d, moved: false, unsure: true };
     const m = new Date(d);
     if (commune) m.setDate(d.getDate() + 1);
     else m.setDate(d.getDate() + (3 - d.getDay())); // mercredi de la même semaine

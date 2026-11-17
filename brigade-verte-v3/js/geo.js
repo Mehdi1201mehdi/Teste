@@ -105,6 +105,8 @@ export async function getCurrentPosition({ onFix, goal = 15, maxMs = 12000, sign
       else reject(fromGeoError({ code: 3 }));
     };
     const onAbort = () => finish(new LocationError("aborted", "Localisation annulée."));
+    // Annulée avant même le démarrage (pendant la vérification des permissions).
+    if (signal?.aborted) return reject(new LocationError("aborted", "Localisation annulée."));
     signal?.addEventListener("abort", onAbort);
     id = navigator.geolocation.watchPosition(
       (pos) => {
@@ -125,7 +127,9 @@ export async function getCurrentPosition({ onFix, goal = 15, maxMs = 12000, sign
         // pour trancher la rue (`enough`), ou plus aucun progrès depuis 4 s.
         if (fix.accuracy <= goal || (fix.accuracy <= 30 && enough?.(fix))) return finish();
         clearTimeout(plateau);
-        if (fix.accuracy <= 50) plateau = setTimeout(() => finish(), plateauMs);
+        // Précision médiocre : on n'attend pas non plus les 12 s complètes si
+        // rien ne s'améliore (l'agent choisira parmi les rues proposées).
+        plateau = setTimeout(() => finish(), fix.accuracy <= 50 ? plateauMs : plateauMs + 2000);
       },
       (err) => {
         // Refus : tout s'arrête. Autre erreur : on garde la meilleure mesure.

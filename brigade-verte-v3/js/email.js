@@ -9,15 +9,12 @@
 // mise en forme (secteurs en gras souligné) passe par le presse-papiers
 // (HTML + texte), collée telle quelle par Outlook, Gmail, etc.
 
-import { detectPlatform } from "./utils.js";
+import { detectPlatform, esc as escHtml } from "./utils.js";
 
 /* ─── Contenu ─── */
 
 // Titre de secteur, seul sur sa ligne : « Secteur Centre : ».
 const SECTOR_LINE = /^(\s*)(Secteur (?:Centre|Ouest|Nord|Est|Sud))(\s*:?\s*)$/i;
-
-const escHtml = (s) =>
-  String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 /** Destinataires valides d'une saisie libre (séparés par virgule, point-virgule ou espace). */
 export function parseRecipients(input) {
@@ -242,9 +239,13 @@ export function openEmailClient(channel, msg, { onNotOpened, waitMs = 2200, plat
     const onBlur = () => (left = true);
     document.addEventListener("visibilitychange", markLeft);
     window.addEventListener("pagehide", onBlur);
+    // Ordinateur : la page reste visible quand Outlook s'ouvre, mais elle perd
+    // le focus — sans cela, le repli « ne s'est pas ouvert » s'afficherait à tort.
+    window.addEventListener("blur", onBlur);
     setTimeout(() => {
       document.removeEventListener("visibilitychange", markLeft);
       window.removeEventListener("pagehide", onBlur);
+      window.removeEventListener("blur", onBlur);
       if (!left && document.visibilityState === "visible") onNotOpened(plan);
     }, waitMs);
   }

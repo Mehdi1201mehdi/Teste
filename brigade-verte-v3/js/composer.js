@@ -6,12 +6,12 @@
 // Après enregistrement, on reste sur le terrain : le composeur se remet à zéro
 // pour le dépôt suivant, la balise tombe sur la carte, le compteur avance.
 
-import { $, esc } from "./utils.js";
+import { $, esc, scrollBehavior } from "./utils.js";
 import { state, save, emptyCurrent } from "./storage.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
 import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk, findDuplicate } from "./bp.js";
 import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
-import { showWasteSuggest, frequent, categories, categoryItems, shortCat, pickButtons } from "./waste.js";
+import { showWasteSuggest, resolveTypedWaste, frequent, categories, categoryItems, shortCat, pickButtons } from "./waste.js";
 import { showSuggestions, hideSuggestions, bindComboKeys, renderChips } from "./components.js";
 import { toast, replay, haptic } from "./ui.js";
 import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
@@ -21,6 +21,7 @@ import { resolveStreet, resolveSectorAt } from "./locate.js";
 import { likelihoods } from "./streetgeo.js";
 import { lookupStreet, scheduleFor, shortSchedule, nextPickup, relDay } from "./collecte.js";
 import { openCollecte } from "./collecteView.js";
+import { invalidateMail } from "./report.js";
 
 let activeCat = null;
 let freshWaste = null;
@@ -29,7 +30,13 @@ let hooks = { changed: () => {} };
 /* ═════════════ Lieu ═════════════ */
 
 export function chooseRue(rue, { fly = true, keepGps = false } = {}) {
-  if (!keepGps) hideGpsPanel(); // rue choisie autrement : le bandeau GPS n'a plus lieu d'être
+  // Rue choisie autrement (recherche, carte, « même adresse ») : une
+  // localisation encore en cours est annulée, pour que son résultat tardif
+  // n'écrase jamais le choix de l'agent.
+  if (!keepGps) {
+    locating?.abort();
+    hideGpsPanel();
+  }
   const c = state.current;
   c.rue = { rue: rue.rue, lon: rue.lon, lat: rue.lat, secteur: rue.secteur };
   c.secteur = rue.secteur || null;
@@ -143,8 +150,13 @@ async function refineSector() {
   const c = state.current;
   if (!c.rue || !c.secteurAuto) return;
   const req = ++sectorReq;
-  const s = await resolveSector(c.rue, (c.numero || "").trim());
-  if (req !== sectorReq || !state.current.rue || !state.current.secteurAuto) return;
+  const rue = c.rue.rue;
+  const numero = (c.numero || "").trim();
+  const s = await resolveSector(c.rue, numero);
+  // Réponse tardive (réseau lent) : ignorée si l'agent a changé de rue ou de
+  // numéro entre-temps — le secteur d'une autre adresse ne doit jamais s'appliquer.
+  const now = state.current;
+  if (req !== sectorReq || now !== c || !now.rue || now.rue.rue !== rue || (now.numero || "").trim() !== numero || !now.secteurAuto) return;
   if (s && s !== c.secteur) {
     c.secteur = s;
     renderPlace();
@@ -316,7 +328,7 @@ async function useMyPosition(btn) {
   if (state.view !== "terrain" || state.stage !== 1) go("terrain", 1);
   gpsStatus("Recherche du signal GPS…", "seek");
   showGpsPanel({ state: "seek", title: "Recherche de votre position…", msg: "Restez immobile quelques secondes, téléphone dégagé." });
-  if (btn === $("mapLocate")) $("gpsPanel").scrollIntoView({ block: "center", behavior: "smooth" });
+  if (btn === $("mapLocate")) $("gpsPanel").scrollIntoView({ block: "center", behavior: scrollBehavior() });
   let shown = false;
   let acc = null;
   try {
@@ -335,8 +347,13 @@ async function useMyPosition(btn) {
         if (stage === "adresse") showGpsPanel({ state: "address", title: "Identification de la rue…", accuracy: acc });
       },
     });
+    // Annulée pendant l'identification de la rue (croix, ou rue choisie à la main).
+    if (ctrl.signal.aborted) return hideGpsPanel();
     const { fix, decision } = res;
-    const candidates = decision.status === "imprecise" ? decision.candidates.slice(0, 3) : plausible(decision.candidates, fix.accuracy);
+    // À plus de 2 km de toute rue connue : l'agent est hors d'Amiens (ou le GPS
+    // se trompe lourdement) — proposer des rues à 100 km n'aurait aucun sens.
+    const outside = (decision.candidates[0]?.d ?? Infinity) > 2000;
+    const candidates = outside ? [] : decision.status === "imprecise" ? decision.candidates.slice(0, 3) : plausible(decision.candidates, fix.accuracy);
     lastLocate = { ...res, candidates, sourceText: sourceText(res) };
     const quality = gpsQuality(fix.accuracy);
     gpsStatus(`± ${fix.accuracy} m · ${QUALITY_LABEL[quality]}`, quality);
@@ -362,7 +379,9 @@ async function useMyPosition(btn) {
         hint: "Vous pouvez aussi choisir la rue ci-dessous, la rechercher, ou toucher la carte.",
       });
     } else {
-      const why = decision.reasons.includes("far")
+      const why = outside
+        ? "Position hors d'Amiens : recherchez la rue par son nom ou touchez la carte."
+        : decision.reasons.includes("far")
         ? `Aucune rue connue à moins de ${fmtDist(decision.candidates[0]?.d ?? 0)} (parc, cour, voie privée ?).`
         : decision.reasons.includes("reverse-disagrees")
           ? "L'adresse officielle la plus proche est dans une autre rue : confirmez."
@@ -377,7 +396,7 @@ async function useMyPosition(btn) {
         title: "Quelle rue ?",
         msg: why,
       });
-      suggested = decision.reasons.includes("far") ? null : candidates[0] || null;
+      suggested = outside || decision.reasons.includes("far") ? null : candidates[0] || null;
       renderComposer();
       $("gpsPanel").querySelector(".gpsCand")?.focus({ preventScroll: true });
     }
@@ -512,25 +531,25 @@ function saveBp() {
   const wasEditing = state.editing != null;
   if (wasEditing) {
     index = state.editing;
-    state.bps[index] = bp;
+    // Les champs non saisis ici (identifiant, note… des versions précédentes) sont conservés.
+    state.bps[index] = { ...state.bps[index], ...bp };
     state.editing = null;
   } else {
     state.bps.push(bp);
     index = state.bps.length - 1;
     bp.wastes.forEach((w) => (state.wasteFreq[w] = (state.wasteFreq[w] || 0) + 1));
   }
-  state.mailCustom = "";
+  const note = invalidateMail();
   resetCurrent({ silent: true });
   hooks.changed({ fresh: wasEditing ? -1 : index });
   go("terrain", 1);
-  const btn = $("stageNext");
-  replay(btn, "is-done");
-  setTimeout(() => btn.classList.remove("is-done"), 700);
+  // Le bouton visible est désormais « Déchets » (désactivé) : l'animation de
+  // succès passe par les compteurs, pas par ce bouton.
   replay($("hudCount"), "is-ticking");
   replay($("navCount"), "is-ticking");
   // Confirmation brève, sans bouton : le compteur « Rapport » a déjà avancé,
   // et l'agent enchaîne tout de suite sur le dépôt suivant.
-  toast(wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`, null, "ok");
+  toast((wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`) + note, null, note ? "warn" : "ok");
 }
 
 export function resetCurrent({ silent = false } = {}) {
@@ -748,13 +767,13 @@ export function initComposer(opts = {}) {
   // Déchets
   const wasteInput = $("wasteInput");
   wasteInput.addEventListener("input", () => showWasteSuggest(wasteInput.value, addWaste));
-  bindComboKeys(wasteInput, $("wasteSuggest"), () => addWaste(wasteInput.value));
+  bindComboKeys(wasteInput, $("wasteSuggest"), () => addWaste(resolveTypedWaste(wasteInput.value)));
   $("addWaste").onclick = () => {
     if (!wasteInput.value.trim()) {
       wasteInput.focus();
       return toast("Tapez un déchet, ou touchez-en un ci-dessous.");
     }
-    addWaste(wasteInput.value);
+    addWaste(resolveTypedWaste(wasteInput.value));
   };
   const pickHandler = (e) => {
     const b = e.target.closest(".pick");
@@ -809,11 +828,22 @@ export function initComposer(opts = {}) {
       $("app").classList.add("is-typing");
     }
   });
+  // Fin de frappe : la carte revient APRÈS le geste en cours (sinon le bouton
+  // visé glisse sous le doigt), et la page est décalée d'autant pour que le
+  // contenu affiché ne bouge pas.
   panel.addEventListener("focusout", () => {
     setTimeout(() => {
       const a = document.activeElement;
-      if (!a || !a.matches || !a.matches("input, textarea")) $("app").classList.remove("is-typing");
-    }, 120);
+      if (a && a.matches && a.matches("input, textarea")) return;
+      const app = $("app");
+      if (!app.classList.contains("is-typing")) return;
+      const before = panel.getBoundingClientRect().top;
+      app.classList.add("no-anim");
+      app.classList.remove("is-typing");
+      const delta = panel.getBoundingClientRect().top - before;
+      if (delta > 0) window.scrollBy(0, delta);
+      requestAnimationFrame(() => app.classList.remove("no-anim"));
+    }, 350);
   });
 
   // Ferme les suggestions en touchant ailleurs
@@ -826,7 +856,11 @@ export function initComposer(opts = {}) {
 }
 
 function showBlocked(msg) {
-  $("stageHint").textContent = msg;
-  replay($("stageHint"), "is-ticking");
-  toast(msg, null, "warn");
+  const hint = $("stageHint");
+  hint.textContent = msg;
+  replay(hint, "is-ticking");
+  haptic([14, 60, 14]);
+  // Le message est déjà sous le bouton : pas de doublon en toast, sauf si
+  // l'aide est masquée (téléphone en paysage).
+  if (!hint.offsetParent) toast(msg, null, "warn");
 }

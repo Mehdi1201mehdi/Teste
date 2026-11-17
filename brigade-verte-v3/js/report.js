@@ -1,7 +1,7 @@
 // Vue Rapport — le message tel qu'il partira, les bons classés par secteur,
 // l'envoi (copie, Outlook appli, Outlook web) et la clôture de tournée.
 
-import { $, esc, plural, dateFr } from "./utils.js";
+import { $, esc, plural, dateFr, scrollBehavior } from "./utils.js";
 import { state, save } from "./storage.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
@@ -91,13 +91,32 @@ export function revealBp(i) {
   });
 }
 
+/**
+ * Les bons ont changé : un texte retouché à la main n'est plus à jour (il lui
+ * manquerait le nouveau bon). Il est remplacé par le texte automatique, et la
+ * fonction renvoie la phrase à ajouter au message de confirmation pour que
+ * l'agent sache qu'il doit refaire ses retouches.
+ */
+export function invalidateMail() {
+  const mailEl = $("mail");
+  const wasEditing = mailEl?.getAttribute("contenteditable") === "true";
+  const had = !!state.mailCustom || wasEditing;
+  state.mailCustom = "";
+  if (wasEditing) {
+    mailEl.setAttribute("contenteditable", "false");
+    $("editMail").setAttribute("aria-pressed", "false");
+    $("editMail").querySelector("span").textContent = "Modifier le texte";
+  }
+  return had ? " Texte du rapport recalculé : refaites vos retouches." : "";
+}
+
 function duplicateBp(i) {
   const bp = JSON.parse(JSON.stringify(state.bps[i]));
   state.bps.splice(i + 1, 0, bp);
-  state.mailCustom = "";
+  const note = invalidateMail();
   hooks.changed({ fresh: i + 1 });
   save();
-  toast(`Bon n°${i + 1} dupliqué en n°${i + 2}.`, null, "ok");
+  toast(`Bon n°${i + 1} dupliqué en n°${i + 2}.${note}`, null, note ? "warn" : "ok");
 }
 
 function delBp(i) {
@@ -106,14 +125,16 @@ function delBp(i) {
   state.bps.splice(i, 1);
   if (state.editing === i) state.editing = null;
   else if (state.editing != null && state.editing > i) state.editing--;
-  state.mailCustom = "";
+  const note = invalidateMail();
   hooks.changed({});
   save();
-  toast(`Bon n°${i + 1} supprimé.`, {
+  // Focus sur le bon suivant (ou la liste) : le clavier ne repart pas du haut.
+  ($("bp-" + i) || $("bp-" + (i - 1)) || ($("reportBody").hidden ? $("reportEmpty").querySelector("button") : $("ledgerTitle")))?.focus({ preventScroll: true });
+  toast(`Bon n°${i + 1} supprimé.${note}`, {
     label: "Annuler",
     onClick: () => {
       state.bps.splice(Math.min(i, state.bps.length), 0, removed);
-      state.mailCustom = "";
+      invalidateMail();
       hooks.changed({ fresh: i });
       save();
       toast("Suppression annulée.");
@@ -132,11 +153,13 @@ async function clearTour() {
   });
   if (!ok) return;
   state.bps = [];
-  state.mailCustom = "";
+  invalidateMail();
   state.editing = null;
   hooks.changed({ reset: true });
   go("terrain", 1);
   save();
+  // Prêt pour la tournée suivante (sans ouvrir le clavier de force sur mobile).
+  (window.matchMedia("(pointer: coarse)").matches ? $("panel") : $("streetInput")).focus({ preventScroll: true });
   toast("Tournée clôturée — prêt pour la prochaine.", null, "ok");
 }
 
@@ -187,7 +210,7 @@ function showFallback(text) {
   const box = $("sendFallback");
   $("sendFallbackText").textContent = text || "Choisissez une autre façon d'envoyer ce rapport.";
   box.hidden = false;
-  box.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  box.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
 }
 
 /**

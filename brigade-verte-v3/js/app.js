@@ -4,8 +4,9 @@
 
 // La séquence de démarrage s'initialise en premier : elle mesure le vrai chargement.
 import { splash } from "./splash.js";
-import { $, esc, todayISO, stampDate, plural } from "./utils.js";
-import { state, load, save } from "./storage.js";
+import { $, esc, todayISO, stampDate, plural, dateFr, scrollBehavior } from "./utils.js";
+import { state, load, save, reload, STORAGE_KEY } from "./storage.js";
+import { buildExport, parseBackup, readArchivedTours } from "./backup.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
 import { loadStreets, streetEntry } from "./streets.js";
@@ -56,7 +57,12 @@ function bindSettings() {
     dlg.showModal();
   };
   $("date").addEventListener("change", (e) => {
+    const before = state.date;
     state.date = e.target.value || todayISO();
+    // Texte retouché à la main : sa date suit (sinon objet et corps divergent).
+    if (state.mailCustom && before && before !== state.date) {
+      state.mailCustom = state.mailCustom.split(dateFr(before)).join(dateFr(state.date));
+    }
     renderTour();
     save();
   });
@@ -76,6 +82,9 @@ function bindSettings() {
 
   $("resetCurrent").onclick = async () => {
     dlg.close();
+    const c = state.current;
+    const empty = !c.rue && !c.numero && !c.precisions.length && !(c.precisionCustom || "").trim() && !c.wastes.length && state.editing == null;
+    if (empty) return toast("Aucune saisie en cours.");
     const ok = await confirmDialog({
       title: "Effacer la saisie en cours ?",
       text: "Rue, précisions et déchets non enregistrés seront effacés. Les bons déjà enregistrés sont conservés.",
@@ -87,62 +96,68 @@ function bindSettings() {
     go("terrain", 1);
   };
 
-  // Export de secours : tous les bons dans un fichier JSON.
-  $("exportBps").onclick = () => {
-    if (!state.bps.length) return toast("Aucun signalement à sauvegarder.");
-    const data = JSON.stringify({ app: "brigade-verte-amiens", version: 3, date: state.date, bps: state.bps }, null, 2);
+  // Export de secours : la tournée en cours (+ l'historique des versions
+  // précédentes resté sur l'appareil) dans un fichier JSON.
+  $("exportBps").onclick = async () => {
+    const tours = await readArchivedTours();
+    if (!state.bps.length && !tours.length) return toast("Aucun bon de passage à sauvegarder.");
+    const data = JSON.stringify(buildExport(state, tours), null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `brigade-verte-bp-${state.date || todayISO()}.json`;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    toast(`${plural(state.bps.length, "signalement")} exporté${state.bps.length > 1 ? "s" : ""}.`, null, "ok");
+    const extra = tours.length ? ` (+ ${plural(tours.length, "tournée archivée", "tournées archivées")})` : "";
+    toast(`${plural(state.bps.length, "bon de passage", "bons de passage")} exporté${state.bps.length > 1 ? "s" : ""}${extra}.`, null, "ok");
   };
 
-  // Import : validé et normalisé strictement.
+  // Import : tous les formats d'export (v3, v4, v5), validé et normalisé strictement.
   $("importBps").onclick = () => $("importFile").click();
   $("importFile").onchange = async () => {
     const file = $("importFile").files[0];
     $("importFile").value = "";
     if (!file) return;
+    let parsed;
     try {
-      const json = JSON.parse(await file.text());
-      const raw = Array.isArray(json) ? json : json && json.bps;
-      if (!Array.isArray(raw)) return toast("Fichier non reconnu : choisissez un export .json de Brigade Verte.", null, "error");
-      const clean = raw
-        .filter((b) => b && typeof b === "object" && b.rue && b.secteur)
-        .map((b) => ({
-          rue: String(b.rue),
-          numero: b.numero != null ? String(b.numero) : "",
-          secteur: String(b.secteur),
-          wastes: Array.isArray(b.wastes) ? b.wastes.map(String) : [],
-          precisions: Array.isArray(b.precisions) ? b.precisions.map(String) : [],
-        }));
-      if (!clean.length) return toast("Aucun signalement valide dans ce fichier — rien n'a été remplacé.", null, "error");
-      if (state.bps.length) {
-        dlg.close();
-        const ok = await confirmDialog({
-          title: "Remplacer la tournée ?",
-          text: `Les ${state.bps.length} signalements actuels seront remplacés par les ${clean.length} du fichier.`,
-          ok: "Remplacer",
-        });
-        if (!ok) return;
-      }
-      state.bps = clean;
-      state.mailCustom = "";
-      state.editing = null;
-      changed();
-      save();
-      dlg.open && dlg.close();
-      toast(`${plural(clean.length, "signalement")} rechargé${clean.length > 1 ? "s" : ""}.`, null, "ok");
+      if (file.size > 5 * 1024 * 1024) throw new Error("taille");
+      parsed = parseBackup(JSON.parse(await file.text()));
     } catch (e) {
-      toast("Fichier illisible — vos signalements actuels sont intacts.", null, "error");
+      return toast(
+        e && e.message === "format"
+          ? "Fichier non reconnu : choisissez un export .json de Brigade Verte."
+          : "Fichier illisible — vos bons de passage actuels sont intacts.",
+        null,
+        "error",
+      );
     }
+    const { bps: clean, rejected } = parsed;
+    if (!clean.length) return toast("Aucun bon de passage valide dans ce fichier — rien n'a été remplacé.", null, "error");
+    if (state.bps.length) {
+      dlg.close();
+      const ok = await confirmDialog({
+        title: "Remplacer la tournée ?",
+        text: `Les ${plural(state.bps.length, "bon de passage", "bons de passage")} actuels seront remplacés par les ${clean.length} du fichier. Exportez d'abord la tournée actuelle si vous voulez la garder.`,
+        ok: "Remplacer",
+      });
+      if (!ok) return;
+    }
+    // Une modification en cours visait un bon de l'ancienne tournée : abandonnée.
+    if (state.editing != null) resetCurrent({ silent: true });
+    state.bps = clean;
+    state.mailCustom = "";
+    state.editing = null;
+    changed();
+    save();
+    dlg.open && dlg.close();
+    const skip = rejected ? ` ${plural(rejected, "ligne ignorée", "lignes ignorées")} (rue, secteur ou déchet manquant).` : "";
+    toast(`${plural(clean.length, "bon de passage", "bons de passage")} rechargé${clean.length > 1 ? "s" : ""}.${skip}`, null, rejected ? "warn" : "ok");
   };
 
   document.addEventListener("bv:quota", () =>
-    toast("Stockage plein : exportez vos signalements (Réglages) pour ne rien perdre.", null, "error"),
+    toast("Stockage plein : exportez vos bons de passage (Réglages) pour ne rien perdre.", null, "error"),
   );
 }
 
@@ -173,7 +188,7 @@ function bindShell() {
     b.addEventListener("click", () => {
       const view = b.dataset.viewTarget;
       if (view === "terrain" && b.dataset.new && state.editing == null) go("terrain", 1);
-      else go(view, view === "terrain" ? state.stage : state.stage);
+      else go(view, state.stage);
     });
   });
   $("mapFit").onclick = () => map.fit();
@@ -199,6 +214,31 @@ function bindShell() {
   });
 }
 
+/** Recopie la saisie en cours (état) dans les champs du formulaire. */
+function restoreInputs() {
+  const c = state.current;
+  $("streetInput").value = c.rue?.rue || "";
+  $("numeroRue").value = c.numero || "";
+  $("precCustom").value = c.precisionCustom || "";
+  if (c.rue) map.setTarget(c.rue.rue, { fly: false });
+}
+
+/**
+ * Deux onglets ouverts : chacun réécrit toute la tournée, le dernier gagne.
+ * Dès qu'un autre onglet enregistre, celui-ci relit la sauvegarde — aucun bon
+ * saisi ailleurs n'est écrasé par une copie périmée.
+ */
+function syncTabs() {
+  window.addEventListener("storage", (e) => {
+    if (e.key !== STORAGE_KEY || e.newValue == null) return;
+    reload();
+    restoreInputs();
+    changed();
+    renderComposer();
+    toast("Tournée mise à jour depuis un autre onglet.");
+  });
+}
+
 /* ─── Service worker : mise à jour sans jamais couper une saisie ─── */
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
@@ -213,6 +253,13 @@ function registerServiceWorker() {
     $("updateBanner").hidden = false;
   });
   $("updateReload").onclick = doReload;
+  // Premier lancement : l'agent est prévenu une fois que tout est gardé sur
+  // l'appareil (avant cela, l'application a encore besoin du réseau).
+  if (!hadController) {
+    navigator.serviceWorker.ready
+      .then(() => toast("Application prête hors connexion.", null, "ok"))
+      .catch(() => {});
+  }
   const register = () => navigator.serviceWorker.register("service-worker.js").catch(() => {});
   if (document.readyState === "complete") register();
   else window.addEventListener("load", register);
@@ -245,7 +292,7 @@ async function main() {
       go("rapport");
       requestAnimationFrame(() => {
         const t = document.querySelector(`#bpList [data-i="${i}"]`)?.closest(".ticket");
-        t?.scrollIntoView({ block: "center", behavior: "smooth" });
+        t?.scrollIntoView({ block: "center", behavior: scrollBehavior() });
         replay(t, "is-editing");
         setTimeout(() => t?.classList.remove("is-editing"), 1400);
       });
@@ -279,15 +326,13 @@ async function main() {
   });
   bindSettings();
   bindShell();
+  syncTabs();
   initOfflineBanner();
   initToast();
 
   // Restaure la saisie en cours
   const c = state.current;
-  $("streetInput").value = c.rue?.rue || "";
-  $("numeroRue").value = c.numero || "";
-  $("precCustom").value = c.precisionCustom || "";
-  if (c.rue) map.setTarget(c.rue.rue, { fly: false });
+  restoreInputs();
 
   initRouter();
   changed();

@@ -87,3 +87,8 @@ export function dateFr(iso) {
   const [a, m, j] = iso.split("-");
   return `${j}/${m}/${a}`;
 }
+
+/** Défilement animé, sauf si l'utilisateur demande moins d'animations. */
+export function scrollBehavior() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+}

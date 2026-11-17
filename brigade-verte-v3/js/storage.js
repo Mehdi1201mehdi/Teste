@@ -59,23 +59,61 @@ function migrate(saved) {
   return saved;
 }
 
+// Copie de secours d'une sauvegarde illisible : jamais écrasée par la suite,
+// pour qu'une tournée abîmée reste récupérable (export manuel par un référent).
+const BROKEN_KEY = STORAGE_KEY + "_illisible";
+
 export function load() {
+  let raw = null;
   try {
-    const saved = migrate(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"));
+    raw = localStorage.getItem(STORAGE_KEY);
+    const saved = migrate(JSON.parse(raw || "null"));
     if (saved) Object.assign(state, saved);
   } catch (e) {
-    /* stockage indisponible ou corrompu : on repart sur l'état par défaut */
+    /* stockage indisponible ou corrompu : on repart sur l'état par défaut,
+       après avoir mis l'original de côté (le prochain save() l'écraserait). */
+    try {
+      if (raw && !localStorage.getItem(BROKEN_KEY)) localStorage.setItem(BROKEN_KEY, raw);
+    } catch (e2) {
+      /* stockage indisponible : rien à préserver */
+    }
   }
+}
+
+/** Relit la sauvegarde (écrite par un autre onglet) dans l'état courant. */
+export function reload() {
+  const fresh = defaultState();
+  Object.keys(state).forEach((k) => delete state[k]);
+  Object.assign(state, fresh);
+  load();
+}
+
+// Caches non essentiels, libérables si l'appareil manque de place :
+// la tournée passe toujours avant (jours de collecte, recherches récentes).
+const DISPOSABLE = ["bv_collecte_v1", "bv_collecte_recent"];
+
+function write() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 let quotaWarned = false;
 export function save() {
   try {
     state.lastSaved = nowHM();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    write();
     quotaWarned = false;
   } catch (e) {
     const quota = e && (e.name === "QuotaExceededError" || e.code === 22 || e.name === "NS_ERROR_DOM_QUOTA_REACHED");
+    if (quota) {
+      try {
+        DISPOSABLE.forEach((k) => localStorage.removeItem(k));
+        write();
+        quotaWarned = false;
+        return;
+      } catch (e2) {
+        /* toujours plein : l'agent est prévenu ci-dessous */
+      }
+    }
     if (quota && !quotaWarned) {
       quotaWarned = true;
       document.dispatchEvent(new CustomEvent("bv:quota"));

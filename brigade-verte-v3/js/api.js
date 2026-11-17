@@ -11,7 +11,8 @@ export async function geocodeAddress(numero, rue) {
   try {
     const q = `${numero} ${rue} Amiens`;
     const url = `${ADRESSE_API}?q=${encodeURIComponent(q)}&citycode=${AMIENS_CITYCODE}&limit=1`;
-    const r = await fetch(url);
+    // Réseau faible : abandon après 4 s, le secteur de la rue reste valable.
+    const r = await fetch(url, { signal: AbortSignal.timeout ? AbortSignal.timeout(4000) : undefined });
     if (!r.ok) return null;
     const j = await r.json();
     const f = (j.features || [])[0];
@@ -45,7 +46,7 @@ export class ReverseError extends Error {
  * Adresses proches d'un point (GeoJSON `features`, chacune avec `distance` en
  * mètres). Lève ReverseError si hors connexion ou si aucun service ne répond.
  */
-export async function reverseGeocode(lat, lon, { timeoutMs = 4500 } = {}) {
+export async function reverseGeocode(lat, lon, { timeoutMs = 4500, budgetMs = 5000, signal } = {}) {
   const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
   if (reverseCache.has(key)) return reverseCache.get(key);
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -54,9 +55,16 @@ export async function reverseGeocode(lat, lon, { timeoutMs = 4500 } = {}) {
   const la = lat.toFixed(6);
   const lo = lon.toFixed(6);
   let lastErr = null;
+  // Budget global : le service de secours n'a que le temps restant, pour ne
+  // jamais faire attendre l'agent plus de ~5 s (la décision locale suffit).
+  const deadline = Date.now() + budgetMs;
   for (const url of REVERSE_APIS) {
+    const left = Math.min(timeoutMs, deadline - Date.now());
+    if (left < 400 || signal?.aborted) break;
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const timer = setTimeout(() => ctrl.abort(), left);
+    const onAbort = () => ctrl.abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
     try {
       const r = await fetch(url(la, lo), { signal: ctrl.signal });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -69,6 +77,7 @@ export async function reverseGeocode(lat, lon, { timeoutMs = 4500 } = {}) {
       lastErr = e;
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
     }
   }
   const offline = typeof navigator !== "undefined" && navigator.onLine === false;

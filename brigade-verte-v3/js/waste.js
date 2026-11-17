@@ -4,7 +4,7 @@
 // 2. la recherche instantanée (quelques lettres suffisent) ;
 // 3. la navigation par famille, pour ne jamais être bloqué.
 
-import { $, esc, highlight } from "./utils.js";
+import { $, esc, highlight, norm } from "./utils.js";
 import { fuzzySearch } from "./search.js";
 import { showSuggestions, hideSuggestions } from "./components.js";
 import { icon } from "./icons.js";
@@ -83,7 +83,22 @@ export function showWasteSuggest(query, onPick) {
     list.map((d) => ({ html: `<span class="sugName">${highlight(d, q)}</span>`, onClick: () => onPick(d) })),
     emptyMsg,
   );
-  input.setAttribute("aria-expanded", "true");
+}
+
+/**
+ * Texte tapé puis « Ajouter » / Entrée : le libellé officiel de la liste est
+ * retenu dès qu'il existe (« mat » → « Matelas »), pour que le rapport ne
+ * parte jamais avec une abréviation. Le texte libre n'est gardé que si
+ * aucun déchet de la liste ne correspond.
+ */
+export function resolveTypedWaste(query) {
+  const q = String(query || "").trim();
+  if (!q) return "";
+  const exact = LIST.find((d) => norm(d) === norm(q));
+  if (exact) return exact;
+  const [first] = fuzzySearch(LIST, q, (d) => d, 1);
+  if (first) return first;
+  return q.charAt(0).toUpperCase() + q.slice(1);
 }
 
 /** Boutons « déchet » : aria-pressed si déjà relevé dans la saisie en cours. */

@@ -222,6 +222,12 @@
 .map .leaflet-control-attribution a {
   color: var(--muted);
 }
+/* Mobile : le panneau remonte de 18 px sur la carte — l'attribution passe au-dessus. */
+@media (max-width: 1023px) {
+  .map .leaflet-bottom {
+    bottom: 18px;
+  }
+}
 
 /* ─── HUD : compteur + répartition par secteur ─── */
 .mapHud {
@@ -442,5 +448,15 @@
     right: var(--s5);
     bottom: var(--s6);
     width: 340px;
+  }
+}
+
+/* Encoche en paysage : compteur et boutons de carte restent accessibles. */
+@supports (left: max(0px)) {
+  .mapHud {
+    left: max(var(--s3), env(safe-area-inset-left));
+  }
+  .mapTools {
+    right: max(var(--s3), env(safe-area-inset-right));
   }
 }

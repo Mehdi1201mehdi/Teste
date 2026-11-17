@@ -15,8 +15,8 @@
 const OFFICIAL_LOGO = null; // ex. "assets/logo/police-municipale-amiens.svg"
 
 const DAY_KEY = "bv_splash_day";
-const MIN_FULL = 2000;
-const MIN_QUICK = 600;
+const MIN_FULL = 1400;
+const MIN_QUICK = 200;
 const MAX_TOTAL = 8000;
 const STEPS = { fonts: 0.1, streets: 0.3, waste: 0.1, map: 0.2, ui: 0.25, areas: 0.05 };
 
@@ -133,6 +133,8 @@ function createSplash() {
   const secure = window.location.protocol === "https:" || /^(localhost|127\.)/.test(window.location.hostname);
   const setOnline = () => {
     const on = navigator.onLine;
+    // L'écran d'accueil a disparu : plus rien à mettre à jour.
+    if (!$("splashOnline")) return;
     $("splashOnline").textContent = on ? "SYSTEM ONLINE" : "HORS LIGNE · DONNÉES LOCALES";
     $("splashOnlineDot").classList.toggle("is-warn", !on);
   };

@@ -1,13 +1,13 @@
 # Brigade Verte — Audit & feuille de route
 
-_Audit du 24/09/2026 · application `brigade-verte-v3` · complète `DESIGN-SYSTEM.md`._
+_Audit du 24/09/2026, complété le 17/11/2026 · application `brigade-verte-v3` · complète `DESIGN-SYSTEM.md`._
 
 ## 1. Ce qui existe (et qu'on garde)
 
 | Domaine | État |
 |---|---|
 | Stack | PWA vanilla ES modules, sans framework ni build obligatoire (esbuild minifie au déploiement). ~5 600 lignes. |
-| Parcours | 3 étapes Lieu → Déchets → Valider + vue Rapport. Mail au format historique **octet pour octet** (test de non-régression). |
+| Parcours | 2 étapes Lieu → Déchets (enregistrement direct) + vues Rapport et Collecte. Mail au format historique **octet pour octet** (test de non-régression). |
 | Carte | Leaflet 1.9 embarqué, Plan IGN (Géoplateforme), 27 quartiers + 5 secteurs officiels d'Amiens Métropole embarqués, mode hors ligne (rues en points). |
 | Adresse | 1 437 rues locales (instantané, hors ligne) + BAN pour affiner le secteur par le numéro. |
 | Stockage | localStorage schéma v4 avec migration, export/import JSON de secours. |
@@ -103,3 +103,37 @@ Pas de Sync Engine ni d'Analytics serveur : l'outil reste **100 % local**, sans 
 - Page `/suivi/` alignée sur le design system.
 - Transitions d'écran via View Transitions API (repli CSS).
 - Revue design « 10× » écran par écran.
+
+
+## 7. Audit du 17/11/2026 (6 axes : UX, responsive, JS, performance/hors ligne, carte/GPS, accessibilité)
+
+**Corrigé**
+
+| Priorité | Constat | Correction |
+|---|---|---|
+| Critique | Une réponse d'erreur (404, portail Wi-Fi) pouvait remplacer `streets.json` en cache → plus de recherche de rue hors ligne | `service-worker.js` : seules les réponses valides sont mises en cache |
+| Critique | Les sauvegardes v5 (`current.bps`) n'étaient plus relues à l'import | `js/backup.js` : lecture v3 / v4 / v5 |
+| Critique | Abréviation tapée (« mat ») envoyée telle quelle dans le rapport | « Ajouter » / Entrée retiennent le libellé officiel (« Matelas ») |
+| Critique | GPS lent : un résultat tardif écrasait la rue choisie à la main ; la croix n'annulait pas | Localisation annulée dès qu'une rue est choisie autrement |
+| Critique | Téléphone en paysage : aucun champ visible | Disposition carte + saisie côte à côte |
+| Critique | Focus clavier invisible sur les boutons principaux et en contraste élevé | Anneau de focus + contour transparent |
+| Important | Texte du rapport retouché à la main effacé sans prévenir | Avertissement explicite ; la date suit le texte retouché |
+| Important | Bon importé avec un secteur mal écrit absent du mail | Secteur normalisé, lignes invalides refusées et signalées |
+| Important | Historique v5 (IndexedDB) devenu inaccessible | Joint à l'export JSON |
+| Important | Modifier un bon effaçait ses champs v5 (id, note…) | Champs conservés |
+| Important | Secteur d'une ancienne adresse appliqué à la nouvelle (réseau lent) ; secteur GPS remplacé hors ligne | Réponse tardive ignorée ; le secteur n'est remplacé que par une donnée plus précise |
+| Important | Ordinateur : « Outlook ne s'est pas ouvert » affiché à tort | Détection de la perte de focus |
+| Important | Code modifié sans changer `VERSION` → jamais mis à jour sur les téléphones | Empreinte du contenu ajoutée à la version au déploiement (`build.sh`) |
+| Important | `/suivi/` : « Match France / Maroc » figé dans les comptes rendus | Champ « Motif » facultatif |
+| Important | Cibles tactiles < 44 px, zoom iOS sur 3 champs, encoche ignorée, attribution IGN masquée sur mobile | Corrigé (CSS) |
+| Amélioration | Férié un mercredi à Amiens : jour férié affiché « reporté » | Affiché « férié — à vérifier » (règle non publiée, pas inventée) |
+| Amélioration | Erreur JS à chaque coupure réseau (écran d'accueil) ; double téléchargement des secteurs ; attente GPS/adresse jusqu'à 9–12 s | Corrigé (budgets de 4–6 s) |
+| Amélioration | Sauvegarde illisible écrasée ; stockage plein ; deux onglets | Copie `…_illisible` ; caches non essentiels libérés ; onglets synchronisés |
+| Amélioration | Écran d'accueil : 2 s imposées | 1,4 s le premier lancement du jour, 0,2 s ensuite (toujours sautable) |
+
+**Restant / à décider**
+- **Semaine 53** : la semaine du 28/12/2026 est la n° 53 (impaire), suivie de la n° 1 (impaire). Confirmer auprès d'Amiens Métropole si l'alternance « semaines paires » suit la numérotation ISO.
+- Tableau de bord, historique, exports CSV (v5) : retirés du code le 28/09/2026, non recréés.
+- Premier chargement sur réseau très faible : ~10 s (26 modules). Un regroupement (`esbuild --bundle`) le réduirait ; à faire avec un test de mise à jour.
+- Balises de carte placées au point de référence de la rue (pas à la position GPS) ; 3 rues sans secteur dans `streets.json`.
+- Non testé sur appareil réel : Safari iOS, lecteurs d'écran (VoiceOver, TalkBack), gants, plein soleil, ouverture réelle d'Outlook.

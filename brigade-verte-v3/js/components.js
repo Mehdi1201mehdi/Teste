@@ -14,8 +14,12 @@ import { secStyle } from "./sectors.js";
 export function showSuggestions(box, entries, emptyMessage) {
   box._entries = entries;
   box._active = -1;
+  // Le champ associé n'est « ouvert » que s'il y a des options à parcourir ;
+  // le message « aucun résultat » est annoncé par le lecteur d'écran.
+  const input = box.id ? document.querySelector(`[aria-controls="${box.id}"]`) : null;
+  input?.setAttribute("aria-expanded", String(entries.length > 0));
   if (!entries.length) {
-    box.innerHTML = emptyMessage ? `<div class="none">${esc(emptyMessage)}</div>` : "";
+    box.innerHTML = emptyMessage ? `<div class="none" role="status">${esc(emptyMessage)}</div>` : "";
     box.classList.toggle("show", !!emptyMessage);
     return;
   }
@@ -89,8 +93,17 @@ export function renderChips(container, items, onRemove, emptyMessage, fresh) {
     : `<p class="none">${esc(emptyMessage)}</p>`;
   container.querySelectorAll(".chip").forEach((btn, i) => {
     btn.onclick = () => {
+      const hadFocus = document.activeElement === btn;
       btn.classList.add("removing");
-      setTimeout(() => onRemove(i), 120);
+      setTimeout(() => {
+        onRemove(i);
+        // Clavier / lecteur d'écran : le focus passe à la pastille suivante
+        // (ou au champ de saisie) au lieu de retomber en haut de la page.
+        if (!hadFocus) return;
+        const left = container.querySelectorAll(".chip");
+        const next = left[Math.min(i, left.length - 1)] || document.getElementById(container.dataset.focusAfter || "");
+        next?.focus({ preventScroll: true });
+      }, 120);
     };
   });
 }

@@ -90,7 +90,6 @@ function suggest(q) {
     });
   }
   showSuggestions(box, entries, "Aucune rue trouvée.");
-  input.setAttribute("aria-expanded", "true");
 }
 
 function chooseStreet(rue) {
@@ -125,7 +124,7 @@ function streamRow(kind, schedule, commune) {
     <div class="colStreamText"><b>${label}</b><span>${esc(schedule || "Non communiqué")}</span></div>
     ${
       when
-        ? `<span class="colNext${today ? " is-today" : ""}"><small>Prochain passage</small>${esc(when)}${next.moved ? ' <em title="Jour férié : collecte reportée">reportée</em>' : ""}</span>`
+        ? `<span class="colNext${today ? " is-today" : ""}"><small>Prochain passage</small>${esc(when)}${next.moved ? ' <em title="Jour férié : collecte reportée">reportée</em>' : next.unsure ? ' <em title="Jour férié non collecté : report à vérifier sur amiens.fr">férié — à vérifier</em>' : ""}</span>`
         : ""
     }
   </div>`;

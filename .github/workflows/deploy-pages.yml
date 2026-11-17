@@ -29,6 +29,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # La version du cache hors ligne inclut l'empreinte du contenu publié :
+      # toute modification (même sans changer VERSION à la main) déclenche la
+      # mise à jour sur les téléphones, sans jamais toucher aux données locales.
+      - name: Version du cache = empreinte du contenu
+        run: bash build.sh --version-only
+
       # Le code publié est minifié (illisible) ; le code source lisible
       # ne quitte jamais le dépôt.
       - name: Minifier le code publié

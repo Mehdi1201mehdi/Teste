@@ -46,9 +46,10 @@ export function toast(message, action, tone = "") {
   const t = TOAST_MS[tone] != null ? tone : "";
   el.textContent = "";
   el.dataset.tone = t;
-  // Les alertes interrompent le lecteur d'écran, les infos attendent leur tour.
-  el.setAttribute("role", t === "error" || t === "warn" ? "alert" : "status");
-  el.setAttribute("aria-live", t === "error" || t === "warn" ? "assertive" : "polite");
+  // Annonce par deux zones permanentes (une polie, une prioritaire) : changer
+  // le rôle d'une zone au moment où son texte change n'est pas annoncé de
+  // façon fiable. Les alertes interrompent le lecteur d'écran, les infos attendent.
+  announce(message + (action && action.label ? ` — bouton « ${action.label} » disponible.` : ""), t === "error" || t === "warn");
 
   const span = document.createElement("span");
   span.className = "toastText";
@@ -81,6 +82,18 @@ export function toast(message, action, tone = "") {
   armToast(action ? Math.max(5500, TOAST_MS[t]) : TOAST_MS[t]);
   if (t === "ok") haptic(12);
   else if (t === "warn" || t === "error") haptic([14, 60, 14]);
+}
+
+let announceTimer;
+function announce(message, urgent) {
+  const polite = $("livePolite");
+  const assertive = $("liveAssertive");
+  if (!polite || !assertive) return;
+  clearTimeout(announceTimer);
+  polite.textContent = "";
+  assertive.textContent = "";
+  // Court délai : un texte identique au précédent est quand même relu.
+  announceTimer = setTimeout(() => ((urgent ? assertive : polite).textContent = message), 60);
 }
 
 /** Pause de la minuterie pendant l'interaction (lecture, visée du bouton). */

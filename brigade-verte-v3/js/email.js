@@ -5,9 +5,9 @@
 // copie du message).
 //
 // Mise en forme : un lien (mailto:, ms-outlook:, Outlook Web) ne transporte
-// QUE du texte brut. Les secteurs y sont écrits en MAJUSCULES. La version
-// mise en forme (secteurs en gras souligné) passe par le presse-papiers
-// (HTML + texte), collée telle quelle par Outlook, Gmail, etc.
+// QUE du texte brut : les titres de secteur y sont écrits en lettres grasses
+// Unicode (voir boldText). La version mise en forme (HTML, secteurs en gras)
+// passe aussi par le presse-papiers, collée telle quelle par Outlook, Gmail…
 
 import { detectPlatform, esc as escHtml } from "./utils.js";
 
@@ -28,27 +28,44 @@ export function parseRecipients(input) {
 
 /**
  * Corps du message à partir du texte du rapport.
- *  · html  : secteurs en <b><u>…</u></b>, retours à la ligne conservés ;
- *  · plain : secteurs en MAJUSCULES (texte brut des liens) ;
+ *  · html  : secteurs en <b>…</b>, retours à la ligne conservés ;
+ *  · plain : secteurs en gras Unicode (texte brut des liens) ;
  *  · previewHtml : aperçu dans l'application (même mise en forme que html).
  */
+/**
+ * Gras en texte brut : lettres « grasses » Unicode (sans empattement).
+ * Un lien mailto:/Outlook ne transporte pas de mise en forme ; ces caractères
+ * s'affichent pourtant en gras dans Outlook, Gmail, Apple Mail… Les titres de
+ * secteur n'ont ni accent ni chiffre (Secteur Centre/Ouest/Nord/Est/Sud) :
+ * toutes leurs lettres existent en gras Unicode.
+ */
+export function boldText(s) {
+  return String(s).replace(/[A-Za-z]/g, (c) => {
+    const code = c.charCodeAt(0);
+    return String.fromCodePoint(code <= 90 ? 0x1d5d4 + code - 65 : 0x1d5ee + code - 97);
+  });
+}
+
 export function buildEmailBody(text) {
   const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n");
-  const plain = lines.map((l) => l.replace(SECTOR_LINE, (_, a, t, b) => a + t.toUpperCase() + b)).join("\n");
+  const plain = lines.map((l) => l.replace(SECTOR_LINE, (_, a, t, b) => a + boldText(t) + b)).join("\n");
+  // Variante compacte (secteurs en MAJUSCULES) : un caractère gras Unicode pèse
+  // 12 caractères dans un lien ; utilisée si le lien gras dépasse la limite.
+  const plainCompact = lines.map((l) => l.replace(SECTOR_LINE, (_, a, t, b) => a + t.toUpperCase() + b)).join("\n");
   const htmlLines = lines.map((l) => {
     const m = l.match(SECTOR_LINE);
     const lead = (s) => escHtml(s).replace(/^ +/, (sp) => "&nbsp;".repeat(sp.length));
-    return m ? `${lead(m[1])}<b><u>${escHtml(m[2])}</u></b>${escHtml(m[3])}` : lead(l);
+    return m ? `${lead(m[1])}<b>${escHtml(m[2])}</b>${escHtml(m[3])}` : lead(l);
   });
   const html =
     '<div style="font-family:Calibri,Aptos,Arial,sans-serif;font-size:11pt;line-height:1.4;color:#111">' + htmlLines.join("<br>\n") + "</div>";
   const previewHtml = lines
     .map((l) => {
       const m = l.match(SECTOR_LINE);
-      return m ? `${escHtml(m[1])}<b class="mailSector"><u>${escHtml(m[2])}</u></b>${escHtml(m[3])}` : escHtml(l);
+      return m ? `${escHtml(m[1])}<b class="mailSector">${escHtml(m[2])}</b>${escHtml(m[3])}` : escHtml(l);
     })
     .join("\n");
-  return { plain, html, previewHtml };
+  return { plain, plainCompact, html, previewHtml };
 }
 
 /* ─── Liens ─── */
@@ -126,6 +143,8 @@ export function planEmail(channel, msg, platform = emailPlatform()) {
   let truncated = false;
   // Messageries mobiles : liens longs acceptés ; Outlook classique sur PC : non.
   const limit = kind === "mailto" && platform !== "desktop" ? URL_LIMITS.app : URL_LIMITS[kind];
+  // Trop long avec les secteurs en gras : on essaie d'abord en MAJUSCULES.
+  if (url.length > limit && msg.bodyCompact) url = build({ ...msg, body: msg.bodyCompact });
   if (url.length > limit) {
     truncated = true;
     url = build({ ...msg, body: "(Message trop long pour un lien : collez ici le rapport copié par l'application.)\n" });

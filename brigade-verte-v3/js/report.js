@@ -172,7 +172,7 @@ function currentMessage() {
   const mailEl = $("mail");
   const text = mailEl.getAttribute("contenteditable") === "true" ? mailEl.innerText.trim() : mailText();
   const body = buildEmailBody(text);
-  return { to: parseRecipients(state.mailTo).valid, subject: mailSubject(), body: body.plain, html: body.html, text };
+  return { to: parseRecipients(state.mailTo).valid, subject: mailSubject(), body: body.plain, bodyCompact: body.plainCompact, html: body.html, text };
 }
 
 function checkRecipients({ warnEmpty = false } = {}) {

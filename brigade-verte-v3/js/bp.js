@@ -1,6 +1,8 @@
 // Bons de Passage (BP) — règles métier pures, sans DOM.
-// Le format des lignes du message est STRICTEMENT celui de l'outil historique :
-// les destinataires (services de propreté) le connaissent et le traitent tel quel.
+// Les lignes du message sont rédigées en français correct par phrase.js
+// (même ordre qu'avant : lieu précis, adresse, « : », déchets).
+
+import { ligne } from "./phrase.js";
 
 // Les 7 précisions autorisées ; le libellé exact est conservé pour le message.
 export const PREC = {
@@ -31,17 +33,21 @@ export function adresseText(bp) {
 }
 
 /**
- * Ligne du message : précisions AVANT l'adresse, puis les déchets.
- * Ex : « Au pied du PAV 76 Rue du Professeur Christian Cabrol : Tapis, Table. »
- * Si une précision contient déjà le numéro (« Devant le n°4 »), il n'est pas
- * répété dans l'adresse : « Devant le n°4 Rue de Castille : Palette. »
+ * Ligne du message, en français : lieu précis + adresse, puis les déchets.
+ * Ex : « Au pied du PAV, à hauteur du n° 76 de la rue du Professeur Christian Cabrol : tapis et table. »
+ *      « Devant le n° 4 de la rue de Castille : palette. »
+ * Fonctionne aussi avec les bons enregistrés par les versions précédentes
+ * (les précisions y sont stockées sous forme de libellés).
  */
 export function mailLine(bp) {
-  const precs = bp.precisions || [];
-  const numeroInPrecision = bp.numero && precs.some((p) => p.includes("n°" + bp.numero));
-  const adresse = (bp.numero && !numeroInPrecision ? bp.numero + " " : "") + bp.rue;
-  const prefix = precs.length ? precs.join(", ") + " " : "";
-  return `${prefix}${adresse} : ${(bp.wastes || []).join(", ")}.`;
+  const { keys, custom } = splitPrecisions(bp);
+  // Numéro : celui du bon, sinon celui écrit dans « Devant le n°4 » (anciens bons).
+  let num = (bp.numero || "").trim();
+  if (!num) {
+    const m = (bp.precisions || []).join(" ").match(/n°\s*([0-9]+\s*(?:bis|ter|quater|[a-z])?)/i);
+    if (m) num = m[1];
+  }
+  return ligne({ rue: bp.rue, numero: num, keys, custom }, bp.wastes || []);
 }
 
 /** Construit un BP à partir de la saisie en cours (null si incomplète). */

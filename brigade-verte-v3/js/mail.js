@@ -1,16 +1,20 @@
-// Texte du signalement — format historique inchangé, octet pour octet :
-// regroupement par secteur dans l'ordre CENTRE, OUEST, NORD, EST, SUD,
-// précisions et déchets séparés par des virgules.
+// Texte du signalement — regroupement par secteur dans l'ordre CENTRE, OUEST,
+// NORD, EST, SUD ; chaque ligne rédigée en français par phrase.js.
 
 import { state } from "./storage.js";
 import { SECTEURS, TITRE } from "./sectors.js";
 import { mailLine } from "./bp.js";
 import { dateFr } from "./utils.js";
+import { dateLongue } from "./phrase.js";
 
 export function autoMailText() {
-  if (!state.bps.length) return "(Ajoutez des BP pour générer le texte.)";
+  const n = state.bps.length;
+  if (!n) return "(Ajoutez des bons de passage pour générer le texte.)";
+  const quand = dateLongue(state.date) || dateFr(state.date);
   let t = "Bonjour,\n\n";
-  t += `Lors de notre îlotage du ${dateFr(state.date)} nous avons constaté des dépôts sauvages dans les rues suivantes :\n`;
+  t += n > 1
+    ? `Lors de notre îlotage du ${quand}, nous avons constaté des dépôts sauvages aux emplacements suivants :\n`
+    : `Lors de notre îlotage du ${quand}, nous avons constaté un dépôt sauvage à l'emplacement suivant :\n`;
   SECTEURS.forEach((sec) => {
     const list = state.bps.filter((b) => b.secteur === sec);
     if (!list.length) return;
@@ -19,7 +23,7 @@ export function autoMailText() {
       t += `   • ${mailLine(b)}\n`;
     });
   });
-  t += "\nCordialement.";
+  t += `\nNous vous remercions de bien vouloir procéder ${n > 1 ? "à leur enlèvement" : "à son enlèvement"}.\n\nCordialement.`;
   return t;
 }
 

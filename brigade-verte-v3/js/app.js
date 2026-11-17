@@ -7,6 +7,7 @@ import { splash } from "./splash.js";
 import { $, esc, todayISO, stampDate, plural, dateFr, scrollBehavior } from "./utils.js";
 import { state, load, save, reload, STORAGE_KEY } from "./storage.js";
 import { buildExport, parseBackup, readArchivedTours } from "./backup.js";
+import { dateLongue } from "./phrase.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
 import { go, initRouter, onRoute } from "./router.js";
 import { loadStreets, streetEntry } from "./streets.js";
@@ -61,7 +62,9 @@ function bindSettings() {
     state.date = e.target.value || todayISO();
     // Texte retouché à la main : sa date suit (sinon objet et corps divergent).
     if (state.mailCustom && before && before !== state.date) {
-      state.mailCustom = state.mailCustom.split(dateFr(before)).join(dateFr(state.date));
+      state.mailCustom = state.mailCustom
+        .split(dateLongue(before)).join(dateLongue(state.date))
+        .split(dateFr(before)).join(dateFr(state.date));
     }
     renderTour();
     save();

@@ -8,6 +8,16 @@ import { nowHM } from "./utils.js";
 export const STORAGE_KEY = "brigade_verte_amiens_v3_pro";
 const SCHEMA = 4;
 
+/** Identifiant unique d'un bon de passage. */
+export function newBpId() {
+  try {
+    if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+  } catch (e) {
+    /* contexte non sécurisé : repli ci-dessous */
+  }
+  return "bp-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
 function emptyCurrent() {
   return { rue: null, numero: "", secteur: null, secteurAuto: true, precisions: [], precisionCustom: "", wastes: [] };
 }
@@ -17,7 +27,7 @@ function defaultState() {
     version: SCHEMA,
     date: "",
     dateDay: "", // jour où la date a été fixée (passage auto au jour suivant)
-    view: "terrain", // "terrain" | "rapport" | "collecte"
+    view: "accueil", // "accueil" | "terrain" | "rapport" | "collecte"
     stage: 1, // 1 Lieu · 2 Déchets (enregistrement)
     current: emptyCurrent(),
     bps: [],
@@ -54,7 +64,13 @@ function migrate(saved) {
     // Les BP déjà saisis ont servi à entraîner la liste « fréquents ».
     saved.bps.forEach((b) => (b.wastes || []).forEach((w) => (saved.wasteFreq[w] = (saved.wasteFreq[w] || 0) + 1)));
   }
-  if (!["rapport", "collecte"].includes(saved.view)) saved.view = "terrain";
+  if (!["accueil", "rapport", "collecte"].includes(saved.view)) saved.view = "terrain";
+  // Identifiant stable par bon (recherche, filtre, tri ne dépendent plus de
+  // la position dans la liste). Ajouté seulement s'il manque : un identifiant
+  // venu d'une ancienne version est conservé.
+  saved.bps.forEach((b) => {
+    if (b && typeof b === "object" && !b.id) b.id = newBpId();
+  });
   if (![1, 2, 3].includes(saved.stage)) saved.stage = 1;
   saved.version = SCHEMA;
   return saved;

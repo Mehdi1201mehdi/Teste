@@ -2,7 +2,7 @@
 // l'envoi (copie, Outlook appli, Outlook web) et la clôture de tournée.
 
 import { $, esc, plural, dateFr, scrollBehavior } from "./utils.js";
-import { state, save } from "./storage.js";
+import { state, save, newBpId } from "./storage.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
@@ -114,6 +114,7 @@ function duplicateBp(i) {
   const bp = JSON.parse(JSON.stringify(state.bps[i]));
   // Le double est un nouveau relevé : il prend l'heure de sa création.
   bp.createdAt = new Date().toISOString();
+  bp.id = newBpId();
   delete bp.updatedAt;
   state.bps.splice(i + 1, 0, bp);
   const note = invalidateMail();

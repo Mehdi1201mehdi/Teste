@@ -5,7 +5,7 @@
 // La séquence de démarrage s'initialise en premier : elle mesure le vrai chargement.
 import { splash } from "./splash.js";
 import { $, esc, todayISO, stampDate, plural, dateFr, scrollBehavior } from "./utils.js";
-import { state, load, save, reload, STORAGE_KEY } from "./storage.js";
+import { state, load, save, reload, STORAGE_KEY, newBpId } from "./storage.js";
 import { buildExport, parseBackup, readArchivedTours } from "./backup.js";
 import { dateLongue } from "./phrase.js";
 import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
@@ -26,10 +26,13 @@ import { initCollecte } from "./collecteView.js";
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
   const n = state.bps.length;
-  const nav = $("navCount");
-  nav.textContent = n;
-  nav.toggleAttribute("data-zero", n === 0);
-  nav.closest(".vsBtn").setAttribute("aria-label", `Rapport de tournée — ${plural(n, "dépôt")}`);
+  // Compteurs de la navigation (barre du bas, barre latérale…) : par classe,
+  // un même id ne pouvant figurer qu'une fois dans la page.
+  document.querySelectorAll(".navCount").forEach((nav) => {
+    nav.textContent = n;
+    nav.toggleAttribute("data-zero", n === 0);
+    nav.closest("[data-view-target]")?.setAttribute("aria-label", `Rapports — ${plural(n, "dépôt")}`);
+  });
   $("hudCount").textContent = n;
   $("hudCountLabel").textContent = n > 1 ? "dépôts relevés" : "dépôt relevé";
   $("hudSectors").innerHTML = sectorBarHtml(sectorCounts());
@@ -145,6 +148,12 @@ function bindSettings() {
     }
     // Une modification en cours visait un bon de l'ancienne tournée : abandonnée.
     if (state.editing != null) resetCurrent({ silent: true });
+    // Identifiants : conservés, complétés s'ils manquent ou se répètent.
+    const seen = new Set();
+    clean.forEach((b) => {
+      if (!b.id || seen.has(b.id)) b.id = newBpId();
+      seen.add(b.id);
+    });
     state.bps = clean;
     state.mailCustom = "";
     state.editing = null;
@@ -230,12 +239,14 @@ function onMapPick({ list, quartier }) {
 }
 
 function bindShell() {
-  document.querySelectorAll("[data-view-target]").forEach((b) => {
-    b.addEventListener("click", () => {
-      const view = b.dataset.viewTarget;
-      if (view === "terrain" && b.dataset.new && state.editing == null) go("terrain", 1);
-      else go(view, state.stage);
-    });
+  // Délégation : fonctionne aussi pour les boutons créés après le démarrage
+  // (cartes du tableau de bord, activité récente…).
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-view-target]");
+    if (!b) return;
+    const view = b.dataset.viewTarget;
+    if (view === "terrain" && b.dataset.new && state.editing == null) go("terrain", 1);
+    else go(view, state.stage);
   });
   $("mapFit").onclick = () => map.fit();
   document.querySelector(".brand").addEventListener("click", (e) => {

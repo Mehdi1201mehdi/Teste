@@ -25,13 +25,14 @@ export function blockedMessage(n) {
   return "";
 }
 
-const VIEWS = ["terrain", "rapport", "collecte"];
+export const VIEWS = ["accueil", "terrain", "rapport", "collecte"];
+const VIEW_ID = { accueil: "viewAccueil", terrain: "viewTerrain", rapport: "viewRapport", collecte: "viewCollecte" };
 
 function hashFor(view, stage) {
   return view === "terrain" ? `#terrain-${stage}` : `#${view}`;
 }
 
-const ROUTE_LABEL = { rapport: "Rapport de tournée", collecte: "Jour de collecte" };
+const ROUTE_LABEL = { accueil: "Accueil", rapport: "Rapports", collecte: "Jour de collecte" };
 
 function apply(view, stage, dir) {
   stage = clampStage(stage);
@@ -45,14 +46,14 @@ function apply(view, stage, dir) {
   state.stage = stage;
   app.dataset.view = view;
   app.dataset.stage = String(stage);
-  $("viewTerrain").hidden = view !== "terrain";
-  $("viewRapport").hidden = view !== "rapport";
-  $("viewCollecte").hidden = view !== "collecte";
-  document.querySelectorAll("[data-view-target]").forEach((b) => {
-    if (b.classList.contains("vsBtn")) {
-      if (b.dataset.viewTarget === view) b.setAttribute("aria-current", "page");
-      else b.removeAttribute("aria-current");
-    }
+  VIEWS.forEach((v) => {
+    const el = $(VIEW_ID[v]);
+    if (el) el.hidden = v !== view;
+  });
+  // Onglets de navigation (barre du bas, barre latérale) : page active signalée.
+  document.querySelectorAll("[data-nav]").forEach((b) => {
+    if (b.dataset.viewTarget === view) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
   });
   document.querySelectorAll(".stagePane").forEach((p) => {
     const on = +p.dataset.stage === stage;
@@ -99,14 +100,14 @@ export function initRouter() {
   // Adresse modifiée à la main dans un onglet ouvert (…#rapport) : même effet
   // qu'un appui sur l'onglet (pushState ne déclenche jamais cet événement).
   window.addEventListener("hashchange", () => {
-    const h = window.location.hash.match(/^#(terrain|rapport|collecte)(?:-(\d))?$/);
+    const h = window.location.hash.match(/^#(accueil|terrain|rapport|collecte)(?:-(\d))?$/);
     if (!h) return;
     const stage = h[1] === "terrain" && h[2] ? Number(h[2]) : state.stage;
     if (h[1] !== state.view || stage !== state.stage) go(h[1], stage, { replace: true });
   });
   // Seul un lien vers une AUTRE vue compte : au rechargement, l'adresse
   // reflète déjà l'état enregistré, qui fait foi.
-  const m = window.location.hash.match(/^#(terrain|rapport|collecte)(?:-(\d))?$/);
+  const m = window.location.hash.match(/^#(accueil|terrain|rapport|collecte)(?:-(\d))?$/);
   if (m && m[1] !== state.view) {
     state.view = m[1];
     if (m[1] === "terrain" && m[2]) state.stage = Number(m[2]);

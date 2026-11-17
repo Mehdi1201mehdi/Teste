@@ -7,7 +7,7 @@
 // pour le dépôt suivant, la balise tombe sur la carte, le compteur avance.
 
 import { $, esc, scrollBehavior } from "./utils.js";
-import { state, save, emptyCurrent } from "./storage.js";
+import { state, save, emptyCurrent, newBpId } from "./storage.js";
 import { SECTEURS, secStyle, resolveSector } from "./sectors.js";
 import { buildBp, adresseText, mailLine, splitPrecisions, addressOk, wastesOk, findDuplicate } from "./bp.js";
 import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
@@ -539,6 +539,7 @@ function saveBp() {
     // Date et heure réelles du relevé (les bons plus anciens n'en ont pas :
     // aucune heure n'est jamais inventée pour eux).
     bp.createdAt = new Date().toISOString();
+    bp.id = newBpId();
     state.bps.push(bp);
     index = state.bps.length - 1;
     bp.wastes.forEach((w) => (state.wasteFreq[w] = (state.wasteFreq[w] || 0) + 1));
@@ -550,7 +551,7 @@ function saveBp() {
   // Le bouton visible est désormais « Déchets » (désactivé) : l'animation de
   // succès passe par les compteurs, pas par ce bouton.
   replay($("hudCount"), "is-ticking");
-  replay($("navCount"), "is-ticking");
+  document.querySelectorAll(".navCount").forEach((el) => replay(el, "is-ticking"));
   // Confirmation brève, sans bouton : le compteur « Rapport » a déjà avancé,
   // et l'agent enchaîne tout de suite sur le dépôt suivant.
   toast((wasEditing ? `Bon n°${index + 1} mis à jour.` : `Bon n°${index + 1} enregistré.`) + note, null, note ? "warn" : "ok");

@@ -1,4 +1,26 @@
-# Brigade Verte — Design system « Relevé de terrain »
+# Brigade Verte — Design system « Fiche de constat »
+
+_Refonte visuelle du 17/11/2026. Le principe et les composants ci-dessous restent valables ; l'apparence a changé._
+
+## Principe (novembre 2026)
+
+Le modèle est l'objet réel : **le bon de passage papier** de la police municipale.
+
+- **Papier** blanc de liasse (`--paper` #f4f3ee, champs `--sheet` #fff), **encre bleu-noir** (`--ink` #16212b).
+- **Une seule couleur d'identité** : le vert brigade (`--brand` #17573a, barre d'application `--appbar` #133f2b). L'**orange** (`--signal`) reste réservé aux dépôts constatés.
+- **Angles nets** (3 à 7 px, plus aucune pilule), **filets fins**, ombres quasi absentes. Aucun halo, aucun effet de verre, aucun vert fluo.
+- **Étiquettes en clair** (« Rue », « N° »), en police d'interface. Plus de codes en majuscules espacées ni de police machine à écrire décorative.
+- **Numéro de bon** façon numéro de série imprimé (cadre rouge). **Étapes** et **familles de déchets** en onglets soulignés.
+- **Aperçu du message** rédigé comme un courrier, dans la police de l'interface, pas comme du code.
+- **Typographie** : Instrument Sans seule (titres et texte) ; JetBrains Mono uniquement pour les numéros. Bricolage Grotesque n'est plus utilisée.
+- **Écran de démarrage** sobre : emblème, « Police municipale d'Amiens — Brigade Verte », vraie progression, nombre de voies chargées.
+
+Implémentation : valeurs dans `css/tokens.css`, apparence des composants dans `css/fiche.css` (chargée après `components.css`).
+Toutes les paires texte/fond respectent WCAG AA : 0 violation axe-core sur 12 écrans (mobile et ordinateur).
+
+---
+
+## Version précédente « Relevé de terrain » (septembre 2026)
 
 ## Principe
 

@@ -1,0 +1,466 @@
+/* ==========================================================================
+   Couche visuelle « Fiche de constat »
+   --------------------------------------------------------------------------
+   Le modèle n'est pas une appli à la mode : c'est le bon de passage papier
+   de la police municipale. D'où :
+   · des étiquettes de champ en clair (« Rue », « N° »), pas de codes en
+     majuscules espacées ;
+   · des cases et des filets fins, des angles nets — aucune pilule, aucun
+     halo, aucun effet de verre ;
+   · un numéro de bon façon numéro de série imprimé, en rouge ;
+   · l'aperçu du message rédigé comme un courrier, pas comme du code ;
+   · une seule couleur d'identité (vert brigade) et l'orange réservé aux
+     dépôts constatés.
+   Chargée après les composants : elle ne change que l'apparence.
+   ========================================================================== */
+
+/* ─── Étiquettes : en clair, comme sur un formulaire ─── */
+.label,
+.gpsListLabel,
+.stat span,
+.hudCount span,
+.mapPickHead,
+.sugMeta,
+.colCard h3 small,
+.colNext small,
+.ticketGroupHead,
+.sectorChip,
+.docLabel {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.label {
+  color: var(--ink-2);
+}
+.label .opt {
+  font-weight: 500;
+}
+.stat span,
+.hudCount span {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ─── Barre d'application : vert brigade, onglets rectangulaires ─── */
+.appbar {
+  background: var(--appbar);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+}
+.wordmark span {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+.viewSwitch {
+  padding: 0;
+  gap: 4px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.vsBtn {
+  border-radius: var(--r-sm);
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.07);
+}
+.vsBtn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.13);
+}
+.vsBtn[aria-current="page"] {
+  background: #fff;
+  color: var(--appbar);
+}
+.vsBtn .count {
+  border-radius: var(--r-xs);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+.vsBtn .count[data-zero] {
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+}
+.vsBtn[aria-current="page"] .count[data-zero] {
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+.stamp {
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: var(--r-sm);
+  color: #fff;
+}
+.stamp:hover {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.stampLabel {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+.stampDate {
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+}
+.stamp .icon {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ─── En-tête du bon : intitulé + numéro de série imprimé ─── */
+.composerHead {
+  padding-top: var(--s4);
+}
+.eyebrow {
+  align-items: center;
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+.eyebrow .mono {
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  color: var(--signal-strong);
+}
+.eyebrow[data-mode="edit"] .mono {
+  color: var(--info);
+}
+
+/* Étapes : onglets de formulaire soulignés, pas de blocs noirs */
+.stages {
+  gap: 0;
+  margin-top: var(--s3);
+  border-bottom: 1px solid var(--line);
+}
+.stages li,
+.stages li:has([aria-current="step"]) {
+  flex: 1;
+}
+.stageBtn {
+  min-height: var(--tap);
+  padding: 0 var(--s2);
+  border-radius: 0;
+  background: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  color: var(--muted);
+  font-size: var(--fs-base);
+}
+.stageDot {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-xs);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fs-xs);
+  border-width: 1.5px;
+}
+.stageBtn[aria-current="step"] {
+  background: none;
+  color: var(--ink);
+  border-bottom-color: var(--brand);
+}
+.stageBtn[aria-current="step"] .stageDot {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.stageBtn[data-done] {
+  background: none;
+  color: var(--brand);
+}
+.stageBtn[data-done] .stageDot {
+  border-radius: var(--r-xs);
+}
+
+.stageTitle {
+  font-weight: 700;
+  font-size: var(--fs-lg);
+  letter-spacing: -0.015em;
+}
+
+/* ─── Champs : cases blanches à filet net ─── */
+.input {
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-sm);
+}
+.input:focus-visible,
+.input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-tint);
+  border-radius: var(--r-sm);
+}
+.input--quiet {
+  border-style: solid;
+  border-color: var(--line);
+  background: var(--sheet);
+}
+.input.mono {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.chipBtn {
+  border-radius: var(--r-sm);
+}
+
+/* Fiche du lieu : une case de formulaire remplie, sans ombre décalée */
+.place {
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--signal);
+  border-radius: var(--r-sm);
+  box-shadow: var(--e1);
+}
+.placePin {
+  border-radius: var(--r-xs);
+}
+.sectorTag {
+  font-family: var(--font-ui);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+.sectorOpt {
+  font-family: var(--font-ui);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+/* Précisions : cases à cocher rectangulaires, cochées en vert brigade */
+.toggle {
+  border: 1.5px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--sheet);
+  font-weight: 600;
+}
+.toggle[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.toggle[aria-pressed="true"]::before {
+  width: 12px;
+  height: 12px;
+  margin-right: 7px;
+  border-radius: 0;
+  background: #fff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ─── Déchets constatés ─── */
+.found {
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--sheet);
+}
+.found.has-items {
+  background: var(--sheet);
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--signal);
+}
+.chip {
+  border-radius: var(--r-xs);
+  background: var(--signal-tint);
+  border: 1px solid transparent;
+  color: var(--ink);
+}
+.chip .x {
+  border-radius: var(--r-xs);
+}
+.pick {
+  border-radius: var(--r-sm);
+}
+.pick .n {
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+/* Familles : onglets soulignés */
+.catTabs {
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
+}
+.catTab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+  background: none;
+}
+.catTab[aria-selected="true"] {
+  background: none;
+  border-bottom-color: var(--ink);
+}
+
+/* Ligne du rapport : un extrait de courrier, pas un bloc de code */
+.lineOutText {
+  background: var(--sheet);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: var(--r-xs);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.lineOutText::before {
+  color: var(--ink);
+}
+
+/* ─── Boutons : pleins, nets, sans halo ─── */
+.btn {
+  border-radius: var(--r-sm);
+  font-weight: 700;
+}
+.btn--primary {
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+.btn--primary:disabled,
+.btn--primary[aria-disabled="true"] {
+  background: var(--paper-2);
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.btn--line {
+  border-width: 1px;
+}
+.linkBtn,
+.iconBtn {
+  border-radius: var(--r-xs);
+}
+.actionBar {
+  background: var(--sheet);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-top: 1px solid var(--line);
+}
+
+/* ─── Rapport ─── */
+.viewTitle {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.stat b {
+  letter-spacing: -0.03em;
+}
+.sectorBreak li {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+/* Le message : une lettre, dans la police d'un courriel */
+.doc {
+  border-radius: var(--r-sm);
+  box-shadow: var(--e1);
+}
+.docBody.mono,
+.docBody {
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+.docLabel {
+  color: var(--muted);
+}
+/* Bons de passage : talon perforé conservé, angles nets */
+.ticket {
+  border-radius: var(--r-sm);
+  border-color: var(--line);
+}
+.ticketStub small {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.ticketWaste span {
+  border-radius: var(--r-xs);
+}
+.ticketGroupHead {
+  color: var(--ink-2);
+}
+
+/* ─── Carte : repères sobres ─── */
+.mapHud,
+.mapBtn {
+  border-radius: var(--r-sm);
+}
+.mapHint,
+.marker.target .targetName,
+.marker.pin span,
+.quartierLabel span {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.mapHint {
+  border-radius: var(--r-xs);
+}
+.marker.target .targetName {
+  border-radius: var(--r-xs);
+  font-size: 12px;
+}
+
+/* ─── Retours d'état ─── */
+.toast {
+  border-radius: var(--r-sm);
+}
+dialog.sheet,
+dialog.modal {
+  border-radius: var(--r-lg);
+}
+@media (max-width: 699px) {
+  dialog.sheet {
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
+}
+
+/* Fin de tournée : encadré net, filet rouge à gauche (action grave) */
+.closeTour {
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--danger);
+  border-radius: var(--r-sm);
+  background: var(--sheet);
+}
+
+/* Textes d'état : police de l'interface, chiffres alignés */
+.sheetFoot.mono,
+.gpsStatus.mono,
+.docLabel.mono {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.gpsStatus.mono {
+  font-size: var(--fs-xs);
+  border-radius: var(--r-xs);
+}
+/* « facultatif » : toujours lisible (≥ 4.5:1), même dans un libellé atténué. */
+.label .opt {
+  color: var(--muted);
+  opacity: 1;
+}
+.colNumField .label {
+  opacity: 1;
+}

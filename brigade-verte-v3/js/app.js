@@ -15,7 +15,8 @@ import { loadWaste } from "./waste.js";
 import { adresseText } from "./bp.js";
 import { loadSectorContours } from "./sectors.js";
 import { initComposer, renderAllComposer, renderComposer, chooseRue, editBp, resetCurrent } from "./composer.js";
-import { initReport, renderReport, sectorCounts, sectorBarHtml, revealBp } from "./report.js";
+import { initReport, renderReport, sectorCounts, sectorBarHtml, revealBp, showOutlookAndroidFailed } from "./report.js";
+import { ANDROID_RETURN_PARAM } from "./email.js";
 import { showSuggestions } from "./components.js";
 import { fmtDist } from "./geo.js";
 import { initStreetIndex, loadStreetGeometry } from "./locate.js";
@@ -385,8 +386,20 @@ async function main() {
   const c = state.current;
   restoreInputs();
 
+  // Retour d'Android après un échec d'ouverture d'Outlook (…?outlook=echec#rapport) :
+  // l'adresse est nettoyée et le rapport rouvert avec les autres façons d'envoyer.
+  const params = new URLSearchParams(window.location.search);
+  const outlookFailed = params.get(ANDROID_RETURN_PARAM) === "echec";
+  if (outlookFailed) {
+    params.delete(ANDROID_RETURN_PARAM);
+    const q = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${q ? "?" + q : ""}#rapport`);
+    state.view = "rapport";
+  }
+
   initRouter();
   changed();
+  if (outlookFailed && state.bps.length) showOutlookAndroidFailed();
   if (!c.rue && state.bps.length) map.fitPins();
   renderComposer();
   save();

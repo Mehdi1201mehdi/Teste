@@ -98,22 +98,48 @@ export function outlookWebUrl({ to = [], subject = "", body = "" }) {
 
 /**
  * Android : ouvre DIRECTEMENT l'appli Outlook, déjà remplie.
- * C'est un lien de messagerie standard (mailto:) adressé à l'appli Outlook
- * seule (package com.microsoft.office.outlook) : Outlook pour Android traite
- * toujours ces liens, contrairement à « ms-outlook://compose » (prévu pour
- * iPhone), qu'il ne prend pas en charge de façon fiable — Chrome basculait
- * alors sur Outlook Web.
- * Outlook non installé : le navigateur ouvre Outlook Web (repli du système).
- * Forme : intent:dest?subject=…&body=…#Intent;action=SENDTO;scheme=mailto;…
+ * Lien de messagerie standard (mailto:) adressé à l'appli Outlook seule, avec
+ * l'action VIEW — celle des liens e-mail ordinaires. Chrome n'ouvre depuis un
+ * site que les applis qui acceptent les liens web (catégorie BROWSABLE) ;
+ * c'est le cas d'Outlook pour VIEW + mailto (pas pour SENDTO, ni pour
+ * « ms-outlook://compose », prévu pour iPhone).
+ * Échec (Outlook absent ou refus) : le navigateur revient sur l'application
+ * (`returnUrl`), qui propose alors la messagerie du téléphone et retient de
+ * l'utiliser directement les fois suivantes.
+ * Forme : intent:dest?subject=…&body=…#Intent;action=VIEW;scheme=mailto;…
  * (Android reconstitue « mailto:dest?subject=… »).
  */
-export function androidIntentUrl(msg) {
+export function androidIntentUrl(msg, returnUrl = "") {
   const to = (msg.to || []).map((a) => enc(a).replace(/%40/g, "@")).join(",");
   const q = query({ subject: msg.subject, body: String(msg.body || "").replace(/\r?\n/g, "\r\n") });
+  const fallback = returnUrl || outlookWebUrl(msg);
   return (
-    `intent:${to}?${q}#Intent;action=android.intent.action.SENDTO;scheme=mailto;` +
-    `package=com.microsoft.office.outlook;S.browser_fallback_url=${enc(outlookWebUrl(msg))};end`
+    `intent:${to}?${q}#Intent;action=android.intent.action.VIEW;scheme=mailto;` +
+    `package=com.microsoft.office.outlook;S.browser_fallback_url=${enc(fallback)};end`
   );
+}
+
+/* Android : mémorise qu'Outlook ne s'ouvre pas directement sur cet appareil. */
+const ANDROID_MAIL_KEY = "bv_android_mail";
+export const ANDROID_RETURN_PARAM = "outlook";
+export function androidUsesMailto() {
+  try {
+    return localStorage.getItem(ANDROID_MAIL_KEY) === "mailto";
+  } catch (e) {
+    return false;
+  }
+}
+export function rememberAndroidMailto() {
+  try {
+    localStorage.setItem(ANDROID_MAIL_KEY, "mailto");
+  } catch (e) {
+    /* stockage indisponible : on réessaiera l'appli la prochaine fois */
+  }
+}
+/** Adresse de retour dans l'application si Outlook ne s'ouvre pas (Android). */
+export function androidReturnUrl() {
+  if (typeof location === "undefined" || !/^https?:$/.test(location.protocol)) return "";
+  return `${location.origin}${location.pathname}?${ANDROID_RETURN_PARAM}=echec#rapport`;
 }
 
 // Longueur maximale d'un lien par canal (au-delà : corps collé depuis le
@@ -146,9 +172,14 @@ export function planEmail(channel, msg, platform = emailPlatform()) {
   let kind;
   if (channel === "web") kind = "web";
   else if (channel === "mailto") kind = "mailto";
-  else kind = platform === "ios" ? "app" : platform === "android" ? "intent" : "mailto";
+  else if (platform === "ios") kind = "app";
+  // Android : appli Outlook directement, sauf si l'appareil a déjà montré
+  // qu'elle ne s'ouvre pas ainsi — alors la messagerie du téléphone (mailto).
+  else if (platform === "android") kind = androidUsesMailto() ? "mailto" : "intent";
+  else kind = "mailto";
 
-  const build = { web: outlookWebUrl, mailto: mailtoUrl, app: outlookAppUrl, intent: androidIntentUrl }[kind];
+  const returnUrl = kind === "intent" ? androidReturnUrl() : "";
+  const build = { web: outlookWebUrl, mailto: mailtoUrl, app: outlookAppUrl, intent: (m) => androidIntentUrl(m, returnUrl) }[kind];
   let url = build(msg);
   let truncated = false;
   // Messageries mobiles : liens longs acceptés ; Outlook classique sur PC : non.

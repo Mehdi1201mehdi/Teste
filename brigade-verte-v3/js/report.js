@@ -6,7 +6,7 @@ import { state, save } from "./storage.js";
 import { SECTEURS, TITRE, secStyle } from "./sectors.js";
 import { adresseText } from "./bp.js";
 import { mailText, mailSubject } from "./mail.js";
-import { buildEmailBody, parseRecipients, openEmailClient, copyEmailContent } from "./email.js";
+import { buildEmailBody, parseRecipients, openEmailClient, copyEmailContent, rememberAndroidMailto } from "./email.js";
 import { ticketHtml, bindTicketActions } from "./components.js";
 import { toast, confirmDialog, replay } from "./ui.js";
 import { go } from "./router.js";
@@ -211,6 +211,18 @@ function showFallback(text) {
   $("sendFallbackText").textContent = text || "Choisissez une autre façon d'envoyer ce rapport.";
   box.hidden = false;
   box.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
+}
+
+/**
+ * Android : le navigateur est revenu sur l'application parce que l'appli
+ * Outlook n'a pas pu s'ouvrir directement. On le retient (les envois suivants
+ * passeront par la messagerie du téléphone) et on propose les autres voies.
+ */
+export function showOutlookAndroidFailed() {
+  rememberAndroidMailto();
+  showFallback(
+    "L'appli Outlook n'a pas pu s'ouvrir directement sur ce téléphone. Touchez « Autre messagerie », choisissez Outlook puis « Toujours » : les prochains envois l'ouvriront directement.",
+  );
 }
 
 /**

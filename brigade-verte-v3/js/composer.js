@@ -531,10 +531,14 @@ function saveBp() {
   const wasEditing = state.editing != null;
   if (wasEditing) {
     index = state.editing;
-    // Les champs non saisis ici (identifiant, note… des versions précédentes) sont conservés.
-    state.bps[index] = { ...state.bps[index], ...bp };
+    // Les champs non saisis ici (date de création, identifiant, note… des
+    // versions précédentes) sont conservés ; l'heure de modification est notée.
+    state.bps[index] = { ...state.bps[index], ...bp, updatedAt: new Date().toISOString() };
     state.editing = null;
   } else {
+    // Date et heure réelles du relevé (les bons plus anciens n'en ont pas :
+    // aucune heure n'est jamais inventée pour eux).
+    bp.createdAt = new Date().toISOString();
     state.bps.push(bp);
     index = state.bps.length - 1;
     bp.wastes.forEach((w) => (state.wasteFreq[w] = (state.wasteFreq[w] || 0) + 1));

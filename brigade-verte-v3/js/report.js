@@ -112,6 +112,9 @@ export function invalidateMail() {
 
 function duplicateBp(i) {
   const bp = JSON.parse(JSON.stringify(state.bps[i]));
+  // Le double est un nouveau relevé : il prend l'heure de sa création.
+  bp.createdAt = new Date().toISOString();
+  delete bp.updatedAt;
   state.bps.splice(i + 1, 0, bp);
   const note = invalidateMail();
   hooks.changed({ fresh: i + 1 });

@@ -67,8 +67,13 @@ export function cleanBp(b) {
   if (b.numero != null && !["string", "number"].includes(typeof b.numero)) return null;
   const wastes = strList(b.wastes);
   if (!wastes.length) return null; // sans déchet, la ligne du message serait vide
+  const out = { ...b };
+  // Horodatages : gardés seulement s'ils sont des dates valides (jamais inventés).
+  for (const k of ["createdAt", "updatedAt"]) {
+    if (k in out && (typeof out[k] !== "string" || Number.isNaN(Date.parse(out[k])))) delete out[k];
+  }
   return {
-    ...b,
+    ...out,
     rue: b.rue.trim().slice(0, 300),
     numero: str(b.numero, 20).trim(),
     secteur,

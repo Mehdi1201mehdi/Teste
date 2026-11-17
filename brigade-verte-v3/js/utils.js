@@ -92,3 +92,19 @@ export function dateFr(iso) {
 export function scrollBehavior() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
 }
+
+/**
+ * Date et heure d'un bon, à partir de son horodatage réel (createdAt).
+ * « Aujourd'hui · 14:32 », « Hier · 09:05 », « 12/11 · 16:40 ».
+ * Renvoie "" pour un bon sans horodatage (anciens bons) : rien n'est inventé.
+ */
+export function bpWhen(bp, now = new Date()) {
+  const t = bp && Date.parse(bp.createdAt || "");
+  if (!t) return "";
+  const d = new Date(t);
+  const hm = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 86400000);
+  const label = diff === 0 ? "Aujourd'hui" : diff === 1 ? "Hier" : `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${label} · ${hm}`;
+}

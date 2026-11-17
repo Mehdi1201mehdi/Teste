@@ -14,7 +14,7 @@ import { showStreetSuggest, streetEntry, getStreets } from "./streets.js";
 import { showWasteSuggest, resolveTypedWaste, frequent, categories, categoryItems, shortCat, pickButtons, familyIcon, familyGroups } from "./waste.js";
 import { showSuggestions, hideSuggestions, bindComboKeys, renderChips } from "./components.js";
 import { toast, replay, haptic } from "./ui.js";
-import { go, canEnterStage, blockedMessage, onRoute } from "./router.js";
+import { go, canEnterStage, blockedMessage, onRoute, MQ } from "./router.js";
 import * as map from "./map.js";
 import { gpsQuality, fmtDist } from "./geo.js";
 import { resolveStreet, resolveSectorAt } from "./locate.js";
@@ -1026,11 +1026,11 @@ export function initComposer(opts = {}) {
   // Mobile et tablette (< 1024 px) : la carte est une bande au-dessus du
   // formulaire, elle se replie pendant la frappe pour laisser place au clavier.
   // Sur ordinateur (≥ 1024 px), la carte est en fond et le panneau à droite :
-  // rien à replier. Même seuil que css/layout.css et js/router.js.
-  const small = window.matchMedia("(max-width: 1023px)");
+  // rien à replier. Seuil centralisé (MQ.desktop, js/router.js).
+  const desktop = window.matchMedia(MQ.desktop);
   const panel = $("panel");
   panel.addEventListener("focusin", (e) => {
-    if (small.matches && e.target.matches("input:not([type=checkbox]):not([type=file]), textarea")) {
+    if (!desktop.matches && e.target.matches("input:not([type=checkbox]):not([type=file]), textarea")) {
       $("app").classList.add("is-typing");
     }
   });

@@ -119,6 +119,8 @@ export function save() {
     state.lastSaved = nowHM();
     write();
     quotaWarned = false;
+    // L'en-tête affiche l'état de sauvegarde : il se met à jour aussitôt.
+    document.dispatchEvent(new CustomEvent("bv:saved"));
   } catch (e) {
     const quota = e && (e.name === "QuotaExceededError" || e.code === 22 || e.name === "NS_ERROR_DOM_QUOTA_REACHED");
     if (quota) {
@@ -126,6 +128,7 @@ export function save() {
         DISPOSABLE.forEach((k) => localStorage.removeItem(k));
         write();
         quotaWarned = false;
+        document.dispatchEvent(new CustomEvent("bv:saved"));
         return;
       } catch (e2) {
         /* toujours plein : l'agent est prévenu ci-dessous */

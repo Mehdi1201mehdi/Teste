@@ -61,7 +61,6 @@ const SHELL_ASSETS = [
   "./assets/icons/icon-180.png",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
-  "./assets/fonts/BricolageGrotesque-var.woff2",
   "./assets/fonts/InstrumentSans-var.woff2",
   "./assets/fonts/JetBrainsMono-500.woff2",
   "./suivi/",

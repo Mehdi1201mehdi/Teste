@@ -792,3 +792,9 @@
     scrollbar-gutter: stable;
   }
 }
+
+/* Intégration : l'enveloppe .view--accueil (layout.css) porte déjà les marges
+   de la page — pas de double marge autour du tableau de bord. */
+.view--accueil .dash__inner {
+  padding: 0;
+}

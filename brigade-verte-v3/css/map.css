@@ -450,10 +450,12 @@
     bottom: var(--s6);
   }
   .mapPick {
-    left: auto;
+    left: var(--s3);
     right: calc(var(--free-right) + var(--s2));
     bottom: var(--s6);
-    width: 340px;
+    width: auto;
+    max-width: 340px;
+    margin-inline: auto 0;
   }
   .map .leaflet-bottom.leaflet-right {
     right: var(--free-right);

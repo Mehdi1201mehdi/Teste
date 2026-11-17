@@ -623,6 +623,7 @@
   align-items: center;
   gap: var(--s2);
   flex: 0 0 auto;
+  max-width: 360px;
 }
 .ledgerSort__label {
   font-size: var(--fs-14);
@@ -652,7 +653,7 @@
   box-shadow: var(--focus);
 }
 
-@container ledger (min-width: 560px) {
+@container ledger (min-width: 760px) {
   .ledgerFilters {
     flex-direction: row;
     align-items: center;

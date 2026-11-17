@@ -145,6 +145,8 @@
 .sidebar .viewSwitch {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  justify-self: stretch;
   gap: 0;
   height: var(--nav-h);
   padding: 0;

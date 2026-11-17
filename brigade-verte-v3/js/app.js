@@ -4,12 +4,12 @@
 
 // La séquence de démarrage s'initialise en premier : elle mesure le vrai chargement.
 import { splash } from "./splash.js";
-import { $, esc, todayISO, stampDate, plural, dateFr, scrollBehavior } from "./utils.js";
+import { $, esc, todayISO, stampDate, plural, dateFr } from "./utils.js";
 import { state, load, save, reload, STORAGE_KEY, newBpId } from "./storage.js";
 import { buildExport, parseBackup, readArchivedTours } from "./backup.js";
 import { dateLongue } from "./phrase.js";
-import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, replay } from "./ui.js";
-import { go, initRouter, onRoute } from "./router.js";
+import { toast, confirmDialog, closeOnBackdrop, initOfflineBanner, initToast, placeToast } from "./ui.js";
+import { go, initRouter, onRoute, MQ, matches } from "./router.js";
 import { loadStreets, streetEntry } from "./streets.js";
 import { loadWaste } from "./waste.js";
 import { adresseText } from "./bp.js";
@@ -41,12 +41,64 @@ function renderTour({ fresh = -1 } = {}) {
   const [day, ...rest] = stampDate(state.date).split(" ");
   $("tourDate").innerHTML = rest.length ? `<span class="stampDay">${esc(day)}</span> ${esc(rest.join(" "))}` : esc(day);
   $("tourDate").setAttribute("datetime", state.date || "");
+  const sub = $("appbarSub");
+  if (sub) sub.textContent = state.date ? `Tournée du ${dateLongue(state.date)}` : "";
+  renderSaveStatus();
+  // La sauvegarde suit souvent le rendu (même geste) : l'heure est relue juste après.
+  setTimeout(renderSaveStatus, 0);
   map.setPins(
     state.bps.map((bp, i) => ({ rue: bp.rue, label: `n°${i + 1} · ${adresseText(bp)}` })),
     { fresh, editing: state.editing },
   );
   renderReport();
   renderDashboard();
+}
+
+/* ─── État de sauvegarde (en-tête, barre latérale) ───
+   « Enregistré · 14:32 » depuis state.lastSaved ; « Hors connexion » (la
+   sauvegarde reste locale) ; « Sauvegarde impossible » si le stockage est plein. */
+let saveFailed = false;
+function renderSaveStatus() {
+  const t = state.lastSaved || "";
+  const offline = !navigator.onLine;
+  const tone = saveFailed ? "danger" : offline ? "warn" : "ok";
+  const word = saveFailed ? "Sauvegarde impossible" : offline ? "Hors connexion" : "Enregistré";
+  const iconId = tone === "ok" ? "i-circle-check" : tone === "warn" ? "i-wifi-off" : "i-alert";
+  const title = saveFailed
+    ? "Stockage plein : exportez vos bons de passage depuis les Réglages."
+    : `${offline ? "Hors connexion — " : ""}${t ? `Tournée enregistrée sur l'appareil à ${t}` : "Tournée enregistrée sur l'appareil"}`;
+  document.querySelectorAll("[data-save-status]").forEach((el) => {
+    if (el.dataset.tone !== tone) el.dataset.tone = tone;
+    el.title = title;
+    const w = el.querySelector(".saveWord");
+    const tm = el.querySelector(".saveTime");
+    const use = el.querySelector("use");
+    if (w && w.textContent !== word) w.textContent = word;
+    const time = saveFailed ? "" : t;
+    if (tm && tm.textContent !== time) tm.textContent = time;
+    if (use && use.getAttribute("href") !== `#${iconId}`) use.setAttribute("href", `#${iconId}`);
+  });
+}
+function watchSaveStatus() {
+  // Événement prévu côté storage.js (« bv:saved ») ; à défaut, relecture régulière.
+  document.addEventListener("bv:saved", () => {
+    saveFailed = false;
+    renderSaveStatus();
+  });
+  document.addEventListener("bv:quota", () => {
+    saveFailed = true;
+    renderSaveStatus();
+  });
+  window.addEventListener("online", renderSaveStatus);
+  window.addEventListener("offline", renderSaveStatus);
+  let last = state.lastSaved;
+  setInterval(() => {
+    if (state.lastSaved !== last) {
+      last = state.lastSaved;
+      renderSaveStatus();
+    }
+  }, 2000);
+  renderSaveStatus();
 }
 
 function changed(opts = {}) {
@@ -58,11 +110,17 @@ function changed(opts = {}) {
 function bindSettings() {
   const dlg = $("settingsDlg");
   closeOnBackdrop(dlg);
-  $("openSettings").onclick = () => {
+  const openSettings = () => {
+    if (dlg.open) return;
     $("date").value = state.date;
     $("saveStatus").textContent = state.lastSaved ? `Enregistré sur l'appareil à ${state.lastSaved}` : "Enregistré sur l'appareil";
     dlg.showModal();
   };
+  // En-tête (#openSettings) et barre latérale ([data-open-settings]) : même réglages.
+  $("openSettings").onclick = openSettings;
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-open-settings]")) openSettings();
+  });
   $("date").addEventListener("change", (e) => {
     // Choix manuel : gardé jusqu'à la fin de la journée (le lendemain, la
     // date repasse d'elle-même au jour courant).
@@ -226,7 +284,7 @@ function onMapPick({ list, quartier }) {
     : "Rues les plus proches";
   const listEl = $("mapPickList");
   if (!list.length) return;
-  const narrow = window.matchMedia("(max-width: 1023px)").matches;
+  const narrow = !matches(MQ.desktop);
   const entries = list.slice(0, narrow ? 3 : 5).map(({ r, d }) =>
     streetEntry(r, "", (rue) => {
       box.hidden = true;
@@ -251,9 +309,21 @@ function bindShell() {
     else go(view, state.stage);
   });
   $("mapFit").onclick = () => map.fit();
-  document.querySelector(".brand").addEventListener("click", (e) => {
+  // Logo (en-tête et barre latérale) : retour à l'Accueil.
+  document.querySelectorAll(".brand").forEach((a) =>
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      go("accueil");
+    }),
+  );
+  // Lien d'évitement « Aller à la saisie » : ouvre le Terrain et y place le focus.
+  document.querySelector(".skip-link")?.addEventListener("click", (e) => {
     e.preventDefault();
-    go("terrain", state.stage);
+    if (state.view !== "terrain") go("terrain", state.stage);
+    requestAnimationFrame(() => {
+      const target = state.stage === 1 ? $("streetInput") : $("panel");
+      (target && target.offsetParent ? target : $("panel")).focus();
+    });
   });
   $("mapPickClose").onclick = () => {
     $("mapPick").hidden = true;
@@ -269,7 +339,12 @@ function bindShell() {
     renderTour();
     // Rapport : la carte cadre toute la tournée. Terrain : elle revient sur la rue choisie.
     if (view === "rapport") map.fitPins();
-    else if (view === "terrain") map.setTarget(state.current.rue ? state.current.rue.rue : null);
+    else if (view === "terrain") {
+      map.setTarget(state.current.rue ? state.current.rue.rue : null);
+      // La carte réapparaît (masquée hors Terrain) : taille recalculée.
+      requestAnimationFrame(() => map.refresh());
+    }
+    requestAnimationFrame(placeToast);
   });
 }
 
@@ -352,15 +427,9 @@ async function main() {
   initStreetIndex(streets);
   map.initMap($("map"), streets, {
     onPick: onMapPick,
-    onPinClick: (i) => {
-      go("rapport");
-      requestAnimationFrame(() => {
-        const t = document.querySelector(`#bpList [data-i="${i}"]`)?.closest(".ticket");
-        t?.scrollIntoView({ block: "center", behavior: scrollBehavior() });
-        replay(t, "is-editing");
-        setTimeout(() => t?.classList.remove("is-editing"), 1400);
-      });
-    },
+    // Balise touchée : le bon correspondant est mis en évidence dans les Rapports
+    // (revealBp remet le filtre à zéro si le bon est masqué).
+    onPinClick: (i) => revealBp(i),
   });
 
   splash.step("map");
@@ -395,6 +464,7 @@ async function main() {
   watchDay();
   initOfflineBanner();
   initToast();
+  watchSaveStatus();
 
   // Restaure la saisie en cours
   const c = state.current;

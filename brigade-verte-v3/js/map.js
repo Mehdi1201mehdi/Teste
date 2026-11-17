@@ -191,9 +191,28 @@ export function initMap(container, data, opts = {}) {
 
   // pan par défaut : le CENTRE est conservé quand la carte se replie/se redéploie
   // (clavier mobile) — la rue choisie reste au milieu au lieu de filer sous le compteur.
-  new ResizeObserver(() => map.invalidateSize({ animate: false })).observe(host);
+  new ResizeObserver(() => resized()).observe(host);
   window.addEventListener("online", syncDots);
   window.addEventListener("offline", syncDots);
+}
+
+/**
+ * La carte a changé de taille (repli au clavier, changement de vue…).
+ * Cas particulier : une carte créée MASQUÉE (démarrage sur l'Accueil) n'a
+ * encore aucune vue ; Leaflet ignore alors invalidateSize et tous les
+ * événements (toucher compris) tant qu'aucun cadrage n'a été posé. Dès
+ * qu'elle a une taille, on relit celle-ci et on applique le cadrage en attente.
+ */
+function resized() {
+  if (!map) return;
+  if (!map._loaded) {
+    if (!host.clientWidth || !host.clientHeight) return;
+    map._sizeChanged = true; // Leaflet garde en cache la taille nulle du démarrage
+    applyPendingView();
+    if (!map._loaded) map.fitBounds(cityBounds(), { ...padOpts({ padding: [16, 16] }), animate: false });
+    return;
+  }
+  map.invalidateSize({ animate: false });
 }
 
 function syncDots() {
@@ -356,7 +375,8 @@ function padOpts(opts = {}) {
 function flyTo(lat, lon, zoom) {
   if (!map) return;
   whenSized((instant) => {
-    const z = Math.max(map.getZoom(), zoom);
+    // Carte pas encore cadrée (créée masquée) : pas de zoom courant.
+    const z = Math.max(map._loaded ? map.getZoom() : 0, zoom);
     // Panneau flottant : la cible se place au centre de la zone libre.
     const cov = coveredRight();
     const c = cov ? map.unproject(map.project([lat, lon], z).add([cov / 2, 0]), z) : L.latLng(lat, lon);
@@ -380,7 +400,7 @@ function flyBounds(b, opts) {
  */
 export function refresh() {
   if (!map) return;
-  map.invalidateSize({ animate: false });
+  resized();
   applyPendingView();
 }
 

@@ -462,10 +462,16 @@
 
 /* Encoche en paysage : compteur et boutons de carte restent accessibles. */
 @supports (left: max(0px)) {
-  .mapHud {
-    left: max(var(--s3), env(safe-area-inset-left));
+  @media (max-width: 1023px) {
+    .mapHud {
+      left: max(var(--s3), env(safe-area-inset-left));
+    }
+    .mapTools {
+      right: max(var(--s3), env(safe-area-inset-right));
+    }
   }
-  .mapTools {
-    right: max(var(--s3), env(safe-area-inset-right));
-  }
+}
+/* Choix de rue ouvert : la consigne « Touchez la carte » s'efface. */
+.territory:has(.mapPick:not([hidden])) .mapHint {
+  opacity: 0;
 }

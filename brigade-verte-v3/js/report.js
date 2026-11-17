@@ -34,7 +34,8 @@ export function sectorBarHtml(counts) {
 }
 
 function statHtml(label, value, meta = "") {
-  return `<div class="stat"><span class="stat__label">${label}</span><b class="stat__value">${value}</b>${meta ? `<span class="stat__meta">${meta}</span>` : ""}</div>`;
+  // Ligne de sous-titre toujours présente : les valeurs restent alignées d'une tuile à l'autre.
+  return `<div class="stat"><span class="stat__label">${label}</span><b class="stat__value">${value}</b>${meta ? `<span class="stat__meta">${meta}</span>` : `<span class="stat__meta" aria-hidden="true">&nbsp;</span>`}</div>`;
 }
 
 export function renderReport() {

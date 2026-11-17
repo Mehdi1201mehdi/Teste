@@ -110,7 +110,7 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
     $("composerBody")?.scrollTo({ top: 0 });
   } else if (dir !== 0 || view !== prevView || view !== "terrain") {
     window.scrollTo({ top: 0 });
-    const inner = { accueil: "#dashScroll", rapport: ".reportScroll", collecte: ".collecteScroll" }[view];
+    const inner = { accueil: "#dashScroll", collecte: ".collecteScroll" }[view];
     if (inner) document.querySelector(inner)?.scrollTo({ top: 0 });
   }
   return true;

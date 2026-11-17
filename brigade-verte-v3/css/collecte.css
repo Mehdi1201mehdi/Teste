@@ -410,8 +410,8 @@
   overflow-wrap: anywhere;
 }
 #viewCollecte .colCard h3 .colNum {
-  font-size: 0.95em;
-  font-weight: var(--fw-b);
+  font-size: 0.9em;
+  font-weight: var(--fw-sb);
   color: var(--green-700);
 }
 #viewCollecte .colCard .sectorChip {
@@ -519,11 +519,14 @@
 }
 #viewCollecte .colStream__head {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--s2) var(--s3);
 }
 #viewCollecte .colStream__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
   font-size: 0.9375rem;
   font-weight: var(--fw-sb);
   color: var(--text-2);
@@ -635,7 +638,10 @@
   align-items: center;
   gap: var(--s2);
 }
-#viewCollecte .colRanges__label {
+#viewCollecte .colRanges .colRanges__label {
+  padding: 0;
+  background: none;
+  font-family: var(--font-ui);
   font-size: var(--fs-14);
   font-weight: var(--fw-sb);
   color: var(--text);

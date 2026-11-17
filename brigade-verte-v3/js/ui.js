@@ -45,6 +45,12 @@ function toastOffset() {
   return Math.max(0, Math.round(vh - edge));
 }
 
+/** Recale un toast affiché (changement de vue : barres d'action différentes). */
+export function placeToast() {
+  const el = $("toast");
+  if (el && el.classList.contains("show")) el.style.setProperty("--toast-lift", toastOffset() + "px");
+}
+
 /**
  * Message transitoire. `action` { label, onClick } : bouton d'action (ex. Annuler),
  * qui prolonge l'affichage. `tone` : "" | "ok" | "warn" | "error".

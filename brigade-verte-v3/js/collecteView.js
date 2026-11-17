@@ -144,7 +144,7 @@ function chooseCommune(name) {
 /* ─── Rendu ─── */
 const fmtTime = (t) =>
   new Date(t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(" ", " à ");
-const fmtDay = (d) => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" });
+const fmtDay = (d) => d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "short" }).replace(/ 1 /, " 1er ");
 
 /** Ligne « Prochain passage » et éventuel avertissement de jour férié. */
 function nextHtml(schedule, commune) {
@@ -183,7 +183,7 @@ function streamCard(kind, schedule, commune = false) {
   const { days, parity } = parseSchedule(schedule);
   const n = nextHtml(schedule, commune);
   const parityLine = parity
-    ? `<p class="colParity">1 semaine sur 2 · semaines ${parity}s${weekParity() === parity ? " (comme cette semaine)" : " (pas cette semaine)"}</p>`
+    ? `<p class="colParity">Semaines ${parity}s (1 sur 2) · cette semaine : <b>${weekParity() === parity ? "oui" : "non"}</b></p>`
     : "";
   return `<section class="colStream colStream--${kind}${n.today ? " is-today" : ""}" aria-label="${label}">
     <div class="colStream__head">
@@ -236,7 +236,7 @@ function errorCard(msg) {
       <span class="colState__icon">${icon(offline ? "wifi-off" : "alert")}</span>
       <div>
         <h3>${offline ? "Hors connexion" : "Jour de collecte indisponible"}</h3>
-        <p>${esc(msg)}</p>
+        <p>${esc(offline ? msg.replace(/^Hors connexion\s*—\s*(.)/, (_, c) => c.toUpperCase()) : msg)}</p>
         <p class="colState__hint">Aucun jour n'est affiché tant que la source n'a pas répondu.</p>
       </div>
     </div>

@@ -24,16 +24,25 @@ function armToast(ms) {
   toastTimer = setTimeout(hideToast, ms);
 }
 
-/** Bord haut de la barre d'action visible (px depuis le bas de l'écran). */
+/**
+ * Hauteur occupée en bas de l'écran (px) par ce qui y est collé : la barre de
+ * navigation basse (mobile) puis, empilées dessus, la barre d'action du
+ * Terrain ou la barre d'envoi du Rapport. Le toast se pose 12 px au-dessus.
+ */
 function toastOffset() {
-  const bars = [...document.querySelectorAll(".actionBar, .sendBar")];
   const vh = window.innerHeight;
-  let off = 0;
-  bars.forEach((b) => {
+  let edge = vh; // bord haut de la pile collée en bas
+  const nav = document.querySelector(".sidebar");
+  if (nav) {
+    const r = nav.getBoundingClientRect();
+    // Barre basse seulement (le rail et la barre latérale sont verticaux).
+    if (r.height && r.width > r.height && r.bottom >= vh - 2) edge = Math.min(edge, r.top);
+  }
+  document.querySelectorAll(".actionBar, .sendBar").forEach((b) => {
     const r = b.getBoundingClientRect();
-    if (r.height && r.top < vh && r.bottom > vh - 4) off = Math.max(off, vh - r.top);
+    if (r.height && r.top < vh && r.bottom >= edge - 4 && r.bottom <= vh + 2) edge = Math.min(edge, r.top);
   });
-  return off;
+  return Math.max(0, Math.round(vh - edge));
 }
 
 /**

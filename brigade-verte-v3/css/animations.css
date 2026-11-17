@@ -21,10 +21,14 @@
   --from: -18px;
 }
 
+/* Changement de vue : fondu + 8 px sur le contenu seulement (la navigation
+   et l'en-tête restent fixes). Pas de remplissage « both » : aucune
+   transformation ne reste après l'animation (les éléments collants des vues
+   continuent de coller). */
 @keyframes viewIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -32,7 +36,15 @@
   }
 }
 .view:not([hidden]) {
-  animation: viewIn var(--t-slow) var(--ease-out);
+  animation: viewIn var(--t) var(--ease-out);
+}
+@keyframes viewFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes rise {
@@ -194,6 +206,10 @@
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
+  }
+  /* Changement de vue : simple fondu court, sans déplacement. */
+  .view:not([hidden]) {
+    animation: viewFade 120ms linear !important;
   }
   .map .target .ring,
   .map .me .halo {

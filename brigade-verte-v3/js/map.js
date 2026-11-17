@@ -181,7 +181,7 @@ export function initMap(container, data, opts = {}) {
   labelLayer = L.layerGroup().addTo(map);
   markerLayer = L.layerGroup().addTo(map);
 
-  whenSized(() => map.fitBounds(cityBounds(), { padding: [16, 16], animate: false }));
+  whenSized(() => map.fitBounds(cityBounds(), { ...padOpts({ padding: [16, 16] }), animate: false }));
   map.on("click", onMapClick);
   map.on("zoomend", syncLabels);
   map.on("resize", () => {
@@ -254,7 +254,7 @@ export async function loadAreas() {
     const resync = () => requestAnimationFrame(syncLabels);
     document.fonts?.load('500 10px "JetBrains Mono"').then(resync, () => {});
     document.fonts?.addEventListener?.("loadingdone", resync);
-    if (!pinsData.length && !targetStreet) whenSized(() => map.fitBounds(cityBounds(), { padding: [16, 16], animate: false }));
+    if (!pinsData.length && !targetStreet) whenSized(() => map.fitBounds(cityBounds(), { ...padOpts({ padding: [16, 16] }), animate: false }));
   } catch (e) {
     /* données absentes : la carte fonctionne sans les quartiers */
   }
@@ -329,20 +329,59 @@ function applyPendingView() {
   fn(true);
 }
 
+/**
+ * Largeur (px) de carte masquée à droite par le panneau de saisie quand il
+ * flotte AU-DESSUS de la carte (ordinateur). 0 sur mobile (panneau sous la
+ * carte) et en paysage (panneau à côté). Mesurée au moment du cadrage.
+ */
+function coveredRight() {
+  const panel = document.getElementById("panel");
+  if (!panel || !host) return 0;
+  const p = panel.getBoundingClientRect();
+  const m = host.getBoundingClientRect();
+  if (!p.width || !m.width) return 0;
+  if (p.top >= m.bottom - 1 || p.bottom <= m.top + 1 || p.left <= m.left + 1 || p.left >= m.right) return 0;
+  return Math.max(0, Math.round(m.right - p.left + 16));
+}
+
+/** Marges de cadrage : la zone libre (hors panneau flottant) sert de cadre. */
+function padOpts(opts = {}) {
+  const cov = coveredRight();
+  if (!cov) return opts;
+  const [px, py] = Array.isArray(opts.padding) ? opts.padding : [16, 16];
+  const { padding, ...rest } = opts;
+  return { ...rest, paddingTopLeft: [px, py], paddingBottomRight: [px + cov, py] };
+}
+
 function flyTo(lat, lon, zoom) {
   if (!map) return;
   whenSized((instant) => {
     const z = Math.max(map.getZoom(), zoom);
-    if (instant || reduceMotion()) map.setView([lat, lon], z, { animate: false });
-    else map.flyTo([lat, lon], z, { duration: 0.6, easeLinearity: 0.3 });
+    // Panneau flottant : la cible se place au centre de la zone libre.
+    const cov = coveredRight();
+    const c = cov ? map.unproject(map.project([lat, lon], z).add([cov / 2, 0]), z) : L.latLng(lat, lon);
+    if (instant || reduceMotion()) map.setView(c, z, { animate: false });
+    else map.flyTo(c, z, { duration: 0.6, easeLinearity: 0.3 });
   });
 }
 
 function flyBounds(b, opts) {
   whenSized((instant) => {
-    if (instant || reduceMotion()) map.fitBounds(b, { ...opts, animate: false });
-    else map.flyToBounds(b, { ...opts, duration: 0.6 });
+    const o = padOpts(opts);
+    if (instant || reduceMotion()) map.fitBounds(b, { ...o, animate: false });
+    else map.flyToBounds(b, { ...o, duration: 0.6 });
   });
+}
+
+/**
+ * La carte vient de réapparaître ou de changer de cadre (changement de vue) :
+ * recalcul de sa taille et cadrage mis de côté appliqué. Le ResizeObserver le
+ * fait déjà ; appel explicite par sécurité (navigateurs sans RO fiable).
+ */
+export function refresh() {
+  if (!map) return;
+  map.invalidateSize({ animate: false });
+  applyPendingView();
 }
 
 export function fit() {

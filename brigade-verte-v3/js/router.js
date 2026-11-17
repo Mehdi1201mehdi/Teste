@@ -1,10 +1,22 @@
-// Navigation : trois vues (Terrain, Rapport, Collecte) et deux temps de saisie
+// Navigation : quatre vues (Accueil, Terrain, Rapports, Collecte) et deux temps de saisie
 // (1 Lieu → 2 Déchets, enregistrement direct). Chaque changement pousse une entrée
 // d'historique : le bouton « retour » d'Android/iOS revient d'un cran.
 
 import { $ } from "./utils.js";
 import { state, save } from "./storage.js";
 import { addressOk, wastesOk } from "./bp.js";
+
+/* ─── Points de rupture (identiques à css/layout.css) ───
+   Une seule source pour le JS : ne pas réécrire ces requêtes ailleurs. */
+export const MQ = {
+  /** Ordinateur : barre latérale, carte plein cadre, panneau flottant. */
+  desktop: "(min-width: 1024px)",
+  /** Téléphone en paysage : rail, carte à gauche, saisie à droite. */
+  landscapePhone: "(orientation: landscape) and (max-height: 500px) and (max-width: 1023px)",
+  /** Le panneau de saisie défile seul (Terrain côte à côte avec la carte). */
+  sideBySide: "(min-width: 1024px), (orientation: landscape) and (max-height: 500px)",
+};
+export const matches = (q) => window.matchMedia(q).matches;
 
 const listeners = new Set();
 export const onRoute = (fn) => listeners.add(fn);
@@ -33,6 +45,14 @@ function hashFor(view, stage) {
 }
 
 const ROUTE_LABEL = { accueil: "Accueil", rapport: "Rapports", collecte: "Jour de collecte" };
+/** Titre de la vue dans l'en-tête (rail et ordinateur). */
+const VIEW_TITLE = { accueil: "Accueil", terrain: "Terrain", rapport: "Rapports", collecte: "Collecte" };
+
+/** Saisie en cours (rue, déchets…) ou bon en modification. */
+function hasDraft() {
+  const c = state.current || {};
+  return !!(c.rue || c.numero || (c.precisions || []).length || (c.precisionCustom || "").trim() || (c.wastes || []).length || state.editing != null);
+}
 
 function apply(view, stage, dir) {
   stage = clampStage(stage);
@@ -46,6 +66,10 @@ function apply(view, stage, dir) {
   state.stage = stage;
   app.dataset.view = view;
   app.dataset.stage = String(stage);
+  // Aussi sur <html> : le toast et les dialogues sont hors de #app.
+  document.documentElement.dataset.view = view;
+  const title = $("appbarView");
+  if (title) title.textContent = VIEW_TITLE[view] || "";
   VIEWS.forEach((v) => {
     const el = $(VIEW_ID[v]);
     if (el) el.hidden = v !== view;
@@ -79,18 +103,23 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
     window.history.pushState(entry, "", url);
   }
   apply(view, stage, dir);
-  // La saisie remonte en haut ; sur desktop seul le panneau défile.
-  const scroller = view === "terrain" ? $("composerBody") : document.querySelector(view === "rapport" ? ".reportScroll" : ".collecteScroll");
-  // Disposition côte à côte (ordinateur, tablette ou téléphone en paysage) : seul le panneau défile.
-  if (window.matchMedia("(min-width: 1024px), (orientation: landscape) and (max-height: 500px)").matches) scroller?.scrollTo({ top: 0 });
-  else if (dir !== 0 || view !== prevView || view !== "terrain") window.scrollTo({ top: 0 });
+  // La vue remonte en haut. Terrain côte à côte avec la carte (ordinateur,
+  // téléphone en paysage) : seul le panneau de saisie défile. Ailleurs, c'est
+  // le document (et la zone propre au module, si elle défile elle-même).
+  if (view === "terrain" && matches(MQ.sideBySide)) {
+    $("composerBody")?.scrollTo({ top: 0 });
+  } else if (dir !== 0 || view !== prevView || view !== "terrain") {
+    window.scrollTo({ top: 0 });
+    const inner = { accueil: "#dashScroll", rapport: ".reportScroll", collecte: ".collecteScroll" }[view];
+    if (inner) document.querySelector(inner)?.scrollTo({ top: 0 });
+  }
   return true;
 }
 
 export function initRouter() {
   window.addEventListener("popstate", (e) => {
     const s = e.state || {};
-    const view = VIEWS.includes(s.view) ? s.view : "terrain";
+    const view = VIEWS.includes(s.view) ? s.view : "accueil";
     let stage = clampStage(Number(s.stage) || 1);
     while (stage > 1 && !canEnterStage(stage)) stage--;
     apply(view, stage, stage < state.stage ? -1 : 1);
@@ -112,6 +141,9 @@ export function initRouter() {
     state.view = m[1];
     if (m[1] === "terrain" && m[2]) state.stage = Number(m[2]);
   }
+  // Lancement sans lien (icône d'écran d'accueil, index.html) : la tournée
+  // s'ouvre sur l'Accueil, sauf saisie en cours ou modification d'un bon.
+  if (!window.location.hash && !hasDraft()) state.view = "accueil";
   let stage = clampStage(state.stage);
   while (stage > 1 && !canEnterStage(stage)) stage--;
   window.history.replaceState({ view: state.view, stage }, "", hashFor(state.view, stage));

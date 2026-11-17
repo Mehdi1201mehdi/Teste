@@ -77,7 +77,6 @@
   grid-template-columns: 120px minmax(0, 1fr);
   grid-template-areas:
     "rue rue"
-    "help help"
     "num go";
   gap: var(--s3);
   align-items: end;
@@ -98,8 +97,8 @@
   grid-area: go;
 }
 #viewCollecte .colHelp {
-  grid-area: help;
-  margin: calc(var(--s1) * -1) 0 0;
+  grid-column: 1 / -1;
+  margin: 0;
 }
 #viewCollecte .colHelp[hidden] {
   display: none;
@@ -107,13 +106,8 @@
 @container col (min-width: 640px) {
   #viewCollecte .colForm {
     grid-template-columns: minmax(0, 1fr) 160px auto;
-    grid-template-areas:
-      "rue num go"
-      "help help help";
+    grid-template-areas: "rue num go";
     padding: var(--s5);
-  }
-  #viewCollecte .colHelp {
-    margin: 0;
   }
 }
 #viewCollecte .colForm .field {

@@ -1,1 +1,1242 @@
-/* css/rapport.css — module rapport (refonte 11/2026). Chargé après theme.css. */
+/* ==========================================================================
+   css/rapport.css — vue Rapports (refonte 11/2026). Chargé après theme.css :
+   surcharge components.css (hérité) à spécificité égale ou supérieure.
+   · Mobile : en-tête, stats, carte du message, barre d'envoi collante
+     au-dessus de la barre basse, liste des bons (outils + cartes), clôture.
+   · Tablette (768–1023) : même ordre, stats sur 4 colonnes.
+   · Ordinateur (≥ 1024) : 2 colonnes 7/5 — à gauche stats + outils + liste ;
+     à droite, collant : message, envoi, clôture.
+   ========================================================================== */
+
+.view--rapport {
+  --rp-pad: var(--s4); /* marge horizontale de la vue (barre d'envoi bord à bord) */
+}
+.view--rapport [hidden] {
+  display: none !important;
+}
+.view--rapport .reportScroll {
+  padding: 0;
+}
+
+/* ─── En-tête de vue ─── */
+.view--rapport .reportHead {
+  margin-bottom: var(--s5);
+}
+.view--rapport .eyebrow {
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--green-700);
+}
+.view--rapport .viewTitle {
+  margin-top: var(--s1);
+  font-size: var(--fs-30);
+  line-height: var(--lh-tight);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.reportLead {
+  margin-top: var(--s2);
+  max-width: 62ch;
+  font-size: var(--fs-16);
+  line-height: var(--lh);
+  color: var(--text-2);
+}
+
+/* ─── Disposition : mobile = une colonne ordonnée ─── */
+.view--rapport .rpLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  margin: 0;
+}
+.rpMain,
+.rpSide {
+  display: contents;
+}
+.rpStats { order: 1; }
+.view--rapport .doc { order: 2; }
+.view--rapport .sendBar { order: 3; }
+.sendStatus { order: 4; }
+.view--rapport .sendFallback { order: 5; }
+.view--rapport .sendNote { order: 6; }
+.view--rapport .ledger { order: 7; }
+.view--rapport .closeTour { order: 8; }
+
+/* ─── Statistiques ─── */
+.rpStats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.view--rapport .reportStats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin: 0;
+}
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.view--rapport .stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-height: 104px;
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+.view--rapport .stat .stat__label,
+.view--rapport .stat .stat__meta {
+  display: block;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+.view--rapport .stat .stat__value {
+  margin-top: auto;
+  font-family: var(--font-ui);
+  font-size: var(--fs-stat);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.view--rapport .stat .stat__value small {
+  font-size: var(--fs-18);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.view--rapport .sectorBreak {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+.sectorBreak__label {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.view--rapport .sectorBar {
+  height: 12px;
+  gap: 2px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunken);
+}
+.view--rapport .sectorBreak ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+}
+.view--rapport .sectorBreak li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.view--rapport .sectorBreak li b {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.view--rapport .sectorBreak li::before {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: none;
+}
+
+.view--rapport .reportQuartiers {
+  margin: 0;
+}
+.view--rapport .reportQuartiers .label {
+  display: block;
+  margin-bottom: var(--s2);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.view--rapport .reportQuartiers ul {
+  gap: var(--s2);
+}
+.view--rapport .reportQuartiers li {
+  min-height: 36px;
+  border-radius: var(--r-pill);
+  border-color: var(--border);
+  background: var(--surface);
+  font-size: var(--fs-14);
+  color: var(--text);
+}
+.view--rapport .reportQuartiers li b {
+  background: var(--green-50);
+  color: var(--green-700);
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: var(--fs-12);
+}
+
+/* ─── Boutons de la vue (design : 48 / 56, rayon 12, 16/600) ─── */
+.view--rapport .btn {
+  min-height: var(--tap);
+  border-radius: var(--r-md);
+  font-size: var(--fs-16);
+  font-weight: 600;
+}
+.view--rapport .btn:focus-visible,
+.view--rapport .linkBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.view--rapport .btn--line,
+.view--rapport .btn--secondary {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+@media (hover: hover) {
+  .view--rapport .btn--line:hover,
+  .view--rapport .btn--secondary:hover {
+    background: var(--bg);
+    border-color: var(--border-strong);
+  }
+}
+/* Retour visuel 2 s (Copié ✓, Messagerie ouverte) : check vert */
+.view--rapport .btn--line.is-done,
+.view--rapport .btn--secondary.is-done {
+  background: var(--ok-tint);
+  border-color: var(--ok);
+  color: var(--ok-ink);
+}
+.view--rapport .btn--primary.is-done {
+  background: var(--ok);
+  color: #fff;
+}
+.view--rapport .linkBtn {
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border-radius: var(--r-md);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--green-700);
+}
+@media (hover: hover) {
+  .view--rapport .linkBtn:hover {
+    background: var(--green-50);
+  }
+}
+
+/* ─── Carte du message ─── */
+.view--rapport .doc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+}
+.docCardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s4) var(--s4) var(--s3);
+}
+.docTitle {
+  font-size: var(--fs-18);
+  font-weight: 700;
+  color: var(--text);
+}
+.view--rapport .docState {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  background: var(--warn-tint);
+  color: var(--warn-ink);
+  font-size: var(--fs-12);
+  font-weight: 600;
+}
+.view--rapport .docTo {
+  display: block;
+  padding: 0 var(--s4) var(--s3);
+  border: 0;
+  background: none;
+}
+.view--rapport .docTo:focus-within {
+  box-shadow: none;
+}
+.view--rapport .docLabel,
+.view--rapport .docLabel.mono {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-2);
+}
+.view--rapport .docTo .docLabel {
+  margin-bottom: var(--s1);
+}
+.docToField {
+  position: relative;
+}
+.view--rapport .docToInput {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 44px 0 var(--s3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-size: 1.0625rem;
+  font-weight: 500;
+  color: var(--text);
+}
+.view--rapport .docToInput:focus-visible {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: var(--focus);
+}
+.view--rapport .docToInput[aria-invalid="true"] {
+  border-color: var(--danger);
+  color: var(--text);
+}
+.docToIcon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.docToHelp {
+  margin-top: var(--s1);
+  font-size: var(--fs-14);
+  line-height: 1.4;
+  color: var(--muted);
+}
+.view--rapport .docToNote {
+  margin: 0 var(--s4) var(--s3);
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-14);
+  line-height: 1.4;
+  background: var(--danger-tint);
+  color: var(--danger-ink);
+}
+.view--rapport .docToNote[data-tone="info"] {
+  background: var(--bg-sunken);
+  color: var(--text-2);
+}
+.view--rapport .docToNote[data-tone="ok"] {
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+}
+.view--rapport .docHead {
+  gap: var(--s1) var(--s3);
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.view--rapport .docSubject {
+  font-size: var(--fs-16);
+  font-weight: 600;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+/* Aperçu complet du message, en mono 14 (pas de troncature) */
+.view--rapport .docBody,
+.view--rapport .docBody.mono {
+  min-height: 0;
+  padding: var(--s4);
+  background: var(--surface);
+  background-image: none;
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.65;
+  letter-spacing: 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.view--rapport .docBody[contenteditable="true"] {
+  background: #fffdf5;
+  box-shadow: inset 3px 0 0 var(--green-700);
+  outline: none;
+}
+.view--rapport .docBody[contenteditable="true"]:focus-visible {
+  box-shadow: inset 3px 0 0 var(--green-700), inset 0 0 0 2px var(--focus-c);
+}
+.view--rapport .docTools {
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-top: 1px solid var(--border);
+}
+.view--rapport .docTools .linkBtn[aria-pressed="true"] {
+  background: var(--green-700);
+  color: #fff;
+}
+
+/* ─── Barre d'envoi : collante au-dessus de la barre basse ─── */
+.view--rapport .sendBar {
+  position: sticky;
+  bottom: var(--nav-offset, 0px);
+  z-index: 6;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+  margin: 0 calc(var(--rp-pad) * -1);
+  padding: var(--s3) var(--rp-pad);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 16px rgba(16, 24, 40, 0.06);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.view--rapport .sendBar .btn {
+  min-width: 0;
+  padding: 0 var(--s3);
+  white-space: nowrap;
+}
+.view--rapport .sendBar .sendMain {
+  grid-column: 1 / -1;
+  min-height: var(--tap-lg);
+}
+.sendStatus {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-md);
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.45;
+}
+.view--rapport .sendFallback {
+  margin: 0;
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warn);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.view--rapport .sendFallbackTitle {
+  font-size: var(--fs-16);
+  color: var(--text);
+}
+.view--rapport .sendFallbackText {
+  margin-top: var(--s1);
+  font-size: var(--fs-14);
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.view--rapport .sendFallbackActions .btn {
+  min-height: var(--tap);
+}
+.view--rapport .sendNote {
+  margin: 0;
+  font-size: var(--fs-14);
+  line-height: 1.45;
+  color: var(--muted);
+}
+.view--rapport .sendNote b {
+  color: var(--text);
+}
+
+/* ─── Liste des bons ─── */
+.view--rapport .ledger {
+  container: ledger / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+.view--rapport .sectionHead {
+  margin: 0;
+  gap: var(--s3);
+}
+.view--rapport .sectionHead h2 {
+  font-size: var(--fs-20);
+  font-weight: 700;
+  color: var(--text);
+}
+.ledgerNew {
+  flex: 0 0 auto;
+}
+
+/* Barre d'outils : recherche, segment secteur, tri */
+.ledgerTools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.ledgerSearch {
+  position: relative;
+}
+.ledgerSearch__icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.ledgerSearch__input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 0 var(--s3) 0 44px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  font-weight: 500;
+  color: var(--text);
+}
+.ledgerSearch__input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+.ledgerSearch__input:focus-visible {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: var(--focus);
+}
+.ledgerSearch__input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+.ledgerFilters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+/* Segment (design §2) : piste --bg-sunken, onglet actif blanc */
+.view--rapport .segmented {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  padding: 3px;
+  border-radius: var(--r-md);
+  background: var(--bg-sunken);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.view--rapport .segmented::-webkit-scrollbar {
+  display: none;
+}
+.segBtn {
+  --sec: transparent;
+  flex: 1 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border-radius: calc(var(--r-md) - 3px);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+  transition: background var(--t-fast), color var(--t-fast), box-shadow var(--t-fast);
+}
+.segBtn[data-sector]:not([data-sector="all"])::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sec);
+  flex: 0 0 auto;
+}
+.segBtn__n {
+  min-width: 22px;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: rgba(16, 24, 40, 0.07);
+  font-size: var(--fs-12);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text);
+}
+@media (hover: hover) {
+  .segBtn:not(:disabled):not([aria-pressed="true"]):hover {
+    background: rgba(255, 255, 255, 0.6);
+  }
+}
+.segBtn[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--sh-1);
+}
+.segBtn[aria-pressed="true"] .segBtn__n {
+  background: var(--green-700);
+  color: #fff;
+}
+.segBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.segBtn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus-c);
+}
+.segBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.ledgerSort {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 0 0 auto;
+}
+.ledgerSort__label {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ledgerSort__select {
+  flex: 1;
+  min-height: var(--tap);
+  padding: 0 40px 0 var(--s3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234B5563' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center / 18px;
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+.ledgerSort__select:focus-visible {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: var(--focus);
+}
+
+@container ledger (min-width: 560px) {
+  .ledgerFilters {
+    flex-direction: row;
+    align-items: center;
+  }
+  .view--rapport .segmented {
+    flex: 1 1 auto;
+  }
+  .ledgerSort__select {
+    flex: 0 0 auto;
+    min-width: 170px;
+  }
+}
+
+.ledgerCount {
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ledgerCount.is-filtered {
+  font-weight: 600;
+  color: var(--green-700);
+}
+
+.view--rapport .ledgerEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  max-width: 360px;
+  margin: var(--s2) auto;
+  padding: var(--s5) 0;
+  text-align: center;
+  animation: rpFade var(--t) var(--ease-out) both;
+}
+.view--rapport .ledgerEmpty .empty__icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green-50);
+  color: var(--green-700);
+}
+.view--rapport .ledgerEmpty .empty__icon .icon {
+  width: 32px;
+  height: 32px;
+}
+.view--rapport .ledgerEmpty h3 {
+  font-size: var(--fs-18);
+  font-weight: 700;
+  color: var(--text);
+}
+.view--rapport .ledgerEmpty p {
+  font-size: var(--fs-16);
+  line-height: var(--lh);
+  color: var(--text-2);
+}
+.view--rapport .ledgerEmpty .btn {
+  margin-top: var(--s2);
+  padding: 0 var(--s4);
+}
+
+/* Groupes par secteur */
+.view--rapport .tickets {
+  gap: var(--s5);
+}
+.view--rapport .ticketGroup {
+  gap: var(--s3);
+}
+.view--rapport .ticketGroup + .ticketGroup {
+  margin-top: 0;
+}
+.view--rapport .ticketGroupHead {
+  margin: 0;
+  gap: var(--s2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+}
+.view--rapport .ticketGroupHead .sectorChip {
+  font-family: var(--font-ui);
+  font-size: var(--fs-16);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.view--rapport .sectorChip::before {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: none;
+}
+.view--rapport .ticketGroupHead::after {
+  background: var(--border);
+}
+
+/* ─── Carte de bon (design §2) ─── */
+.view--rapport .ticket {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--sec);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+  cursor: pointer;
+  animation: none;
+  transition: box-shadow var(--t-fast), height 220ms var(--ease-io), opacity 180ms var(--ease-io);
+}
+@media (hover: hover) {
+  .view--rapport .ticket:hover {
+    box-shadow: var(--sh-2);
+  }
+}
+.view--rapport .ticket.is-editing {
+  outline: none;
+  border-color: var(--green-700);
+  border-left-color: var(--sec);
+  box-shadow: 0 0 0 1px var(--green-700), var(--sh-1);
+}
+.ticketHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s2) var(--s3);
+  padding: var(--s4) var(--s4) 0;
+}
+.view--rapport .ticketStub {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 1px;
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+.view--rapport .ticketStub::after {
+  display: none;
+}
+.view--rapport .ticketStub small {
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+}
+.view--rapport .ticketStub b {
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.4;
+}
+.view--rapport .ticketAddr {
+  flex: 1 1 12rem;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-18);
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.ticketBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--green-50);
+  color: var(--green-700);
+  font-size: var(--fs-12);
+  font-weight: 700;
+}
+.view--rapport .ticketBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4) var(--s3);
+}
+.view--rapport .ticketMeta {
+  margin: 0;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+.view--rapport .ticketMeta .sectorChip {
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.ticketQuartier::before {
+  content: "·";
+  margin-right: var(--s2);
+  color: var(--muted);
+}
+.ticketPrec,
+.ticketTime {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--fs-14);
+  line-height: 1.4;
+  color: var(--text-2);
+}
+.ticketPrec .icon,
+.ticketTime .icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--muted);
+}
+.ticketTime {
+  font-variant-numeric: tabular-nums;
+}
+.ticketTime.is-unknown {
+  color: var(--muted);
+  font-style: italic;
+}
+.view--rapport .ticketWaste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.view--rapport .ticketWaste li {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Consultation détaillée */
+.ticketDetails {
+  margin-top: var(--s1);
+  padding: var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  cursor: auto;
+  animation: rpFade var(--t) var(--ease-out) both;
+}
+.ticketDetails dl {
+  display: grid;
+  gap: var(--s3);
+  margin: 0;
+}
+.ticketDetails dl > div {
+  display: grid;
+  gap: 2px;
+}
+.ticketDetails dt {
+  font-size: var(--fs-14);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ticketDetails dd {
+  margin: 0;
+  font-size: var(--fs-16);
+  line-height: 1.45;
+  color: var(--text);
+}
+.ticketDetails__line dd {
+  margin-top: 2px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
+}
+@container ledger (min-width: 560px) {
+  .ticketDetails dl > div:not(.ticketDetails__line) {
+    grid-template-columns: 11rem 1fr;
+    align-items: baseline;
+  }
+}
+
+/* Actions (44 px, libellés explicites) */
+.view--rapport .ticketActions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s1);
+  margin: 0;
+  padding: var(--s1) var(--s2);
+  border-top: 1px solid var(--border);
+}
+.tAct {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 52px;
+  padding: var(--s1) 2px;
+  border-radius: var(--r-md);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--green-700);
+  transition: background var(--t-fast), transform var(--t-fast);
+}
+.tAct span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tAct .icon {
+  width: 20px;
+  height: 20px;
+}
+@media (hover: hover) {
+  .tAct:hover {
+    background: var(--green-50);
+  }
+  .tAct--danger:hover {
+    background: var(--danger-tint);
+  }
+}
+.tAct:active {
+  transform: scale(0.98);
+}
+.tAct:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.tAct--danger {
+  color: var(--danger);
+}
+.tAct--details .icon {
+  transition: transform var(--t);
+}
+.tAct--details[aria-expanded="true"] {
+  background: var(--green-50);
+}
+.tAct--details[aria-expanded="true"] .icon {
+  transform: rotate(180deg);
+}
+@container ledger (min-width: 480px) {
+  .view--rapport .ticketActions {
+    display: flex;
+    flex-wrap: wrap;
+    padding: var(--s2) var(--s3);
+  }
+  .tAct {
+    flex-direction: row;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 var(--s3);
+    font-size: var(--fs-14);
+  }
+  .tAct .icon {
+    width: 18px;
+    height: 18px;
+  }
+  .tAct--danger {
+    margin-left: auto;
+  }
+}
+
+/* Mise en évidence (revealBp, duplication, annulation) et repli à la suppression */
+@keyframes rpFlash {
+  from { background-color: var(--ok-tint); }
+  to { background-color: var(--surface); }
+}
+@keyframes rpFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.view--rapport .ticket.is-flash {
+  animation: rpFlash 900ms var(--ease-out);
+}
+.view--rapport .ticket.is-removing {
+  height: 0 !important;
+  opacity: 0;
+  border-width: 0;
+  pointer-events: none;
+}
+
+/* ─── Clôture de tournée ─── */
+.view--rapport .closeTour {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--s3);
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-1);
+}
+.view--rapport .closeTour h2 {
+  font-size: var(--fs-18);
+  font-weight: 700;
+  color: var(--text);
+}
+.view--rapport .closeTour p {
+  margin-top: var(--s1);
+  font-size: var(--fs-14);
+  line-height: 1.45;
+  color: var(--text-2);
+}
+.view--rapport .closeTour__btn {
+  background: var(--surface);
+  border: 1.5px solid var(--danger);
+  color: var(--danger);
+}
+@media (hover: hover) {
+  .view--rapport .closeTour__btn:hover {
+    background: var(--danger-tint);
+  }
+}
+
+/* ─── État vide (aucun bon) ─── */
+.view--rapport .reportEmpty {
+  max-width: 400px;
+  margin: var(--s7) auto 0;
+  animation: rpFade var(--t) var(--ease-out) both;
+}
+.view--rapport .reportEmpty h2 {
+  font-size: var(--fs-20);
+  color: var(--text);
+}
+.view--rapport .reportEmpty p {
+  font-size: var(--fs-16);
+  line-height: var(--lh);
+  color: var(--text-2);
+}
+
+/* ==========================================================================
+   Tablette (≥ 600 / 768)
+   ========================================================================== */
+@media (min-width: 600px) {
+  .statGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+@media (min-width: 768px) {
+  .view--rapport {
+    --rp-pad: var(--s6);
+  }
+  .view--rapport .doc .docCardHead,
+  .view--rapport .docTo,
+  .view--rapport .docHead,
+  .view--rapport .docBody {
+    padding-inline: var(--s5);
+  }
+  .view--rapport .closeTour {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .view--rapport .closeTour__btn {
+    flex: 0 0 auto;
+  }
+}
+
+/* ==========================================================================
+   Ordinateur (≥ 1024) : 2 colonnes 7/5, colonne du message collante
+   ========================================================================== */
+@media (min-width: 1024px) {
+  .view--rapport .rpLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(340px, 5fr);
+    gap: var(--s6);
+    align-items: start;
+  }
+  .rpMain,
+  .rpSide {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .rpMain {
+    gap: var(--s6);
+  }
+  /* Le message défile dans sa carte : l'envoi et la clôture restent visibles. */
+  .rpSide {
+    position: sticky;
+    top: calc(var(--sticky-top, 0px) + var(--s6));
+    gap: var(--s3);
+    max-height: calc(100vh - var(--sticky-top, 0px) - var(--s6) * 2);
+    max-height: calc(100dvh - var(--sticky-top, 0px) - var(--s6) * 2);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .rpSide > * {
+    flex: 0 0 auto;
+  }
+  .view--rapport .rpSide .doc {
+    flex: 0 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .view--rapport .rpSide .docBody {
+    flex: 1 1 auto;
+    min-height: 200px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .view--rapport .doc > :not(.docBody) {
+    flex: 0 0 auto;
+  }
+  .view--rapport .sendBar {
+    position: static;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+  .view--rapport .doc .docCardHead,
+  .view--rapport .docTo,
+  .view--rapport .docHead,
+  .view--rapport .docBody {
+    padding-inline: var(--s6);
+  }
+  .view--rapport .closeTour {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .statGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .view--rapport .closeTour {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+/* ─── Réduction des animations ─── */
+@media (prefers-reduced-motion: reduce) {
+  .view--rapport .ticket,
+  .tAct--details .icon {
+    transition: none;
+  }
+  .view--rapport .ticket.is-flash {
+    animation: rpFlash 120ms linear;
+  }
+  .segBtn:active:not(:disabled),
+  .tAct:active {
+    transform: none;
+  }
+}
+@media (forced-colors: active) {
+  .view--rapport .ticket,
+  .view--rapport .stat,
+  .view--rapport .ticketWaste li,
+  .segBtn[aria-pressed="true"] {
+    border: 1px solid CanvasText;
+  }
+}

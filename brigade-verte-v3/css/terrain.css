@@ -1,1 +1,1028 @@
-/* css/terrain.css — module terrain (refonte 11/2026). Chargé après theme.css. */
+/* css/terrain.css — module Terrain (refonte 11/2026). Chargé après theme.css :
+   à spécificité égale, ces règles l'emportent sur components.css / theme.css.
+   Tout est circonscrit à la vue Terrain (#viewTerrain / .view--terrain).
+   Vert = action et sélection, vert clair = validation ; orange = alertes seulement. */
+
+/* ─────────────────────────── En-tête du composeur ─────────────────────────── */
+.view--terrain .composerHead {
+  padding-top: var(--s4);
+  padding-bottom: var(--s2);
+}
+.view--terrain .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-2);
+}
+.view--terrain .eyebrow .mono {
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--green-50);
+  color: var(--green-700);
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.view--terrain .eyebrow[data-mode="edit"] {
+  color: var(--focus-c);
+}
+.view--terrain .eyebrow[data-mode="edit"] .mono {
+  background: #e8eef7;
+  color: var(--focus-c);
+}
+
+/* Étapes : 2 onglets, chacun avec son segment de progression de 4 px */
+.view--terrain .stages {
+  display: flex;
+  gap: var(--s2);
+  margin-top: var(--s2);
+  border-bottom: 0;
+}
+.view--terrain .stages li,
+.view--terrain .stages li:has([aria-current="step"]) {
+  flex: 1;
+}
+.view--terrain .stageBtn {
+  position: relative;
+  min-height: 48px;
+  padding: 0 var(--s1) 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  margin: 0;
+  background: none;
+  color: var(--muted);
+  font-size: var(--fs-16);
+  font-weight: var(--fw-sb);
+}
+.view--terrain .stageBtn::before {
+  /* piste */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunken);
+}
+.view--terrain .stageBtn::after {
+  /* remplissage */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--green-700);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--t-slow) var(--ease-out);
+}
+.view--terrain .stageBtn[aria-current="step"]::after,
+.view--terrain .stageBtn[data-done]::after {
+  transform: none;
+}
+.view--terrain .stageBtn[data-done]::after {
+  background: var(--ok);
+}
+.view--terrain .stageDot {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid currentColor;
+  font-family: var(--font-ui);
+  font-weight: var(--fw-b);
+  font-size: var(--fs-12);
+}
+.view--terrain .stageBtn[aria-current="step"] {
+  background: none;
+  color: var(--text);
+}
+.view--terrain .stageBtn[aria-current="step"] .stageDot {
+  background: var(--green-700);
+  border-color: var(--green-700);
+  color: #fff;
+}
+.view--terrain .stageBtn[data-done] {
+  background: none;
+  color: var(--ok-ink);
+}
+.view--terrain .stageBtn[data-done] .stageDot {
+  border-radius: var(--r-pill);
+  background-color: var(--ok);
+  border-color: var(--ok);
+}
+.view--terrain .stageBtn[aria-disabled="true"] .stageDot {
+  border-style: dashed;
+}
+@media (hover: hover) {
+  .view--terrain .stageBtn:not([aria-current="step"]):not([aria-disabled="true"]):hover {
+    color: var(--text);
+  }
+}
+.view--terrain .stageBtn:focus-visible {
+  box-shadow: var(--focus);
+}
+
+/* Confirmation après enregistrement (le toast l'annonce aux lecteurs d'écran) */
+.savedFlash {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-md);
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+}
+.savedFlash[hidden] {
+  display: none;
+}
+.savedFlash .icon {
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  color: #fff;
+  stroke-width: 3;
+}
+@keyframes trFlashIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.savedFlash.is-in {
+  animation: trFlashIn var(--t-slow) var(--ease-out);
+}
+
+/* ─────────────────────────────── Étapes ─────────────────────────────────── */
+.view--terrain .stageTitle {
+  margin: var(--s4) 0;
+  font-family: var(--font-ui);
+  font-size: var(--fs-20);
+  font-weight: var(--fw-b);
+  letter-spacing: -0.015em;
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+/* La nouvelle étape glisse de 16 px avec un fondu (sens inversé pour Retour) */
+@keyframes trPaneIn {
+  from {
+    opacity: 0;
+    transform: translateX(var(--tr-from, 16px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.view--terrain .stagePane.is-active {
+  animation: trPaneIn var(--t-slow) var(--ease-out);
+}
+.view--terrain .stagePane.is-active.from-back {
+  --tr-from: -16px;
+}
+
+/* ─────────────────────────────── Champs ─────────────────────────────────── */
+.view--terrain .field {
+  margin-top: var(--s5);
+}
+.view--terrain .stageTitle + .field,
+.view--terrain .stageTitle + .found {
+  margin-top: 0;
+}
+.view--terrain .label {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-2);
+}
+.view--terrain .label .opt {
+  font-size: var(--fs-14);
+  font-weight: var(--fw-r);
+  color: var(--muted);
+}
+.view--terrain .help {
+  font-size: var(--fs-14);
+  color: var(--muted);
+}
+.view--terrain .input {
+  min-height: 52px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font-size: 1.0625rem;
+  color: var(--text);
+}
+.view--terrain .input:focus,
+.view--terrain .input:focus-visible {
+  border-color: var(--green-700);
+  border-radius: var(--r-md);
+  box-shadow: var(--focus);
+  outline: none;
+}
+.view--terrain .input--quiet {
+  margin-top: var(--s3);
+  min-height: 48px;
+  font-size: var(--fs-16);
+}
+.view--terrain .comboIcon {
+  top: 16px;
+}
+.view--terrain .comboClear,
+.view--terrain .comboAdd {
+  top: 4px;
+  right: 4px;
+  height: 44px;
+}
+.view--terrain .comboAdd {
+  border-radius: var(--r-sm);
+  background: var(--green-700);
+  color: #fff;
+  font-size: var(--fs-14);
+}
+@media (hover: hover) {
+  .view--terrain .comboAdd:hover {
+    background: var(--green-800);
+  }
+}
+.view--terrain .suggest {
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-3);
+}
+.view--terrain .sug {
+  min-height: 48px;
+  font-size: var(--fs-16);
+}
+
+/* Rue + « Ma position » sur une rangée */
+.streetRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+.streetRow > .combo {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.view--terrain .locateBtn {
+  flex: 0 0 auto;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--green-700);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  white-space: nowrap;
+}
+.view--terrain .locateBtn .icon {
+  width: 20px;
+  height: 20px;
+}
+@media (hover: hover) {
+  .view--terrain .locateBtn:hover {
+    border-color: var(--green-700);
+    background: var(--green-50);
+  }
+}
+.view--terrain .locateBtn[aria-busy="true"] {
+  border-color: var(--green-700);
+  background: var(--green-50);
+}
+.view--terrain .quickRow {
+  margin-top: var(--s2);
+}
+.view--terrain .quickRow:not(:has(> :not([hidden]))) {
+  display: none;
+}
+.view--terrain #duplicateLast {
+  min-height: 44px;
+  border-radius: var(--r-pill);
+  border-color: var(--border-strong);
+  color: var(--green-700);
+  font-size: var(--fs-14);
+}
+.view--terrain .chipBtn:focus-visible,
+.view--terrain .locateBtn:focus-visible {
+  box-shadow: var(--focus);
+}
+
+/* ─────────────────────────── Fiche du lieu (carte) ───────────────────────── */
+.view--terrain .place {
+  margin-top: var(--s4);
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-2);
+}
+.view--terrain .placeMain {
+  align-items: flex-start;
+}
+.view--terrain .placePin {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-md);
+  background: var(--green-50);
+  color: var(--green-700);
+}
+.view--terrain .placeText b {
+  font-family: var(--font-ui);
+  font-size: var(--fs-18);
+  font-weight: var(--fw-b);
+  color: var(--text);
+}
+.view--terrain .placeQuartier {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+.view--terrain .placeCollecte {
+  font-size: var(--fs-14);
+  color: var(--text-2);
+}
+.view--terrain .placeCollecte .icon {
+  color: var(--green-700);
+}
+.view--terrain .placeToday {
+  background: var(--ok-tint);
+  color: var(--ok-ink);
+}
+.view--terrain .sectorTag {
+  margin-left: -6px;
+  padding: 0 var(--s2) 0 6px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-ui);
+  font-size: var(--fs-14);
+  font-weight: var(--fw-sb);
+  color: var(--text);
+}
+.view--terrain .sectorTag .auto {
+  font-weight: var(--fw-r);
+  color: var(--muted);
+}
+.view--terrain .field--num {
+  margin: 0;
+  width: 96px;
+}
+.view--terrain .field--num .label {
+  margin-bottom: 4px;
+}
+.view--terrain .input--num {
+  min-height: 52px;
+  padding: 0 var(--s2);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: var(--fs-18);
+}
+.view--terrain .help#numHelp {
+  margin-top: var(--s3);
+}
+.view--terrain .sectorOpt {
+  min-height: 48px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  font-weight: var(--fw-sb);
+  color: var(--text-2);
+}
+.view--terrain .sectorOpt[aria-checked="true"] {
+  border-color: var(--sec);
+  color: #fff;
+}
+
+/* ─────────────────── Précisions : grille de boutons visuels ─────────────── */
+#precField {
+  container-type: inline-size;
+}
+.view--terrain .precGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+}
+@container (min-width: 420px) {
+  .view--terrain .precGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container (min-width: 560px) {
+  .view--terrain .precGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.view--terrain .precBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 30px 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: var(--fw-m);
+  line-height: 1.2;
+  text-align: left;
+  transition: background var(--t-fast) var(--ease-out), border-color var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
+}
+.view--terrain .precIcon {
+  width: 22px;
+  height: 22px;
+  color: var(--green-700);
+}
+.view--terrain .precBtn::before {
+  content: none;
+  display: none;
+}
+@media (hover: hover) {
+  .view--terrain .precBtn:hover {
+    border-color: var(--green-700);
+  }
+}
+.view--terrain .precBtn:active {
+  transform: scale(0.98);
+}
+.view--terrain .precBtn:focus-visible {
+  box-shadow: var(--focus);
+}
+.view--terrain .precBtn[aria-pressed="true"] {
+  background: var(--ok-tint);
+  border-color: var(--ok);
+  box-shadow: inset 0 0 0 0.5px var(--ok);
+  color: var(--ok-ink);
+  font-weight: var(--fw-sb);
+}
+.view--terrain .precBtn[aria-pressed="true"] .precIcon {
+  color: var(--ok-ink);
+}
+/* Coche de sélection (16 px) */
+.view--terrain .precBtn[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 18px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: var(--r-pill);
+  background: var(--ok)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+}
+
+/* ────────────────────── Déchets : zone « Constaté » collante ────────────── */
+.view--terrain .found {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 6;
+  padding: var(--s3);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: 0 -8px 0 var(--surface); /* masque ce qui défile au-dessus */
+}
+.view--terrain .found.has-items {
+  border: 1.5px solid var(--ok);
+  background: #f4fbf6;
+  box-shadow: 0 -8px 0 var(--surface), var(--sh-2);
+}
+.view--terrain .found .label {
+  margin-bottom: var(--s2);
+  color: var(--text-2);
+}
+.view--terrain .found.has-items .label {
+  color: var(--ok-ink);
+}
+.foundCount {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  color: #fff;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-b);
+  font-variant-numeric: tabular-nums;
+}
+.foundCount[hidden] {
+  display: none;
+}
+.view--terrain .found .chips {
+  max-height: 112px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.view--terrain .found .chips .none {
+  font-size: var(--fs-14);
+  color: var(--muted);
+}
+.view--terrain .found .chip {
+  min-height: 44px;
+  padding: 0 4px 0 12px;
+  border: 1px solid var(--ok);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ok-ink);
+  font-size: 0.9375rem;
+  font-weight: var(--fw-sb);
+}
+.view--terrain .found .chip .x {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-xs);
+  color: var(--ok-ink);
+}
+@media (hover: hover) {
+  .view--terrain .found .chip:hover .x {
+    background: var(--ok-tint);
+  }
+}
+.view--terrain .found .chip:focus-visible {
+  box-shadow: var(--focus);
+}
+
+/* ─────────────── Boutons « déchet » (fréquents, famille ouverte) ────────── */
+.view--terrain .pick {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: 48px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: var(--fw-m);
+  line-height: 1.2;
+  text-align: left;
+  transition: background var(--t-fast) var(--ease-out), border-color var(--t-fast), transform var(--t-fast);
+}
+.view--terrain .pick .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--green-700);
+}
+@media (hover: hover) {
+  .view--terrain .pick:hover {
+    border-color: var(--green-700);
+  }
+}
+.view--terrain .pick:active {
+  transform: scale(0.98);
+}
+.view--terrain .pick:focus-visible {
+  box-shadow: var(--focus);
+}
+.view--terrain .pick[aria-pressed="true"] {
+  background: var(--ok-tint);
+  border-color: var(--ok);
+  box-shadow: inset 0 0 0 0.5px var(--ok);
+  color: var(--ok-ink);
+  font-weight: var(--fw-sb);
+}
+.view--terrain .pick[aria-pressed="true"] .icon {
+  width: 18px;
+  height: 18px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  color: #fff;
+  stroke-width: 3;
+}
+
+/* Fréquents : tuiles de 56 bien visibles */
+.freqField,
+.famField {
+  container-type: inline-size;
+}
+.pickers--tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+}
+.view--terrain .pickers--tiles .pick {
+  min-height: 56px;
+  border-radius: var(--r-md);
+  font-weight: var(--fw-sb);
+}
+@container (min-width: 520px) {
+  .pickers--tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ───────────────────── Familles : grandes cartes illustrées ─────────────── */
+.famGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s2);
+}
+@container (min-width: 520px) {
+  .famGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.wasteFam {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 88px;
+  padding: var(--s3);
+  padding-right: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-1);
+  color: var(--text);
+  text-align: left;
+  transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast), background var(--t-fast), transform var(--t-fast);
+}
+.wasteFam__icon {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--green-700);
+  transition: background var(--t-fast);
+}
+.wasteFam__icon .icon {
+  width: 28px;
+  height: 28px;
+}
+.wasteFam__name {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 0.9375rem;
+  font-weight: var(--fw-sb);
+  line-height: 1.25;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+.wasteFam__name small {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-m);
+  color: var(--muted);
+}
+.wasteFam--more .wasteFam__name {
+  display: block;
+}
+.wasteFam__count {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--ok);
+  color: #fff;
+  font-size: var(--fs-12);
+  font-weight: var(--fw-b);
+  font-variant-numeric: tabular-nums;
+}
+.wasteFam__count[hidden] {
+  display: none;
+}
+@media (hover: hover) {
+  .wasteFam:hover {
+    border-color: var(--green-700);
+    box-shadow: var(--sh-2);
+  }
+}
+.wasteFam:active {
+  transform: scale(0.98);
+}
+.wasteFam:focus-visible {
+  box-shadow: var(--focus);
+}
+/* Famille ouverte : bord 2 px vert, flèche vers ses déchets */
+.wasteFam[aria-expanded="true"] {
+  border-color: var(--green-700);
+  box-shadow: inset 0 0 0 1px var(--green-700);
+  background: var(--green-50);
+}
+.wasteFam[aria-expanded="true"] .wasteFam__icon {
+  background: var(--surface);
+}
+.wasteFam[data-cat][aria-expanded="true"]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: var(--green-700);
+  clip-path: polygon(0 0, 100% 0, 50% 60%);
+}
+.wasteFam--more {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  box-shadow: none;
+  background: var(--bg);
+}
+.wasteFam--more .wasteFam__icon {
+  background: var(--surface);
+}
+.wasteFam--more[aria-expanded="true"] {
+  background: var(--bg);
+  box-shadow: none;
+  border-color: var(--border-strong);
+}
+
+/* Déchets de la famille ouverte : toute la largeur, sous la rangée */
+.famPanel {
+  grid-column: 1 / -1;
+  padding: var(--s3);
+  border: 2px solid var(--green-700);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  box-shadow: var(--sh-2);
+  scroll-margin: var(--s4);
+}
+.famPanel[hidden] {
+  display: none;
+}
+@keyframes trPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.famGrid > .famPanel {
+  animation: trPanelIn var(--t) var(--ease-out);
+}
+.famPanel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+.famPanel__icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: var(--green-50);
+  color: var(--green-700);
+}
+.famPanel__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.25;
+}
+.famPanel__title b {
+  display: block;
+  font-size: var(--fs-16);
+  font-weight: var(--fw-b);
+  color: var(--text);
+}
+.famPanel__title span {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-14);
+  color: var(--muted);
+}
+.famPanel__close {
+  flex: 0 0 auto;
+  color: var(--text-2);
+}
+.famPanel__close:focus-visible {
+  box-shadow: var(--focus);
+}
+.view--terrain .famPanel__picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 148px), 1fr));
+  gap: var(--s2);
+}
+
+/* ─────────────────────── Ligne du rapport, doublon ──────────────────────── */
+.view--terrain .lineOut {
+  margin-top: var(--s6);
+}
+.view--terrain .lineOutText {
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--green-700);
+  border-radius: var(--r-md);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-14);
+  font-weight: 500;
+  line-height: 1.6;
+}
+.view--terrain .lineOutText::before {
+  color: var(--green-700);
+}
+.view--terrain .dupNote {
+  margin-top: var(--s3);
+  border-radius: var(--r-md);
+}
+
+/* ─────────────────────────────── Barre d'action ─────────────────────────── */
+.view--terrain .actionBar {
+  gap: var(--s2);
+  padding-top: var(--s3);
+  padding-bottom: var(--s3);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 16px -10px rgba(16, 24, 40, 0.16);
+}
+.view--terrain #stageBack {
+  min-height: 56px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: var(--fw-sb);
+}
+@media (hover: hover) {
+  .view--terrain #stageBack:hover {
+    background: var(--bg);
+  }
+}
+.view--terrain #stageNext {
+  min-height: 56px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-16);
+  font-weight: var(--fw-b);
+}
+.view--terrain #stageNext .icon {
+  width: 20px;
+  height: 20px;
+}
+#stageNextLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.view--terrain #stageNext:focus-visible,
+.view--terrain #stageBack:focus-visible {
+  box-shadow: var(--focus);
+}
+/* « ENREGISTRER LE DÉPÔT » : vert profond, grand, jamais orange */
+.view--terrain #stageNext.btn--save {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.view--terrain #stageNext.btn--save:not([aria-disabled="true"]),
+.view--terrain #stageNext.btn--update:not([aria-disabled="true"]) {
+  background: var(--green-700);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12), 0 6px 16px -8px rgba(23, 87, 58, 0.7);
+}
+@media (hover: hover) {
+  .view--terrain #stageNext.btn--save:not([aria-disabled="true"]):hover,
+  .view--terrain #stageNext.btn--update:not([aria-disabled="true"]):hover {
+    background: var(--green-800);
+  }
+}
+.view--terrain #stageNext.is-done,
+.view--terrain #stageNext.is-done:hover {
+  background: var(--ok);
+  color: #fff;
+}
+@keyframes trCheckPop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: none;
+  }
+}
+.view--terrain #stageNext.is-done .icon {
+  animation: trCheckPop 220ms var(--ease-out);
+  stroke-width: 3;
+}
+.view--terrain .actionHint {
+  font-size: var(--fs-14);
+  color: var(--muted);
+}
+.view--terrain .cancelEdit {
+  min-height: 44px;
+  color: var(--focus-c);
+  font-size: var(--fs-14);
+}
+
+/* Téléphones étroits : « Retour » réduit à sa flèche (nom accessible conservé
+   par aria-label), le bouton principal garde son libellé entier. */
+@media (max-width: 419px) {
+  .view--terrain #stageBack {
+    width: 56px;
+    padding: 0;
+  }
+  .view--terrain #stageBack span {
+    display: none;
+  }
+  .view--terrain #stageNext {
+    padding: 0 var(--s3);
+  }
+  .view--terrain #stageNext.btn--save {
+    letter-spacing: 0.03em;
+  }
+}
+
+/* Téléphone en paysage : tout doit tenir dans ~ 300 px de haut */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1023px) {
+  .view--terrain #stageBack,
+  .view--terrain #stageNext {
+    min-height: 48px;
+  }
+  .view--terrain .savedFlash {
+    margin-top: var(--s2);
+    padding-block: 4px;
+  }
+  .wasteFam {
+    min-height: 72px;
+  }
+}
+
+/* ─────────────────────────── Réduction des animations ──────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .view--terrain .stagePane.is-active,
+  .famGrid > .famPanel,
+  .savedFlash.is-in,
+  .view--terrain #stageNext.is-done .icon {
+    animation: none;
+  }
+  .view--terrain .stageBtn::after {
+    transition: none;
+  }
+  .wasteFam:active,
+  .view--terrain .pick:active,
+  .view--terrain .precBtn:active {
+    transform: none;
+  }
+}
+
+/* Couleurs forcées : les cartes et boutons gardent un bord visible */
+@media (forced-colors: active) {
+  .wasteFam,
+  .famPanel,
+  .view--terrain .pick,
+  .view--terrain .precBtn,
+  .view--terrain .found {
+    border: 1px solid CanvasText;
+  }
+  .wasteFam[aria-expanded="true"],
+  .view--terrain .pick[aria-pressed="true"],
+  .view--terrain .precBtn[aria-pressed="true"] {
+    border: 3px solid Highlight;
+  }
+}

@@ -729,6 +729,27 @@
 .wasteFam__count[hidden] {
   display: none;
 }
+/* Téléphones étroits : icône au-dessus du nom, qui garde toute la largeur
+   de la carte (« Professionnels », « Électroménager » sans coupure). */
+@media (max-width: 419px) {
+  .wasteFam {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 6px;
+  }
+  .wasteFam__icon {
+    width: 44px;
+    height: 44px;
+  }
+  .wasteFam__icon .icon {
+    width: 26px;
+    height: 26px;
+  }
+  .wasteFam__count {
+    left: 40px;
+  }
+}
 @media (hover: hover) {
   .wasteFam:hover {
     border-color: var(--green-700);
@@ -994,6 +1015,34 @@
   }
   .wasteFam {
     min-height: 72px;
+  }
+  /* Hauteur comptée : l'intitulé et le titre d'étape cèdent la place
+     (le titre reste lu par les lecteurs d'écran, la barre d'étapes reste). */
+  .view--terrain .composerHead {
+    padding-top: var(--s2);
+    padding-bottom: 0;
+  }
+  .view--terrain .composerHead .eyebrow {
+    display: none;
+  }
+  .view--terrain .stages {
+    margin-top: 0;
+  }
+  .view--terrain .stageBtn {
+    min-height: 40px;
+    padding-bottom: 4px;
+  }
+  .view--terrain .stageTitle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .view--terrain .stagePane {
+    padding-top: var(--s3);
   }
 }
 

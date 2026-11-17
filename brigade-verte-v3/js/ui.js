@@ -139,6 +139,8 @@ export function initToast() {
 export function haptic(pattern) {
   try {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Pas de vibration avant un premier toucher (Chrome la bloque et le signale).
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
     navigator.vibrate?.(pattern);
   } catch {
     /* navigateur sans vibration */

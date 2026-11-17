@@ -640,6 +640,11 @@ function showSavedFlash(text) {
   flashTimer = setTimeout(() => (el.hidden = true), 4500);
 }
 
+function hideSavedFlash() {
+  clearTimeout(flashTimer);
+  $("savedFlash").hidden = true;
+}
+
 /** « Annuler » du toast : le bon créé est retiré et la saisie revient telle quelle. */
 function undoSave(id, before) {
   const i = state.bps.findIndex((b) => b.id === id);
@@ -656,7 +661,7 @@ function undoSave(id, before) {
   $("numeroRue").value = before.numero || "";
   $("precCustom").value = before.precisionCustom || "";
   map.setTarget(before.rue?.rue || null, { fly: false });
-  $("savedFlash").hidden = true;
+  hideSavedFlash();
   hooks.changed({});
   go("terrain", before.rue ? 2 : 1);
   save();
@@ -744,6 +749,7 @@ export function editBp(i) {
   if (!bp) return;
   const rue = getStreets().find((r) => r.rue === bp.rue);
   const { keys, custom } = splitPrecisions(bp);
+  hideSavedFlash();
   state.editing = i;
   state.current = {
     rue: rue ? { rue: rue.rue, lon: rue.lon, lat: rue.lat, secteur: rue.secteur } : { rue: bp.rue, secteur: bp.secteur },
@@ -1009,6 +1015,7 @@ export function initComposer(opts = {}) {
     // Étape Déchets (mobile, tablette) : la bande de carte se réduit, la
     // place va aux cartes de déchets. Sans effet sur ordinateur (carte en fond).
     $("territory").classList.toggle("is-compact", view === "terrain" && state.stage === 2);
+    if (view !== "terrain" || state.stage === 2) hideSavedFlash();
     if (view !== "terrain") return;
     if (state.stage === 2) {
       renderPreview();

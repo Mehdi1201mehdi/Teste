@@ -1033,34 +1033,8 @@ export function initComposer(opts = {}) {
     resizeTimer = setTimeout(placeFamPanel, 120);
   });
 
-  // Mobile et tablette (< 1024 px) : la carte est une bande au-dessus du
-  // formulaire, elle se replie pendant la frappe pour laisser place au clavier.
-  // Sur ordinateur (≥ 1024 px), la carte est en fond et le panneau à droite :
-  // rien à replier. Seuil centralisé (MQ.desktop, js/router.js).
-  const desktop = window.matchMedia(MQ.desktop);
-  const panel = $("panel");
-  panel.addEventListener("focusin", (e) => {
-    if (!desktop.matches && e.target.matches("input:not([type=checkbox]):not([type=file]), textarea")) {
-      $("app").classList.add("is-typing");
-    }
-  });
-  // Fin de frappe : la carte revient APRÈS le geste en cours (sinon le bouton
-  // visé glisse sous le doigt), et la page est décalée d'autant pour que le
-  // contenu affiché ne bouge pas.
-  panel.addEventListener("focusout", () => {
-    setTimeout(() => {
-      const a = document.activeElement;
-      if (a && a.matches && a.matches("input, textarea")) return;
-      const app = $("app");
-      if (!app.classList.contains("is-typing")) return;
-      const before = panel.getBoundingClientRect().top;
-      app.classList.add("no-anim");
-      app.classList.remove("is-typing");
-      const delta = panel.getBoundingClientRect().top - before;
-      if (delta > 0) window.scrollBy(0, delta);
-      requestAnimationFrame(() => app.classList.remove("no-anim"));
-    }, 350);
-  });
+  // Repli de la carte et mode clavier pendant la frappe : js/keyboard.js
+  // (commun à toutes les vues).
 
   // Ferme les suggestions en touchant ailleurs
   document.addEventListener("pointerdown", (e) => {

@@ -786,3 +786,66 @@
 .app.no-anim .panel {
   transition: none;
 }
+
+/* ═══════════════════════════ Mode clavier (téléphone, tablette) ═══════════
+   Posé par js/keyboard.js dès qu'un champ de texte a le focus (< 1024 px).
+   Le clavier du téléphone occupe la moitié de l'écran : on ne garde que le
+   champ, ce qu'il propose et l'action principale. Rien ne zoome (champs ≥ 16 px). */
+@media (max-width: 1023px) {
+  html.kb-open .app {
+    --sticky-top: 0px;
+    --nav-offset: 0px;
+  }
+  /* En-tête, navigation et carte : masqués pendant la frappe. */
+  html.kb-open .appbar,
+  html.kb-open .sidebar,
+  html.kb-open .territory,
+  html.kb-open .banner--offline {
+    display: none !important;
+  }
+  /* Terrain : en-tête des étapes masqué, zone « Constaté » non collante,
+     barre d'action réduite au bouton principal. */
+  html.kb-open .composerHead {
+    display: none;
+  }
+  html.kb-open .view--terrain .found {
+    position: static;
+    box-shadow: none;
+  }
+  html.kb-open .actionBar {
+    padding-top: var(--s2);
+    padding-bottom: var(--s2);
+  }
+  html.kb-open .actionBar .actionHint,
+  html.kb-open .actionBar .cancelEdit {
+    display: none;
+  }
+  html.kb-open .actionBar .btn {
+    min-height: 48px;
+  }
+  /* Rapports : la barre d'envoi ne reste pas collée au-dessus du clavier. */
+  html.kb-open .view--rapport .sendBar,
+  html.kb-open .view--rapport .sendFallback {
+    position: static;
+  }
+  /* Suggestions : toujours entières dans la zone visible au-dessus du clavier. */
+  html.kb-open .suggest {
+    max-height: max(160px, calc(var(--vvh, 50vh) - 140px));
+  }
+  /* Le champ ramené en haut ne colle pas au bord de l'écran. */
+  html.kb-open .combo,
+  html.kb-open .field,
+  html.kb-open .docTo,
+  html.kb-open .doc {
+    scroll-margin-top: var(--s3);
+  }
+}
+/* Clavier ouvert : en-tête et « Constaté » ne sont plus collants — aucune
+   marge de défilement réservée pour eux (le champ remonte tout en haut). */
+@media (max-width: 1023px) {
+  html.kb-open,
+  html.kb-open .composerBody {
+    scroll-padding-top: 0 !important;
+    scroll-padding-bottom: 0 !important;
+  }
+}

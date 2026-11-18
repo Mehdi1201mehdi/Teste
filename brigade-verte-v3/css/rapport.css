@@ -1251,3 +1251,40 @@
     order: -1;
   }
 }
+
+/* ─── Modification du texte : lisible, sans zoom, éditeur à la taille de l'écran ─── */
+/* 16 px minimum en modification : en dessous, l'iPhone zoome toute la page. */
+.view--rapport #mail[contenteditable="true"] {
+  font-family: var(--font-ui);
+  font-size: 16px;
+  line-height: 1.55;
+  outline: 2px solid var(--green-700, #17573a);
+  outline-offset: -2px;
+  border-radius: var(--r-md, 12px);
+}
+@media (max-width: 1023px) {
+  /* Clavier ouvert : le bouton « Terminer la modification » passe au-dessus
+     du texte, et le texte défile dans la hauteur laissée par le clavier.
+     Dépend de l'état « en modification » (et non du focus) : la mise en page
+     ne bouge pas au moment où le doigt touche « Terminer ». */
+  html.kb-open .view--rapport .doc:has(#mail[contenteditable="true"]):not(:has(#mailTo:focus)) {
+    display: flex;
+    flex-direction: column;
+  }
+  html.kb-open .view--rapport .doc:has(#mail[contenteditable="true"]):not(:has(#mailTo:focus)) > :not(#mail):not(.docTools) {
+    display: none;
+  }
+  html.kb-open .view--rapport .doc:has(#mail[contenteditable="true"]):not(:has(#mailTo:focus)) .docTools {
+    order: -1;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface, #fff);
+    border-bottom: 1px solid var(--border, #e2e7e4);
+  }
+  html.kb-open .view--rapport #mail[contenteditable="true"] {
+    max-height: max(180px, calc(var(--vvh, 60vh) - 72px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}

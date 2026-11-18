@@ -23,6 +23,7 @@ import { initStreetIndex, loadStreetGeometry } from "./locate.js";
 import * as map from "./map.js";
 import { initCollecte } from "./collecteView.js";
 import { initDashboard, renderDashboard } from "./dashboard.js";
+import { initKeyboard } from "./keyboard.js";
 
 /* ─── Rendu transversal : compteurs, carte, rapport ─── */
 function renderTour({ fresh = -1 } = {}) {
@@ -467,6 +468,7 @@ async function main() {
   bindSettings();
   bindShell();
   syncTabs();
+  initKeyboard();
   watchDay();
   initOfflineBanner();
   initToast();

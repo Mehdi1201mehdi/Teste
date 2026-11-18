@@ -75,6 +75,8 @@
 .view--rapport .reportStats {
   display: flex;
   flex-direction: column;
+  /* components.css (hérité) met align-items: end : les cartes se décalaient. */
+  align-items: stretch;
   gap: var(--s3);
   margin: 0;
 }
@@ -1162,12 +1164,9 @@
   /* Le message défile dans sa carte : l'envoi et la clôture restent visibles. */
   .rpSide {
     position: sticky;
+    align-self: start;
     top: calc(var(--sticky-top, 0px) + var(--s6));
     gap: var(--s3);
-    max-height: calc(100vh - var(--sticky-top, 0px) - var(--s6) * 2);
-    max-height: calc(100dvh - var(--sticky-top, 0px) - var(--s6) * 2);
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
   .rpSide > * {
     flex: 0 0 auto;
@@ -1178,11 +1177,10 @@
     flex-direction: column;
     min-height: 0;
   }
+  /* Aperçu du message affiché EN ENTIER (arbitrage) : la colonne n'est
+     collante que si elle tient à l'écran ; sinon elle défile avec la page. */
   .view--rapport .rpSide .docBody {
-    flex: 1 1 auto;
-    min-height: 200px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    flex: 0 0 auto;
   }
   .view--rapport .doc > :not(.docBody) {
     flex: 0 0 auto;
@@ -1239,5 +1237,17 @@
   .view--rapport .ticketWaste li,
   .segBtn[aria-pressed="true"] {
     border: 1px solid CanvasText;
+  }
+}
+
+/* Ordinateur : aperçu du message affiché en entier ; les boutons d'envoi
+   passent AU-DESSUS de l'aperçu pour rester visibles sans défiler. */
+@media (min-width: 1024px) {
+  .view--rapport .rpSide .sendBar {
+    order: -2;
+    position: static;
+  }
+  .view--rapport .rpSide .sendFallback {
+    order: -1;
   }
 }

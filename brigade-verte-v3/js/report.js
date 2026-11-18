@@ -139,7 +139,7 @@ function buildSegment() {
   box.innerHTML = ["all", ...SECTEURS]
     .map(
       (s) =>
-        `<button type="button" class="segBtn" data-sector="${s}" aria-pressed="false"${s === "all" ? "" : ` style="${secStyle(s)}"`}><span class="segBtn__name">${s === "all" ? "Tous" : esc(sectorName(s))}</span><span class="segBtn__n" aria-hidden="true"></span></button>`,
+        `<button type="button" class="segBtn" data-sector="${s}" aria-pressed="false"${s === "all" ? "" : ` style="${secStyle(s)}"`}><span class="segBtn__name">${s === "all" ? "Tous" : esc(sectorName(s))}</span><span class="segBtn__n"></span></button>`,
     )
     .join("");
   box.querySelectorAll(".segBtn").forEach((b) => {
@@ -164,7 +164,9 @@ function syncSegment() {
       b.querySelector(".segBtn__n").textContent = k;
       b.disabled = s !== "all" && !k;
       b.setAttribute("aria-pressed", String(ledger.sector === s));
-      b.setAttribute("aria-label", `${s === "all" ? "Tous les secteurs" : TITRE[s]} : ${plural(k, "bon")}`);
+      // Nom accessible = texte visible (« Centre » + nombre) ; aria-pressed porte l'état.
+      b.removeAttribute("aria-label");
+      b.title = `${s === "all" ? "Tous les secteurs" : TITRE[s]} : ${plural(k, "bon")}`;
     });
 }
 

@@ -118,7 +118,10 @@ export function go(view, stage = state.stage, { replace = false } = {}) {
 
 export function initRouter() {
   window.addEventListener("popstate", (e) => {
-    const s = e.state || {};
+    // Adresse modifiée à la main (pas d'état d'historique) : c'est l'événement
+    // hashchange ci-dessous qui s'en charge — ne pas repartir sur l'Accueil.
+    if (!e.state) return;
+    const s = e.state;
     const view = VIEWS.includes(s.view) ? s.view : "accueil";
     let stage = clampStage(Number(s.stage) || 1);
     while (stage > 1 && !canEnterStage(stage)) stage--;
@@ -130,9 +133,14 @@ export function initRouter() {
   // qu'un appui sur l'onglet (pushState ne déclenche jamais cet événement).
   window.addEventListener("hashchange", () => {
     const h = window.location.hash.match(/^#(accueil|terrain|rapport|collecte)(?:-(\d))?$/);
-    if (!h) return;
+    const fixUrl = () => window.history.replaceState({ view: state.view, stage: state.stage }, "", hashFor(state.view, state.stage));
+    // Adresse inconnue : on reste sur la vue en cours et l'adresse est corrigée.
+    if (!h) return fixUrl();
     const stage = h[1] === "terrain" && h[2] ? Number(h[2]) : state.stage;
-    if (h[1] !== state.view || stage !== state.stage) go(h[1], stage, { replace: true });
+    if (h[1] !== state.view || stage !== state.stage) {
+      // Étape inaccessible (ex. #terrain-2 sans rue) : on ouvre l'étape possible.
+      if (go(h[1], stage, { replace: true }) !== true) go(h[1], 1, { replace: true });
+    }
   });
   // Seul un lien vers une AUTRE vue compte : au rechargement, l'adresse
   // reflète déjà l'état enregistré, qui fait foi.

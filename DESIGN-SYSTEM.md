@@ -1,4 +1,17 @@
-# Brigade Verte — Design system « Fiche de constat »
+# Brigade Verte — Design system « SaaS métier » (refonte 18/11/2026)
+
+Spécification complète : produite par l'agent UX/UI pendant la refonte et appliquée dans `css/tokens.css` (jetons) et `css/theme.css` (éléments transverses) ; chaque écran a sa feuille : `dashboard.css`, `terrain.css`, `rapport.css`, `collecte.css`.
+
+- **Palette** : vert profond `#17573A` (actions, page active), vert clair `#1E7B47` / `#DDF3E5` (validations), fond `#F3F5F4`, surfaces blanches, texte `#1F2933`, orange `#B84A0E` (alertes uniquement), rouge `#B42318` (suppressions, erreurs). Couleurs de secteur inchangées.
+- **Forme** : cartes blanches, rayons 12–16 px, ombres discrètes, cibles ≥ 44–48 px.
+- **Typographie** : Instrument Sans (interface), JetBrains Mono (n° et aperçu du message).
+- **Navigation** : un seul menu — barre fixe en bas (< 768 px), rail (768–1023 px et téléphone en paysage), barre latérale de 248 px (≥ 1024 px). Réglages dans l'en-tête et en bas de la barre latérale.
+- **Icônes** : Lucide (sprite SVG d'`index.html`), dont une icône par famille de déchets (`#i-fam-…`).
+- **Accessibilité** : contrastes AA vérifiés, focus visibles, `prefers-reduced-motion`, noms accessibles = texte visible.
+
+---
+
+## Version précédente « Fiche de constat » (17/11/2026)
 
 _Refonte visuelle du 17/11/2026. Le principe et les composants ci-dessous restent valables ; l'apparence a changé._
 

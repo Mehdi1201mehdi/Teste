@@ -801,7 +801,10 @@ export function renderComposer() {
     b.toggleAttribute("data-done", done[n] && !current);
     b.setAttribute("aria-disabled", String(!canEnterStage(n)));
     const status = current ? "étape en cours" : done[n] ? "complétée" : canEnterStage(n) ? "à faire" : "verrouillée";
-    b.setAttribute("aria-label", `Étape ${n}, ${b.querySelector(".stageName").textContent} — ${status}`);
+    // Nom accessible = texte visible (« 1 Lieu ») ; l'état est porté par
+    // aria-current="step" et aria-disabled (WCAG 2.5.3 : pas d'aria-label divergent).
+    b.removeAttribute("aria-label");
+    void status;
   });
 
   // Barre d'action

@@ -137,3 +137,15 @@ Pas de Sync Engine ni d'Analytics serveur : l'outil reste **100 % local**, sans 
 - Premier chargement sur réseau très faible : ~10 s (26 modules). Un regroupement (`esbuild --bundle`) le réduirait ; à faire avec un test de mise à jour.
 - Balises de carte placées au point de référence de la rue (pas à la position GPS) ; 3 rues sans secteur dans `streets.json`.
 - Non testé sur appareil réel : Safari iOS, lecteurs d'écran (VoiceOver, TalkBack), gants, plein soleil, ouverture réelle d'Outlook.
+
+
+## 8. Refonte du 18/11/2026 (équipe de sous-agents)
+
+Analyse : audit technique & données, expert métier, designer UX/UI. Réalisation en parallèle avec fichiers attribués : structure/navigation, Accueil, Terrain, Rapports, Collecte. Contrôle : agent QA (12 séries de tests, ~420 vérifications), corrections intégrées par le chef de projet.
+
+- **Nouveau** : écran Accueil (indicateurs réels, accès Terrain/Rapports/Collecte, activité récente, alerte tournée précédente non clôturée), navigation barre basse / barre latérale, date et heure réelles par bon (`createdAt`, `updatedAt`, jamais inventées pour les anciens bons), identifiant stable par bon (`id`).
+- **Terrain** : déchets en grandes cartes par famille, bouton « ENREGISTRER LE DÉPÔT », annulation après enregistrement.
+- **Rapports** : recherche, filtre par secteur, tri, détails ; aperçu complet ; retours visuels sans jamais écrire « envoyé ».
+- **Collecte** : une carte par type, badges Aujourd'hui / Reporté / Férié — à vérifier ; moteur inchangé.
+- **Inchangé** : format du rapport (mail.js, phrase.js, email.js), moteur de collecte, clé de stockage et compatibilité des sauvegardes v3/v4/v5.
+- **Restant** : semaine 53 à confirmer avec Amiens Métropole ; essais sur vrais téléphones (Outlook, GPS) ; un bouton de déchet peut être partiellement couvert par la barre d'action selon le défilement.

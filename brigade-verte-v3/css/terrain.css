@@ -512,12 +512,15 @@
   border: 1px dashed var(--border-strong);
   border-radius: var(--r-lg);
   background: var(--surface);
-  box-shadow: 0 -8px 0 var(--surface); /* masque ce qui défile au-dessus */
+  /* Bandes opaques au-dessus et en dessous : ce qui défile derrière la zone
+     collante ne transparaît jamais (coins compris, rayon réduit). */
+  border-radius: var(--r-md);
+  box-shadow: 0 -8px 0 var(--surface), 0 8px 0 var(--surface);
 }
 .view--terrain .found.has-items {
   border: 1.5px solid var(--ok);
   background: #f4fbf6;
-  box-shadow: 0 -8px 0 var(--surface), var(--sh-2);
+  box-shadow: 0 -8px 0 var(--surface), 0 8px 0 var(--surface), var(--sh-2);
 }
 .view--terrain .found .label {
   margin-bottom: var(--s2);
@@ -1110,5 +1113,30 @@ html:has(.app[data-view="terrain"][data-stage="2"]) {
   }
   .app[data-view="terrain"][data-stage="2"] .composerBody {
     scroll-padding-top: 100px;
+  }
+}
+
+/* ─── Corrections QA ─── */
+/* Noms de famille : coupure à la syllabe (fr), jamais au milieu d'une lettre
+   (« Électro-ménager » et non « Électroménag/er »). */
+.wasteFam__name {
+  overflow-wrap: normal;
+  word-break: normal;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+}
+/* Téléphone en paysage : étapes toujours ≥ 44 px, libellé du bouton entier. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .view--terrain .stageBtn {
+    min-height: 44px;
+  }
+  .view--terrain #stageNext {
+    letter-spacing: 0;
+    font-size: var(--fs-14);
+  }
+  .view--terrain #stageNextLabel {
+    white-space: normal;
+    line-height: 1.15;
+    text-align: center;
   }
 }

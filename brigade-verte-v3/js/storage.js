@@ -27,6 +27,7 @@ function defaultState() {
     version: SCHEMA,
     date: "",
     dateDay: "", // jour où la date a été fixée (passage auto au jour suivant)
+    staleSince: "", // date d'une tournée précédente non clôturée (bons gardés au changement de jour)
     view: "accueil", // "accueil" | "terrain" | "rapport" | "collecte"
     stage: 1, // 1 Lieu · 2 Déchets (enregistrement)
     current: emptyCurrent(),
@@ -115,6 +116,10 @@ function write() {
 
 let quotaWarned = false;
 export function save() {
+  // L'heure de sauvegarde n'est gardée que si l'écriture réussit.
+  const previousSaved = state.lastSaved;
+  // Tournée vidée (clôture, suppressions) : plus de « tournée précédente ».
+  if (!state.bps.length) state.staleSince = "";
   try {
     state.lastSaved = nowHM();
     write();
@@ -134,6 +139,8 @@ export function save() {
         /* toujours plein : l'agent est prévenu ci-dessous */
       }
     }
+    state.lastSaved = previousSaved;
+    if (quota) document.dispatchEvent(new CustomEvent("bv:savefail"));
     if (quota && !quotaWarned) {
       quotaWarned = true;
       document.dispatchEvent(new CustomEvent("bv:quota"));

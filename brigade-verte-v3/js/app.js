@@ -32,7 +32,8 @@ function renderTour({ fresh = -1 } = {}) {
   document.querySelectorAll(".navCount").forEach((nav) => {
     nav.textContent = n;
     nav.toggleAttribute("data-zero", n === 0);
-    nav.closest("[data-view-target]")?.setAttribute("aria-label", `Rapports — ${plural(n, "dépôt")}`);
+    // Nom accessible = texte visible (« Rapports 4 ») : pas d'aria-label (WCAG 2.5.3).
+    nav.closest("[data-view-target]")?.removeAttribute("aria-label");
   });
   $("hudCount").textContent = n;
   $("hudCountLabel").textContent = n > 1 ? "dépôts relevés" : "dépôt relevé";
@@ -215,6 +216,7 @@ function bindSettings() {
       seen.add(b.id);
     });
     state.bps = clean;
+    state.staleSince = "";
     state.mailCustom = "";
     state.editing = null;
     changed();
@@ -259,6 +261,7 @@ function syncTourDate({ announce = true } = {}) {
   const today = todayISO();
   if (state.dateDay === today && state.date) return;
   const changed = state.date && state.date !== today;
+  if (changed && state.bps.length && !state.staleSince) state.staleSince = state.date;
   state.dateDay = today;
   setTourDate(today);
   save();
@@ -407,6 +410,9 @@ async function main() {
   // au retour dans l'appli et à minuit). Un choix manuel dans les Réglages
   // vaut pour la journée en cours.
   const reopenedNextDay = state.date && state.dateDay !== todayISO() && state.date !== todayISO();
+  // Bons gardés d'un jour précédent : on retient la date de cette tournée
+  // (l'Accueil la signale jusqu'à la clôture, même pour des bons sans heure).
+  if (reopenedNextDay && state.bps.length && !state.staleSince) state.staleSince = state.date;
   if (state.dateDay !== todayISO() || !state.date) {
     retimeCustomMail(state.date, todayISO());
     state.date = todayISO();

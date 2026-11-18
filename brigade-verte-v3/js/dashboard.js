@@ -190,7 +190,13 @@ function renderDay(n, today) {
   if (manual) setText(refs.tourDate, `Rapport daté du ${dateFr(state.date)} (choisi dans les réglages)`);
 
   // Bons d'un jour antérieur (horodatage réel) : tournée précédente non clôturée.
-  const old = state.bps.map((b) => dayOf(b.createdAt)).filter((d) => d && d < today).sort();
+  // Bons sans heure gardés au changement de jour : datés de la tournée précédente
+  // retenue par app.js (state.staleSince), jamais d'une heure inventée.
+  const stale = state.staleSince && state.staleSince < today ? state.staleSince : "";
+  const old = state.bps
+    .map((b) => dayOf(b.createdAt) || (stale && !b.createdAt ? stale : ""))
+    .filter((d) => d && d < today)
+    .sort();
   const pill = refs.tour;
   pill.classList.toggle("pill--warn", old.length > 0);
   pill.classList.toggle("pill--live", !old.length && n > 0);
@@ -211,8 +217,28 @@ function renderDay(n, today) {
     );
   }
 
-  setText(refs.save, state.lastSaved ? `Enregistré sur l'appareil · ${state.lastSaved}` : "Enregistré sur l'appareil");
+  renderSave();
 }
+
+/** État de sauvegarde, vrai : « Enregistré · HH:MM » ou alerte si l'écriture échoue. */
+let saveFailed = false;
+function renderSave() {
+  if (!refs.save) return;
+  const pill = refs.save.closest(".pill");
+  pill?.classList.toggle("pill--ok", !saveFailed);
+  pill?.classList.toggle("pill--warn", saveFailed);
+  pill?.querySelector("svg")?.toggleAttribute("hidden", saveFailed);
+  if (saveFailed) setText(refs.save, "Sauvegarde impossible — stockage plein : exportez vos bons (Réglages)");
+  else setText(refs.save, state.lastSaved ? `Enregistré sur l'appareil · ${state.lastSaved}` : "Enregistré sur l'appareil");
+}
+document.addEventListener("bv:saved", () => {
+  saveFailed = false;
+  renderSave();
+});
+document.addEventListener("bv:savefail", () => {
+  saveFailed = true;
+  renderSave();
+});
 
 function renderStats(n, counts) {
   const bps = state.bps;
@@ -352,5 +378,5 @@ export function renderDashboard() {
   renderSectors(n, counts);
   // app.js enregistre juste après le rendu (changed() puis save()) : l'heure
   // de sauvegarde est relue une fois cet enregistrement fait.
-  queueMicrotask(() => setText(refs.save, state.lastSaved ? `Enregistré sur l'appareil · ${state.lastSaved}` : "Enregistré sur l'appareil"));
+  queueMicrotask(renderSave);
 }
